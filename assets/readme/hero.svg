@@ -1,101 +1,102 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
-  <title id="title">AtlasAgent — AI Agent Control Plane</title>
-  <desc id="desc">AtlasAgent turns agent tasks into a traceable timeline of evidence-backed memory, permissioned tool calls, artifacts, and validated checkpoints.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480" viewBox="0 0 1200 480" role="img" aria-labelledby="title desc">
+  <title id="title">AtlasAgent — an auditable AI agent control plane</title>
+  <desc id="desc">A bright, spacious overview of AtlasAgent showing its Task, Memory, Tool, and Checkpoint control loop alongside verified project metrics.</desc>
 
   <defs>
-    <linearGradient id="blue-wash" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3478f6" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#3478f6" stop-opacity="0"/>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f7faff"/>
     </linearGradient>
-    <clipPath id="frame-clip">
-      <rect width="1200" height="420" rx="24"/>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M1 1L6 4L1 7" fill="none" stroke="#9babc0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <clipPath id="frame">
+      <rect width="1200" height="480" rx="28"/>
     </clipPath>
   </defs>
 
-  <g clip-path="url(#frame-clip)">
-    <rect width="1200" height="420" fill="#050506"/>
-    <rect x="0" y="0" width="760" height="320" fill="url(#blue-wash)"/>
-    <path d="M0 320H1200M760 0V320" fill="none" stroke="#24262b"/>
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="480" fill="url(#paper)"/>
+    <circle cx="1110" cy="-10" r="210" fill="#edf4ff"/>
 
-    <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
-      <g transform="translate(54 46)">
-        <circle cx="6" cy="7" r="6" fill="#3478f6"/>
-        <text x="24" y="13" fill="#b5b7bd" font-size="18" font-weight="650" letter-spacing="2.2">AI AGENT CONTROL PLANE</text>
-        <text x="0" y="96" fill="#f3f4f6" font-size="70" font-weight="720" letter-spacing="-3">AtlasAgent</text>
-        <text x="2" y="143" fill="#f3f4f6" font-size="27" font-weight="650">Trace what agents know, do, and recover.</text>
-        <text x="2" y="181" fill="#747780" font-size="20">Evidence-backed memory · permissioned tools · valid checkpoints</text>
-
-        <g transform="translate(0 222)" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="650">
-          <rect width="190" height="38" rx="6" fill="#111215" stroke="#343840"/>
-          <circle cx="20" cy="19" r="5" fill="#27c878"/>
-          <text x="34" y="25" fill="#b5b7bd">EVIDENCE MEMORY</text>
-
-          <rect x="202" width="170" height="38" rx="6" fill="#111215" stroke="#343840"/>
-          <circle cx="222" cy="19" r="5" fill="#3478f6"/>
-          <text x="236" y="25" fill="#b5b7bd">CHECKPOINT DAG</text>
-
-          <rect x="384" width="174" height="38" rx="6" fill="#111215" stroke="#343840"/>
-          <circle cx="404" cy="19" r="5" fill="#a978ff"/>
-          <text x="418" y="25" fill="#b5b7bd">AUDITED TOOLS</text>
-        </g>
+    <g id="identity" transform="translate(64 56)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+      <g transform="translate(0 0)">
+        <circle cx="7" cy="7" r="7" fill="#3268d6"/>
+        <text x="26" y="13" fill="#607089" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="650" letter-spacing="1.5">AI AGENT CONTROL PLANE</text>
       </g>
 
-      <g transform="translate(798 28)">
-        <text x="0" y="20" fill="#747780" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" letter-spacing="1.5">RUN / ATLAS-042</text>
-        <rect x="282" y="0" width="88" height="30" rx="15" fill="#0e2d1f" stroke="#1b7047"/>
-        <circle cx="300" cy="15" r="5" fill="#27c878"/>
-        <text x="313" y="21" fill="#76e0aa" font-size="16" font-weight="700">ACTIVE</text>
+      <text x="-3" y="112" fill="#172033" font-size="76" font-weight="740" letter-spacing="-3.2">AtlasAgent</text>
+      <text x="0" y="164" fill="#2a3950" font-size="28" font-weight="650">Trace what agents know and do.</text>
+      <text x="0" y="201" fill="#2a3950" font-size="28" font-weight="650">Recover from validated checkpoints.</text>
 
-        <path d="M16 70V256" fill="none" stroke="#343840" stroke-width="2"/>
+      <path d="M0 246H470" stroke="#dce4ee" stroke-width="1.5"/>
+      <text x="0" y="278" fill="#607089" font-size="19">Evidence-backed memory · permissioned tools</text>
+      <text x="0" y="314" fill="#8290a4" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">FASTAPI  /  NEXT.JS  /  ELECTRON  /  TEXTUAL</text>
+    </g>
 
-        <g transform="translate(0 58)">
-          <circle cx="16" cy="12" r="8" fill="#3478f6" stroke="#77a8ff" stroke-width="2"/>
-          <text x="44" y="9" fill="#747780" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">01 · TASK</text>
-          <text x="44" y="34" fill="#f3f4f6" font-size="21" font-weight="650">Acceptance criteria locked</text>
-        </g>
+    <g id="control-loop" transform="translate(660 46)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+      <text x="0" y="18" fill="#607089" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="650" letter-spacing="1.4">TRACEABLE CONTROL LOOP</text>
+      <text x="406" y="18" text-anchor="end" fill="#8290a4" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">01 → 04</text>
 
-        <g transform="translate(0 122)">
-          <circle cx="16" cy="12" r="8" fill="#27c878"/>
-          <text x="44" y="9" fill="#747780" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">02 · MEMORY</text>
-          <text x="44" y="34" fill="#f3f4f6" font-size="21" font-weight="650">Source-linked facts verified</text>
-        </g>
+      <path d="M34 66V268" fill="none" stroke="#c8d4e3" stroke-width="2" marker-end="url(#arrow)"/>
 
-        <g transform="translate(0 186)">
-          <circle cx="16" cy="12" r="8" fill="#a978ff"/>
-          <text x="44" y="9" fill="#747780" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">03 · TOOL</text>
-          <text x="44" y="34" fill="#f3f4f6" font-size="21" font-weight="650">Permissions + idempotency</text>
-        </g>
-
-        <g transform="translate(0 250)">
-          <circle cx="16" cy="12" r="8" fill="#27c878"/>
-          <text x="44" y="9" fill="#747780" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">04 · CHECKPOINT</text>
-          <text x="44" y="34" fill="#f3f4f6" font-size="21" font-weight="650">State hash + artifacts valid</text>
-        </g>
+      <g transform="translate(0 52)">
+        <circle cx="34" cy="22" r="22" fill="#ffffff" stroke="#3268d6" stroke-width="2"/>
+        <text x="34" y="29" text-anchor="middle" fill="#3268d6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">01</text>
+        <text x="78" y="18" fill="#172033" font-size="23" font-weight="700">Task</text>
+        <text x="78" y="44" fill="#607089" font-size="18">Explicit goal + acceptance criteria</text>
       </g>
 
-      <g transform="translate(0 320)">
-        <g transform="translate(54 34)">
-          <text x="0" y="16" fill="#f3f4f6" font-size="24" font-weight="720">38</text>
-          <text x="42" y="15" fill="#747780" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">API TESTS</text>
-        </g>
-        <path d="M282 18V82" stroke="#24262b"/>
-        <g transform="translate(326 34)">
-          <text x="0" y="16" fill="#f3f4f6" font-size="24" font-weight="720">72</text>
-          <text x="42" y="15" fill="#747780" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">OPENAPI PATHS</text>
-        </g>
-        <path d="M576 18V82" stroke="#24262b"/>
-        <g transform="translate(620 34)">
-          <text x="0" y="16" fill="#f3f4f6" font-size="24" font-weight="720">3</text>
-          <text x="28" y="15" fill="#747780" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">CLIENTS</text>
-        </g>
-        <path d="M840 18V82" stroke="#24262b"/>
-        <g transform="translate(884 34)">
-          <text x="0" y="16" fill="#f3f4f6" font-size="24" font-weight="720">0–73</text>
-          <text x="66" y="15" fill="#747780" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">LESSONS</text>
-        </g>
+      <g transform="translate(0 122)">
+        <circle cx="34" cy="22" r="22" fill="#ffffff" stroke="#3268d6" stroke-width="2"/>
+        <text x="34" y="29" text-anchor="middle" fill="#3268d6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">02</text>
+        <text x="78" y="18" fill="#172033" font-size="23" font-weight="700">Memory</text>
+        <text x="78" y="44" fill="#607089" font-size="18">Source-linked facts only</text>
+      </g>
+
+      <g transform="translate(0 192)">
+        <circle cx="34" cy="22" r="22" fill="#ffffff" stroke="#3268d6" stroke-width="2"/>
+        <text x="34" y="29" text-anchor="middle" fill="#3268d6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">03</text>
+        <text x="78" y="18" fill="#172033" font-size="23" font-weight="700">Tool</text>
+        <text x="78" y="44" fill="#607089" font-size="18">Permissions guard side effects</text>
+      </g>
+
+      <g transform="translate(0 262)">
+        <circle cx="34" cy="22" r="22" fill="#e9f7f2" stroke="#2a9675" stroke-width="2"/>
+        <path d="M24 22L31 29L44 15" fill="none" stroke="#2a9675" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="78" y="18" fill="#172033" font-size="23" font-weight="700">Checkpoint</text>
+        <text x="78" y="44" fill="#607089" font-size="18">State + artifacts validated</text>
+      </g>
+    </g>
+
+    <g id="proof" transform="translate(0 382)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+      <rect width="1200" height="98" fill="#f4f7fb"/>
+      <path d="M0 0H1200" stroke="#dce4ee" stroke-width="1.5"/>
+
+      <g transform="translate(64 25)">
+        <text x="0" y="28" fill="#172033" font-size="32" font-weight="740">38</text>
+        <text x="54" y="25" fill="#607089" font-size="18">backend tests</text>
+      </g>
+      <path d="M300 22V76" stroke="#dce4ee"/>
+
+      <g transform="translate(344 25)">
+        <text x="0" y="28" fill="#172033" font-size="32" font-weight="740">72</text>
+        <text x="54" y="25" fill="#607089" font-size="18">OpenAPI paths</text>
+      </g>
+      <path d="M602 22V76" stroke="#dce4ee"/>
+
+      <g transform="translate(646 25)">
+        <text x="0" y="28" fill="#172033" font-size="32" font-weight="740">3</text>
+        <text x="30" y="25" fill="#607089" font-size="18">clients</text>
+      </g>
+      <path d="M852 22V76" stroke="#dce4ee"/>
+
+      <g transform="translate(896 25)">
+        <text x="0" y="28" fill="#172033" font-size="32" font-weight="740">0–73</text>
+        <text x="84" y="25" fill="#607089" font-size="18">guided lessons</text>
       </g>
     </g>
   </g>
 
-  <rect x="0.5" y="0.5" width="1199" height="419" rx="23.5" fill="none" stroke="#343840"/>
+  <rect x="0.75" y="0.75" width="1198.5" height="478.5" rx="27.25" fill="none" stroke="#dce4ee" stroke-width="1.5"/>
 </svg>

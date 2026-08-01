@@ -1,15 +1,8 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="AtlasAgent turns agent tasks into a traceable timeline of evidence-backed memory, permissioned tools, artifacts, and validated checkpoints">
+  <img src="./assets/readme/hero.svg" width="100%" alt="AtlasAgent makes agent memory, tool effects, and recovery checkpoints traceable and controllable">
 </p>
 
 <div align="center">
-
-[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
-[![Electron](https://img.shields.io/badge/Electron-43-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
-[![Textual](https://img.shields.io/badge/TUI-Textual-7B2CBF)](https://textual.textualize.io/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 
 [快速开始](#快速开始) · [核心能力](#核心能力) · [运行机制](#运行机制) · [三个客户端](#三个客户端) · [完整教程](tutorial/README.md)
 
