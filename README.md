@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="AtlasAgent makes agent memory, tool effects, and recovery checkpoints traceable and controllable">
+  <img src="./assets/readme/hero-editorial.webp" width="100%" alt="AtlasAgent — an auditable agent control plane for traceable memory, governed tools, and verified recovery">
 </p>
 
 <div align="center">
@@ -31,6 +31,10 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 
 ## 核心能力
 
+<p align="center">
+  <img src="./assets/readme/evidence-chain.webp" width="100%" alt="AtlasAgent evidence chain from events and memory through tool audit and artifacts to verified checkpoints">
+</p>
+
 | 控制边界 | AtlasAgent 如何处理 | 关键机制 |
 | --- | --- | --- |
 | **Evidence-backed Memory** | 只把仍然有效、来源明确且通过门禁的事实注入上下文 | 类型化记忆、Write Gate、证据链、作用域、有效期、替代关系、可解释检索 |
@@ -42,9 +46,29 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 
 ## 运行机制
 
+<p align="center">
+  <img src="./assets/readme/checkpoint-recovery.webp" width="100%" alt="AtlasAgent checkpoint timeline showing state verification and recovery from a failed run">
+</p>
+
+控制面的事实优先级很明确：**原始事件与 Artifact 是事实源，任务状态是可重建的物化视图，Checkpoint 是经过验证的恢复点。**
+
+一次任务会沿着这条链路推进：
+
+1. 创建带目标和验收标准的结构化任务。
+2. 从候选记忆中筛选有来源、未过期且相关的事实。
+3. 工具进入统一 Runtime，先经过风险、权限和幂等检查，再执行 handler。
+4. 大输出转为内容寻址 Artifact，调用过程写入审计记录。
+5. 状态哈希、环境指纹和校验报告共同生成可恢复 Checkpoint。
+
+<details>
+<summary><strong>展开完整系统拓扑</strong></summary>
+
+<br>
+
 ```mermaid
-flowchart TD
+flowchart LR
     subgraph Clients["客户端"]
+        direction TB
         Web["Web · Next.js"]
         Desktop["Desktop · Electron"]
         TUI["TUI · Textual"]
@@ -54,12 +78,14 @@ flowchart TD
     API["FastAPI Control Plane"]
 
     subgraph Runtime["Agent Runtime"]
+        direction TB
         Planner["Planning & Events"]
         Tools["Tool Runtime"]
         Memory["Memory & Checkpoints"]
     end
 
     subgraph Data["事实与基础设施"]
+        direction TB
         Postgres["PostgreSQL"]
         Redis["Redis"]
         Sandbox["Sandbox & Artifacts"]
@@ -77,15 +103,7 @@ flowchart TD
     Memory --> Postgres
 ```
 
-控制面的事实优先级很明确：**原始事件与 Artifact 是事实源，任务状态是可重建的物化视图，Checkpoint 是经过验证的恢复点。**
-
-一次任务会沿着这条链路推进：
-
-1. 创建带目标和验收标准的结构化任务。
-2. 从候选记忆中筛选有来源、未过期且相关的事实。
-3. 工具进入统一 Runtime，先经过风险、权限和幂等检查，再执行 handler。
-4. 大输出转为内容寻址 Artifact，调用过程写入审计记录。
-5. 状态哈希、环境指纹和校验报告共同生成可恢复 Checkpoint。
+</details>
 
 ## 快速开始
 
@@ -133,6 +151,10 @@ CLEAN_VOLUMES=true ./scripts/stop.sh
 > 默认网关端口为 `8088`。端口冲突时设置 `NGINX_PORT=18088` 后重新启动。
 
 ## 三个客户端
+
+<p align="center">
+  <img src="./assets/readme/three-clients.webp" width="100%" alt="AtlasAgent Web, Electron desktop, and Textual TUI clients connected to one FastAPI control plane">
+</p>
 
 | 客户端 | 最适合 | 特色 |
 | --- | --- | --- |
