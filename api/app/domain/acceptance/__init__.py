@@ -1,0 +1,1 @@
+"""Product acceptance domain package."""

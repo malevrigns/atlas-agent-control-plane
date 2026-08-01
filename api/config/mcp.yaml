@@ -1,0 +1,25 @@
+mcp:
+  enabled: true
+  default_server: demo
+
+servers:
+  demo:
+    enabled: true
+    transport: demo
+    description: "内置 MCP 演示 Server，用于第 32 章验证工具发现和调用链路。"
+
+  example_stdio:
+    enabled: false
+    transport: stdio
+    command: "python"
+    args:
+      - "-m"
+      - "your_mcp_server"
+    description: "stdio MCP Server 配置示例。启用前需要替换成真实命令。"
+
+  example_http:
+    enabled: false
+    transport: streamable_http
+    url: "http://localhost:8765/mcp"
+    description: "Streamable HTTP MCP Server 配置示例。启用前需要替换成真实地址。"
+

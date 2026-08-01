@@ -1,0 +1,57 @@
+cases:
+  - id: browser_observation
+    title: 浏览器观察任务
+    task: 请访问 https://example.com 并截图观察页面
+    description: 验证浏览器工具是否能完成打开网页和截图这条基础链路。
+    tags:
+      - browser
+      - tool
+      - regression
+    expectation:
+      required_events:
+        - message_created
+        - plan_created
+        - task_done
+      required_tools:
+        - browser_open
+        - browser_screenshot
+      required_files: []
+      forbidden_events:
+        - task_error
+  - id: context_memory_summary
+    title: 上下文和记忆摘要任务
+    task: 根据最近消息和长期记忆，整理一份当前项目风险摘要
+    description: 验证上下文工程、长期记忆检索和最终总结事件是否能形成闭环。
+    tags:
+      - context
+      - memory
+      - regression
+    expectation:
+      required_events:
+        - message_created
+        - context_retrieved
+        - memory_retrieved
+        - task_done
+      required_tools: []
+      required_files: []
+      forbidden_events:
+        - task_error
+  - id: multi_agent_delivery_plan
+    title: 多 Agent 交付计划任务
+    task: 让多个 Agent 分工协作，制定一个上线前检查计划
+    description: 验证多 Agent 协作事件是否能进入统一事件流。
+    tags:
+      - multi_agent
+      - planning
+      - regression
+    expectation:
+      required_events:
+        - message_created
+        - plan_created
+        - multi_agent_collaborated
+        - task_done
+      required_tools:
+        - multi_agent_collaborate
+      required_files: []
+      forbidden_events:
+        - task_error

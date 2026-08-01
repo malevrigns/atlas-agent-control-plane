@@ -1,0 +1,42 @@
+a2a:
+  enabled: true
+  default_agent: demo_researcher
+
+agents:
+  demo_researcher:
+    enabled: true
+    transport: demo
+    name: ResearchAssistantAgent
+    description: "内置 A2A 演示 Agent，用于第 35 章验证远程 Agent 调用链路。"
+    url: "demo://research-assistant"
+    version: "0.1.0"
+    timeout_seconds: 10
+    capabilities:
+      - name: research_brief
+        description: "阅读任务文本，返回一段结构化研究摘要。"
+        input_modes:
+          - text
+        output_modes:
+          - text
+      - name: source_outline
+        description: "根据主题生成资料收集大纲。"
+        input_modes:
+          - text
+        output_modes:
+          - text
+
+  example_http:
+    enabled: false
+    transport: http
+    name: ExternalAgent
+    description: "真实 A2A HTTP Agent 配置示例。启用前需要替换成真实地址。"
+    url: "http://localhost:9000"
+    version: "0.1.0"
+    timeout_seconds: 15
+    capabilities:
+      - name: remote_task
+        description: "远程 Agent 暴露的任务能力示例。"
+        input_modes:
+          - text
+        output_modes:
+          - text

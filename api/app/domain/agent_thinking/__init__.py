@@ -1,0 +1,2 @@
+"""Agent thinking domain objects."""
+
