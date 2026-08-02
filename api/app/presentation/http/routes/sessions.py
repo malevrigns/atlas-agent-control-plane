@@ -465,6 +465,7 @@ async def get_agent_task(
 )
 async def cancel_agent_task(
     task_id: str,
+    request: Request,
     queue: RedisAgentTaskQueue = Depends(get_task_queue),
 ) -> ApiResponse[AgentTaskResponse]:
     task = await queue.cancel_task(task_id)
@@ -474,6 +475,7 @@ async def cancel_agent_task(
             code=404,
             status_code=404,
         )
+    request.app.state.task_runner.cancel_task(task_id)
     return ApiResponse(data=to_agent_task_response(task))
 
 

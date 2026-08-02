@@ -49,7 +49,7 @@ class AtlasTui(App):
     def __init__(self) -> None:
         super().__init__()
         base_url = os.getenv("ATLAS_API_URL", "http://localhost:8088")
-        self.api = AtlasApiClient(base_url)
+        self.api = AtlasApiClient(base_url, api_key=os.getenv("ATLAS_API_KEY", ""))
         self.sessions: list[dict[str, Any]] = []
         self.tasks: list[dict[str, Any]] = []
         self.checkpoints: list[dict[str, Any]] = []

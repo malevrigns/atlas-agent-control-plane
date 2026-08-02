@@ -125,7 +125,26 @@ Content-Type: application/json
 
 Artifact 接口接收文件与元数据，按内容 SHA-256 存储。工具大输出也会自动转为 Artifact，上下文只保留脱敏预览和制品引用。
 
-## 69.7 本章验收
+## 69.7 Checkpoint 恢复与继续
+
+创建 Checkpoint 后，最终版本还提供带乐观锁的恢复接口：
+
+```http
+POST /api/control-plane/tasks/{task_id}/checkpoints/{checkpoint_id}/restore
+Content-Type: application/json
+X-Atlas-API-Key: <key>
+
+{
+  "expected_version": 3,
+  "resume": false
+}
+```
+
+服务端会重新计算快照哈希、检查 `validator_report.valid`、确认 Checkpoint 属于目标任务，再恢复任务物化状态。`resume=false` 适合先人工核对；`resume=true` 会把任务状态改为 `running`。恢复的是控制面状态与引用，不会假装撤销已经发生的外部副作用。
+
+恢复接口只接受白名单内的任务物化字段，不会把快照中的未知数据直接写回数据库。客户端应先读取当前任务版本，把它作为 `expected_version` 提交；若任务已被其他操作者修改，服务返回冲突，要求重新核对，避免旧快照覆盖新状态。
+
+## 69.8 本章验收
 
 ```bash
 cd api
@@ -140,6 +159,6 @@ uv run python -m unittest tests.test_checkpoint_service tests.test_memory_contro
 - 无 provenance 的候选记忆不能进入 verified；
 - 过期、被替代或敏感记忆不会注入普通上下文。
 
-## 69.8 本章小结
+## 69.9 本章小结
 
 记忆不再是“一段模型说过的话”，而是带类型、证据、作用域、时效和替代关系的可治理数据。Checkpoint 也不是随手摘要，而是可校验、可定位事件范围、可验证恢复的状态节点。

@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +10,8 @@ class Settings(BaseSettings):
     sandbox_env: str = "development"
     sandbox_version: str = "0.1.0"
     sandbox_api_prefix: str = "/api"
+    sandbox_auth_enabled: bool = False
+    atlas_api_key: SecretStr = SecretStr("")
     log_level: str = "INFO"
 
     # ----- 沙箱工作目录：后续文件、Shell、浏览器下载都限制在这里 -----

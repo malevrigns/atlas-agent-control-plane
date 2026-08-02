@@ -21,8 +21,6 @@ class LLMProviderConfig(BaseModel):
     base_url: str
     # 这里保存的是环境变量名称，不是真实密钥，避免把密钥写进配置文件。
     api_key_env: str = ""
-    # 本地运行时配置可以保存真实密钥。该文件位于 runtime-config 并被 .gitignore 排除。
-    api_key: str | None = None
     timeout_seconds: float = Field(gt=0)
 
 
@@ -37,7 +35,7 @@ class LLMConfig(BaseModel):
 def load_llm_config() -> LLMConfig:
     path = Path(settings.llm_config_path)
     if not path.is_file():
-        path = Path("config/llm.yaml")
+        path = Path(__file__).resolve().parents[2] / "config/llm.yaml"
     if not path.is_file():
         raise AppException(
             message=f"LLM config file not found: {settings.llm_config_path}",

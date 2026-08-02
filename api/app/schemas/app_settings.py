@@ -5,11 +5,8 @@ from pydantic import BaseModel, Field
 
 SettingsIntegrationKind = Literal[
     "llm",
-    "search",
     "mcp",
     "a2a",
-    "multi_agent",
-    "sandbox",
 ]
 
 

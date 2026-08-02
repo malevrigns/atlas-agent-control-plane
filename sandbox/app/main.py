@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.router import api_router
+from app.core.auth import SandboxApiKeyMiddleware
 from app.core.config import settings
 from app.core.handlers import register_exception_handlers
 from app.core.logging import configure_logging
@@ -15,6 +16,7 @@ def create_app() -> FastAPI:
         title=settings.sandbox_app_name,
         version=settings.sandbox_version,
     )
+    app.add_middleware(SandboxApiKeyMiddleware, settings=settings)
 
     # ===================== 第3步：注册统一异常，并挂载 /api 路由 =====================
     register_exception_handlers(app)

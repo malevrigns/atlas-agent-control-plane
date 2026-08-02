@@ -14,12 +14,23 @@ export class ApiRequestError extends Error {
   }
 }
 
+export async function createApiSession(apiKey: string): Promise<void> {
+  const response = await fetch("/api/auth/session", {
+    method: "POST",
+    headers: { "X-Atlas-API-Key": apiKey },
+  });
+  if (!response.ok) {
+    throw new ApiRequestError("API Key 无效", response.status, response.status, null);
+  }
+}
+
 export async function requestApi<T>(
   url: string,
   init?: RequestInit,
 ): Promise<T> {
   const response = await fetch(url, {
     ...init,
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
       ...init?.headers,

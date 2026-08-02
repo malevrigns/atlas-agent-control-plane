@@ -1,5 +1,7 @@
 # 第二十章. AgentTaskRunner 与 Redis Stream 任务流转
 
+> **最终实现修订：**本章前半先用单消费者 `XREAD` 解释后台任务模型；本章后半再把它升级为 Redis Consumer Group、pending reclaim、ACK 和真实协程取消。不要把教学过程中的 `$` 起点实现直接用于生产。
+
 ## 20.1 本章目标
 ​        第 19 章已经把计划执行跑通了，但同步 HTTP 请求只能支撑教学级短任务。真实 Agent 一旦开始访问网页、读取文件、运行 Shell、调用多个工具，执行时间就可能从几秒变成几分钟。浏览器一直等一个请求返回，不利于取消、状态展示、失败恢复，也不利于后续扩展多 worker。
 ​        本章会把“点击执行”改造成后台任务模型。API 只负责把计划执行任务写入 Redis Stream，并立即返回 `task_id`；任务状态保存在 Redis Hash 中，供前端轮询查询；`AgentTaskRunner` 在 FastAPI 生命周期中启动后台循环，消费 Stream 里的任务，并复用第 19 章的 `ReActAgentService` 执行计划。前端会显示任务状态，支持取消，并在轮询过程中刷新事件和步骤状态。
@@ -1762,29 +1764,57 @@ http://localhost:8088
 
 ​        在页面里验证时，先创建或选择一个会话，输入任务并发送，再点击“生成”得到计划。随后点击“执行”，计划面板应当显示后台任务状态，从 `queued` 进入 `running`，最后变成 `succeeded`。任务完成后，事件记录里应当出现步骤执行事件，计划步骤也应当更新为 `completed`。这说明 API 入队、Runner 消费、事件写入和前端轮询都已经接通。
 
-## 20.12 常见问题
+## 20.12 最终实现修订：可靠消费与真实取消
 
-### 20.12.1 API 启动失败并提示 Redis 连接不上怎么办
+前面的单消费者版本便于理解，但它从 Redis Stream 的 `$` 开始读取。API 在消息入队后、Runner 处理前重启时，这条消息可能永远不会再被读取。交付版改用 Consumer Group：
+
+```text
+XGROUP CREATE atlas:tasks atlas-agent-runner 0-0 MKSTREAM
+XREADGROUP GROUP atlas-agent-runner <consumer> STREAMS atlas:tasks >
+XAUTOCLAIM atlas:tasks atlas-agent-runner <consumer> <idle-ms> 0-0
+XACK atlas:tasks atlas-agent-runner <message-id>
+```
+
+四个动作分别解决首次建组、消费新消息、接管崩溃消费者留下的 pending 消息和处理完成确认。Runner 只有在任务进入终态后才 ACK；异常退出留下的消息会在下次启动时被认领，因此交付版提供的是 **at-least-once**，不是 exactly-once。工具副作用仍要依赖第 70 章的幂等键去重。
+
+Runner 同时保存 `task_id -> asyncio.Task` 的活动任务映射。取消接口不再只改 Redis 状态，而是先把状态写成 `stopped`，再调用协程的 `cancel()`。这能停止尚未完成的 Python 协程，但不能自动撤销已经提交到数据库、浏览器或外部服务的副作用；长工具还应实现自己的取消协议或补偿动作。
+
+服务关闭与用户取消必须区别处理：用户取消已经产生明确终态，因此消息可以 ACK；服务关闭只是执行权转移，Runner 会取消本进程协程但不 ACK，消息继续留在 pending，等待下一实例接管。
+
+Compose 中 Redis 使用 `noeviction`，避免内存压力下静默淘汰任务 Hash 或 Stream。正式环境还应配置持久化、监控 pending 数量，并为失败次数过多的消息增加死信处理。
+
+相应的可靠性验收至少包括：
+
+1. 消息入队后重启 API，旧消息仍会被消费；
+2. Runner 中途退出后，pending 消息可被 `XAUTOCLAIM` 接管；
+3. 成功、失败和取消任务最终都会 ACK；
+4. 取消运行中任务后，执行协程确实停止；
+5. 重复交付消息不会造成工具副作用重复执行。
+6. 服务关闭时运行中消息不 ACK，用户取消的消息才进入终态并 ACK。
+
+## 20.13 常见问题
+
+### 20.13.1 API 启动失败并提示 Redis 连接不上怎么办
 ​        第 20 章的 API 启动时会连接 Redis，并在 `lifespan` 里执行 `redis.ping()`。先执行 `docker compose ps`，确认 `atlas-redis` 是否运行并健康。如果 Redis 刚启动完成，可以执行 `docker compose restart api nginx`，让 API 重新建立 Redis 连接，再让 Nginx 重新代理到健康的 API 容器。
 
-### 20.12.2 点击执行后一直是 `queued` 怎么办
+### 20.13.2 点击执行后一直是 `queued` 怎么办
 ​        这说明任务已经写入 Redis Hash 和 Stream，但 Runner 没有成功消费。优先查看 API 日志：`docker compose logs --tail=100 api`。如果日志里有 Redis 连接、数据库连接或 Runner 循环异常，要先解决 Runner 启动问题；如果 API 没有重新构建，也可能仍然运行着上一章的旧代码。
 
-### 20.12.3 任务状态是 `succeeded` 但页面步骤没更新怎么办
+### 20.13.3 任务状态是 `succeeded` 但页面步骤没更新怎么办
 ​        任务成功只说明 Runner 已经执行完成，页面步骤还依赖事件列表刷新。可以刷新页面，或者直接检查 `GET /api/sessions/{session_id}/events` 是否包含 `step_completed`。如果事件存在但页面没更新，要检查前端是否在轮询任务状态时同步刷新事件并调用 `applyExecutionEvents()`。
 
-### 20.12.4 取消按钮为什么有时来不及取消
-​        本章任务执行很快，取消只能尽力标记任务状态。如果 Runner 已经开始并很快执行完，取消请求可能晚于任务完成。真正可中断的长任务需要在工具执行循环里加入更多中断检查点，后续沙箱工具和长任务章节会继续加强。
+### 20.13.4 取消按钮为什么有时来不及取消
+​        交付版会取消正在执行的协程，但取消请求仍可能晚于任务完成，也不能撤销已经发生的外部副作用。长任务应在循环中设置取消检查点；外部工具还要提供幂等键、取消协议或补偿动作。
 
-### 20.12.5 为什么不用 Celery
+### 20.13.5 为什么不用 Celery
 ​        Celery 是成熟方案，但本项目此时更需要让读者看清 Agent 任务、事件、状态和 Runner 之间的底层关系。Redis Stream 更轻量，也更容易和后续事件流、任务状态轮询和多 Agent 调度模型衔接。等理解了这一层，再替换成 Celery、RQ 或其他队列方案并不困难。
 
-## 20.13 本章小结
+## 20.14 本章小结
 ​        本章完成了 Agent 后台任务的第一版闭环。后端增加 Redis 客户端依赖和任务配置，使用 Redis Stream 保存待执行任务，使用 Redis Hash 保存任务状态，并编写 `AgentTaskRunner` 在后台消费任务；FastAPI 启动时会创建 Redis 连接、任务队列和 Runner，关闭时会停止后台循环并释放连接。接口层新增了启动任务、查询任务和取消任务三类能力。
 ​        前端计划面板不再只是等待同步接口返回，而是会先拿到任务状态，再轮询任务进度，刷新事件列表和步骤状态。从这一章开始，Agent 执行不再依赖单个 HTTP 请求等待完成。后续长任务、沙箱工具、浏览器操作和用户中断都会建立在这个后台任务模型上。
 
-## 20.14 下一章预告
+## 20.15 下一章预告
 ​        第 21 章会进入上下文工程，处理长任务执行中的记忆压缩、上下文裁剪、文件系统替代消息列表等问题。
 
-## 20.15 代码
+## 20.16 代码
 ​        暂时无法在飞书文档外展示此内容

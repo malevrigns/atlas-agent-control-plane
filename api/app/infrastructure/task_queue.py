@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+import os
+import socket
 from uuid import UUID, uuid4
 
 from redis.asyncio import Redis
+from redis.exceptions import ResponseError
 
 from app.core.config import settings
 
@@ -33,6 +36,12 @@ class AgentTask:
     retry_count: int = 0
 
 
+@dataclass(slots=True)
+class QueuedTaskMessage:
+    id: str
+    payload: dict
+
+
 class RedisAgentTaskQueue:
     """基于 Redis Stream 的 Agent 任务队列。
 
@@ -44,6 +53,55 @@ class RedisAgentTaskQueue:
         # ===================== 第1步：保存 Redis 连接和 Stream 名称 =====================
         self.redis = redis
         self.stream_name = stream_name or settings.agent_task_stream
+        self.consumer_group = settings.agent_task_consumer_group
+        self.consumer_name = f"{socket.gethostname()}-{os.getpid()}-{uuid4().hex[:8]}"
+
+    async def ensure_consumer_group(self) -> None:
+        """Create a group at 0-0 so messages queued before startup are not skipped."""
+
+        try:
+            await self.redis.xgroup_create(
+                self.stream_name,
+                self.consumer_group,
+                id="0-0",
+                mkstream=True,
+            )
+        except ResponseError as exc:
+            if "BUSYGROUP" not in str(exc):
+                raise
+
+    async def read_messages(self, *, count: int = 1) -> list[QueuedTaskMessage]:
+        streams = await self.redis.xreadgroup(
+            self.consumer_group,
+            self.consumer_name,
+            {self.stream_name: ">"},
+            block=settings.agent_task_poll_timeout_ms,
+            count=count,
+        )
+        return self._flatten_streams(streams)
+
+    async def claim_stale_messages(self, *, count: int = 100) -> list[QueuedTaskMessage]:
+        result = await self.redis.xautoclaim(
+            self.stream_name,
+            self.consumer_group,
+            self.consumer_name,
+            min_idle_time=settings.agent_task_claim_idle_ms,
+            start_id="0-0",
+            count=count,
+        )
+        messages = result[1] if len(result) > 1 else []
+        return [QueuedTaskMessage(id=str(message_id), payload=dict(payload)) for message_id, payload in messages]
+
+    async def acknowledge(self, message_id: str) -> None:
+        await self.redis.xack(self.stream_name, self.consumer_group, message_id)
+
+    @staticmethod
+    def _flatten_streams(streams: list) -> list[QueuedTaskMessage]:
+        return [
+            QueuedTaskMessage(id=str(message_id), payload=dict(payload))
+            for _, messages in streams
+            for message_id, payload in messages
+        ]
 
     # ===================== 第2步：创建任务并写入 Stream =====================
     async def enqueue_execute_plan(

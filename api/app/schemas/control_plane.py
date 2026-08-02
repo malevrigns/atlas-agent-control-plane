@@ -80,6 +80,17 @@ class CheckpointListResponse(BaseModel):
     items: list[CheckpointResponse]
 
 
+class CheckpointRestoreRequest(BaseModel):
+    expected_version: int = Field(ge=1)
+    resume: bool = False
+
+
+class CheckpointRestoreResponse(BaseModel):
+    checkpoint_id: UUID
+    resumed: bool
+    task: TaskStateResponse
+
+
 class ArtifactResponse(BaseModel):
     id: UUID
     sha256: str

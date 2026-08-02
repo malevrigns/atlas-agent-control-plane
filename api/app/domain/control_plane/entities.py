@@ -7,6 +7,7 @@ from uuid import UUID
 class TaskStateStatus(StrEnum):
     pending = "pending"
     running = "running"
+    paused = "paused"
     blocked = "blocked"
     completed = "completed"
     failed = "failed"
@@ -89,4 +90,3 @@ class CheckpointValidation:
     errors: list[str]
     warnings: list[str]
     inherited_constraints: list[str]
-

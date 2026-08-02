@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 import json
+import os
 from os import getenv
 from pathlib import Path
-from uuid import uuid4
+from tempfile import NamedTemporaryFile
 
 import yaml
 
@@ -10,11 +11,12 @@ from app.application.a2a_service import A2aService
 from app.application.llm_service import LLMService
 from app.application.mcp_service import McpService
 from app.application.multi_agent_service import MultiAgentService
-from app.core.a2a_config import load_a2a_config
+from app.core.a2a_config import A2aConfig, load_a2a_config
 from app.core.config import settings
 from app.core.llm_config import load_llm_config
-from app.core.mcp_config import load_mcp_config
+from app.core.mcp_config import McpConfig, load_mcp_config
 from app.core.exceptions import AppException
+from app.core.module_policy import module_enabled, set_module_enabled
 
 
 @dataclass(slots=True)
@@ -75,11 +77,6 @@ class AppSettingsService:
         self.a2a_service = a2a_service or A2aService()
         self.multi_agent_service = multi_agent_service or MultiAgentService()
 
-        # ===================== 第2步：保存运行时覆盖状态 =====================
-        # module_overrides 只影响设置页展示，配置项的真实增删改由专门方法写入 YAML。
-        self.module_overrides: dict[str, dict[str, object]] = {}
-        self.integrations: dict[str, SettingsIntegration] = {}
-
     # ===================== 第3步：读取完整设置快照 =====================
     def get_snapshot(self) -> AppSettingsSnapshot:
         """返回设置页需要展示的完整快照。"""
@@ -94,7 +91,7 @@ class AppSettingsService:
         ]
         return AppSettingsSnapshot(
             modules=[self._apply_override(module) for module in modules],
-            integrations=list(self.integrations.values()),
+            integrations=self._build_integrations(),
         )
 
     # ===================== 第4步：更新模块运行时状态 =====================
@@ -109,16 +106,15 @@ class AppSettingsService:
         # 1. 先确认模块存在，避免调用方传入拼错的 key。
         current_module = self._find_module(module_key)
 
-        # 2. 读取已有覆盖值，然后按请求字段更新。
-        override = dict(self.module_overrides.get(module_key, {}))
+        # 2. 把开关写入 runtime-config/modules.yaml，Tool Runtime 和 LLM 服务都会读取它。
         if enabled is not None:
-            override["enabled"] = enabled
+            set_module_enabled(module_key, enabled)
         if default_item is not None:
-            override["default_item"] = default_item
+            self._set_default_item(module_key, default_item)
 
-        # 3. 保存覆盖值，并返回应用覆盖后的最新模块。
-        self.module_overrides[module_key] = override
-        return self._apply_override(current_module)
+        # 3. 重载配置后返回真实状态，而不是进程内的展示覆盖。
+        self._reload_services()
+        return self._find_module(module_key)
 
     # ===================== 第5步：新增和删除页面集成记录 =====================
     def add_integration(
@@ -133,45 +129,47 @@ class AppSettingsService:
         # 1. 先把用户提交的配置写入 runtime-config。
         #    这样 API 重启后仍能从配置文件恢复，而不是只存在内存里。
         if kind == "llm":
-            self.save_llm_provider(
+            saved_name = self.save_llm_provider(
                 provider_name=name,
                 base_url=endpoint or "",
-                api_key=description,
+                api_key_env=description,
             )
         elif kind == "mcp":
-            self.save_mcp_server(
+            saved_name = self.save_mcp_server(
                 server_name=name,
                 config_text=description,
                 endpoint=endpoint,
             )
         elif kind == "a2a":
-            self.save_a2a_agent(
+            saved_name = self.save_a2a_agent(
                 agent_key=name,
                 description=description,
                 endpoint=endpoint or "",
             )
+        else:
+            raise AppException(
+                message=f"integration type is not configurable: {kind}",
+                code=400,
+                status_code=400,
+            )
 
-        # 2. 再生成前端可稳定使用的页面记录。
-        #    这条记录用于“刚刚新增过什么”的反馈，不是唯一配置来源。
-        integration = SettingsIntegration(
-            id=str(uuid4()),
-            kind=kind,
-            name=name.strip(),
-            description=description.strip(),
-            endpoint=endpoint.strip() if endpoint else None,
-            enabled=True,
+        # 2. 从刚刚写入的持久化配置重建响应，避免页面记录与真实名称或状态不一致。
+        return next(
+            integration
+            for integration in self._build_integrations()
+            if integration.id == f"{kind}:{saved_name}"
         )
-
-        # 3. 保存到进程内状态。真实可执行配置已经写入 runtime-config。
-        self.integrations[integration.id] = integration
-        return integration
 
     def delete_integration(self, integration_id: str) -> SettingsIntegration:
         """删除一条设置页集成记录。"""
 
-        integration = self.integrations.pop(integration_id, None)
+        integration = next(
+            (item for item in self._build_integrations() if item.id == integration_id),
+            None,
+        )
         if integration is None:
             raise KeyError(integration_id)
+        self.delete_config_item(integration.kind, integration.name)
         return integration
 
     # ===================== 第6步：保存 LLM、MCP、A2A 运行时配置 =====================
@@ -179,9 +177,9 @@ class AppSettingsService:
         self,
         provider_name: str,
         base_url: str,
-        api_key: str,
+        api_key_env: str,
         model: str | None = None,
-    ) -> None:
+    ) -> str:
         """保存一个 OpenAI-compatible LLM provider。"""
 
         clean_name = provider_name.strip()
@@ -205,23 +203,22 @@ class AppSettingsService:
 
         providers[clean_name] = {
             "base_url": clean_base_url,
-            "api_key_env": previous_provider.get("api_key_env") or "LLM_API_KEY",
+            "api_key_env": api_key_env.strip()
+            or previous_provider.get("api_key_env")
+            or "LLM_API_KEY",
             "timeout_seconds": previous_provider.get("timeout_seconds") or 60,
         }
-        if api_key.strip():
-            providers[clean_name]["api_key"] = api_key.strip()
-        elif previous_provider.get("api_key"):
-            providers[clean_name]["api_key"] = previous_provider["api_key"]
 
         self._write_config(settings.llm_config_path, {"llm": llm_defaults, "providers": providers})
         self._reload_services()
+        return clean_name
 
     def save_mcp_server(
         self,
         server_name: str,
         config_text: str,
         endpoint: str | None = None,
-    ) -> None:
+    ) -> str:
         """新增或更新 MCP Server 配置。"""
 
         raw_config = self._read_config(settings.mcp_config_path, "config/mcp.yaml")
@@ -249,15 +246,25 @@ class AppSettingsService:
         mcp_defaults = dict(raw_config.get("mcp") or {})
         mcp_defaults.setdefault("enabled", True)
         mcp_defaults["default_server"] = clean_name or mcp_defaults.get("default_server") or "demo"
-        self._write_config(settings.mcp_config_path, {"mcp": mcp_defaults, "servers": servers})
+        payload = {"mcp": mcp_defaults, "servers": servers}
+        try:
+            McpConfig.model_validate(payload)
+        except ValueError as exc:
+            raise AppException(
+                message=f"MCP configuration violates operator policy: {exc}",
+                code=400,
+                status_code=400,
+            ) from exc
+        self._write_config(settings.mcp_config_path, payload)
         self._reload_services()
+        return clean_name
 
     def save_a2a_agent(
         self,
         agent_key: str,
         description: str,
         endpoint: str,
-    ) -> None:
+    ) -> str:
         """新增或更新 A2A 远程 Agent 配置。"""
 
         clean_key = agent_key.strip()
@@ -290,8 +297,18 @@ class AppSettingsService:
         a2a_defaults = dict(raw_config.get("a2a") or {})
         a2a_defaults.setdefault("enabled", True)
         a2a_defaults["default_agent"] = clean_key
-        self._write_config(settings.a2a_config_path, {"a2a": a2a_defaults, "agents": agents})
+        payload = {"a2a": a2a_defaults, "agents": agents}
+        try:
+            A2aConfig.model_validate(payload)
+        except ValueError as exc:
+            raise AppException(
+                message=f"A2A configuration violates operator policy: {exc}",
+                code=400,
+                status_code=400,
+            ) from exc
+        self._write_config(settings.a2a_config_path, payload)
         self._reload_services()
+        return clean_key
 
     def update_config_item(self, module_key: str, item_name: str, enabled: bool) -> None:
         """启用或禁用 MCP Server / A2A Agent。"""
@@ -302,14 +319,32 @@ class AppSettingsService:
             if item_name not in servers:
                 raise KeyError(item_name)
             servers[item_name]["enabled"] = enabled
-            self._write_config(settings.mcp_config_path, {**raw_config, "servers": servers})
+            payload = {**raw_config, "servers": servers}
+            try:
+                McpConfig.model_validate(payload)
+            except ValueError as exc:
+                raise AppException(
+                    message=f"MCP configuration violates operator policy: {exc}",
+                    code=400,
+                    status_code=400,
+                ) from exc
+            self._write_config(settings.mcp_config_path, payload)
         elif module_key == "a2a":
             raw_config = self._read_config(settings.a2a_config_path, "config/a2a.yaml")
             agents = dict(raw_config.get("agents") or {})
             if item_name not in agents:
                 raise KeyError(item_name)
             agents[item_name]["enabled"] = enabled
-            self._write_config(settings.a2a_config_path, {**raw_config, "agents": agents})
+            payload = {**raw_config, "agents": agents}
+            try:
+                A2aConfig.model_validate(payload)
+            except ValueError as exc:
+                raise AppException(
+                    message=f"A2A configuration violates operator policy: {exc}",
+                    code=400,
+                    status_code=400,
+                ) from exc
+            self._write_config(settings.a2a_config_path, payload)
         else:
             raise KeyError(item_name)
         self._reload_services()
@@ -317,7 +352,23 @@ class AppSettingsService:
     def delete_config_item(self, module_key: str, item_name: str) -> None:
         """删除 MCP Server / A2A Agent 配置。"""
 
-        if module_key == "mcp":
+        if module_key == "llm":
+            raw_config = self._read_config(settings.llm_config_path, "config/llm.yaml")
+            providers = dict(raw_config.get("providers") or {})
+            if item_name not in providers:
+                raise KeyError(item_name)
+            if len(providers) <= 1:
+                raise AppException(
+                    message="at least one LLM provider must remain",
+                    code=400,
+                    status_code=400,
+                )
+            providers.pop(item_name)
+            llm_defaults = dict(raw_config.get("llm") or {})
+            if llm_defaults.get("default_provider") == item_name:
+                llm_defaults["default_provider"] = next(iter(providers), "")
+            self._write_config(settings.llm_config_path, {"llm": llm_defaults, "providers": providers})
+        elif module_key == "mcp":
             raw_config = self._read_config(settings.mcp_config_path, "config/mcp.yaml")
             servers = dict(raw_config.get("servers") or {})
             if item_name not in servers:
@@ -567,6 +618,50 @@ class AppSettingsService:
             ],
         )
 
+    def _build_integrations(self) -> list[SettingsIntegration]:
+        """Rebuild the integration list from durable configuration files."""
+
+        integrations: list[SettingsIntegration] = []
+        public_llm = self.llm_service.get_public_config()
+        for provider in public_llm["providers"]:
+            name = str(provider["name"])
+            api_key_env = str(provider["api_key_env"])
+            integrations.append(
+                SettingsIntegration(
+                    id=f"llm:{name}",
+                    kind="llm",
+                    name=name,
+                    description=f"密钥由环境变量 {api_key_env} 提供。",
+                    endpoint=str(provider["base_url"]),
+                    enabled=bool(provider["configured"]),
+                )
+            )
+
+        for name, server in self.mcp_service.manager.config.servers.items():
+            integrations.append(
+                SettingsIntegration(
+                    id=f"mcp:{name}",
+                    kind="mcp",
+                    name=name,
+                    description=server.description,
+                    endpoint=server.url,
+                    enabled=server.enabled,
+                )
+            )
+
+        for agent in self.a2a_service.list_agents():
+            integrations.append(
+                SettingsIntegration(
+                    id=f"a2a:{agent.key}",
+                    kind="a2a",
+                    name=agent.key,
+                    description=agent.description,
+                    endpoint=agent.url,
+                    enabled=agent.enabled,
+                )
+            )
+        return integrations
+
     # ===================== 第7步：内部辅助方法 =====================
     def _find_module(self, module_key: str) -> SettingsModule:
         for module in self.get_snapshot().modules:
@@ -575,21 +670,56 @@ class AppSettingsService:
         raise KeyError(module_key)
 
     def _apply_override(self, module: SettingsModule) -> SettingsModule:
-        override = self.module_overrides.get(module.key, {})
+        enabled = module_enabled(module.key)
         return SettingsModule(
             key=module.key,
             name=module.name,
             description=module.description,
-            enabled=bool(override.get("enabled", module.enabled)),
-            default_item=str(override.get("default_item", module.default_item))
-            if override.get("default_item", module.default_item) is not None
-            else None,
+            enabled=enabled,
+            default_item=module.default_item,
             items=module.items,
-            status=module.status,
-            status_message=module.status_message,
+            status=module.status if enabled else "disabled",
+            status_message=module.status_message if enabled else "模块已禁用，运行时会拒绝相关调用。",
             source=module.source,
             verify_command=module.verify_command,
         )
+
+    def _set_default_item(self, module_key: str, item_name: str) -> None:
+        if module_key == "llm":
+            raw = self._read_config(settings.llm_config_path, "config/llm.yaml")
+            items = dict(raw.get("providers") or {})
+            section = dict(raw.get("llm") or {})
+            key = "default_provider"
+            path = settings.llm_config_path
+            payload_key = "providers"
+        elif module_key == "mcp":
+            raw = self._read_config(settings.mcp_config_path, "config/mcp.yaml")
+            items = dict(raw.get("servers") or {})
+            section = dict(raw.get("mcp") or {})
+            key = "default_server"
+            path = settings.mcp_config_path
+            payload_key = "servers"
+        elif module_key == "a2a":
+            raw = self._read_config(settings.a2a_config_path, "config/a2a.yaml")
+            items = dict(raw.get("agents") or {})
+            section = dict(raw.get("a2a") or {})
+            key = "default_agent"
+            path = settings.a2a_config_path
+            payload_key = "agents"
+        else:
+            raise AppException(
+                message=f"module does not support a default item: {module_key}",
+                code=400,
+                status_code=400,
+            )
+        if item_name not in items:
+            raise AppException(
+                message=f"settings item not found: {module_key}.{item_name}",
+                code=404,
+                status_code=404,
+            )
+        section[key] = item_name
+        self._write_config(path, {module_key if module_key != "llm" else "llm": section, payload_key: items})
 
     # ===================== 第9步：配置文件读写和服务重载 =====================
     def _read_config(self, runtime_path: str, fallback_path: str) -> dict:
@@ -601,6 +731,8 @@ class AppSettingsService:
         # 2. 第一次运行时 runtime-config 可能还不存在，此时用课程示例配置兜底。
         if not path.is_file():
             path = Path(fallback_path)
+        if not path.is_file() and not path.is_absolute():
+            path = Path(__file__).resolve().parents[2] / fallback_path
 
         # 3. 两个路径都不存在时返回空字典，让调用方可以创建第一份配置。
         if not path.is_file():
@@ -615,10 +747,18 @@ class AppSettingsService:
         path.parent.mkdir(parents=True, exist_ok=True)
 
         # 2. 使用 safe_dump，避免写出 Python 专用对象标记。
-        path.write_text(
-            yaml.safe_dump(payload, allow_unicode=True, sort_keys=False),
+        with NamedTemporaryFile(
+            "w",
             encoding="utf-8",
-        )
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            delete=False,
+        ) as handle:
+            yaml.safe_dump(payload, handle, allow_unicode=True, sort_keys=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+            temporary = Path(handle.name)
+        temporary.replace(path)
 
     def _parse_mcp_servers(self, config_text: str) -> dict[str, dict[str, object]]:
         """解析用户粘贴的 MCP JSON 配置。"""

@@ -21,19 +21,24 @@ def unwrap(payload: dict[str, Any]) -> Any:
 
 
 class AtlasApiClient:
-    def __init__(self, base_url: str, timeout: float = 10.0) -> None:
+    def __init__(self, base_url: str, timeout: float = 10.0, api_key: str = "") -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.headers = {"X-Atlas-API-Key": api_key} if api_key else {}
 
     async def get(self, path: str) -> Any:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(f"{self.base_url}{path}")
+            response = await client.get(f"{self.base_url}{path}", headers=self.headers)
             response.raise_for_status()
             return unwrap(response.json())
 
     async def post(self, path: str, payload: dict[str, Any]) -> Any:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(f"{self.base_url}{path}", json=payload)
+            response = await client.post(
+                f"{self.base_url}{path}",
+                json=payload,
+                headers=self.headers,
+            )
             response.raise_for_status()
             return unwrap(response.json())
 
@@ -66,7 +71,12 @@ class AtlasApiClient:
     ) -> AsyncIterator[dict[str, Any]]:
         url = f"{self.base_url}/api/sessions/{session_id}/messages/stream"
         async with httpx.AsyncClient(timeout=None) as client:
-            async with client.stream("POST", url, json={"content": content}) as response:
+            async with client.stream(
+                "POST",
+                url,
+                json={"content": content},
+                headers=self.headers,
+            ) as response:
                 response.raise_for_status()
                 event_name = "message"
                 async for line in response.aiter_lines():

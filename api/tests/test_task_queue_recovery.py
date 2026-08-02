@@ -10,6 +10,8 @@ class FakeRedis:
     def __init__(self) -> None:
         self.hashes: dict[str, dict] = {}
         self.streams: list[tuple[str, dict]] = []
+        self.group_start_id: str | None = None
+        self.acked: list[str] = []
 
     async def hset(self, key: str, mapping: dict) -> None:
         self.hashes[key] = dict(mapping)
@@ -21,8 +23,33 @@ class FakeRedis:
         self.streams.append((stream_name, dict(payload)))
         return f"{len(self.streams)}-0"
 
+    async def xgroup_create(self, stream_name: str, group: str, id: str, mkstream: bool) -> None:
+        self.group_start_id = id
+
+    async def xreadgroup(self, group: str, consumer: str, streams: dict, block: int, count: int):
+        messages = [(f"{index}-0", payload) for index, (_, payload) in enumerate(self.streams, start=1)]
+        return [(next(iter(streams)), messages[:count])]
+
+    async def xautoclaim(self, *args, **kwargs):
+        return ["0-0", [], []]
+
+    async def xack(self, stream_name: str, group: str, message_id: str) -> None:
+        self.acked.append(message_id)
+
 
 class RedisAgentTaskQueueRecoveryTest(unittest.IsolatedAsyncioTestCase):
+    async def test_consumer_group_starts_at_zero_and_acknowledges(self) -> None:
+        redis = FakeRedis()
+        queue = RedisAgentTaskQueue(redis)
+        task = await queue.enqueue_execute_plan(uuid4())
+
+        await queue.ensure_consumer_group()
+        messages = await queue.read_messages()
+        await queue.acknowledge(messages[0].id)
+
+        self.assertEqual(redis.group_start_id, "0-0")
+        self.assertEqual(messages[0].payload["task_id"], task.id)
+        self.assertEqual(redis.acked, [messages[0].id])
     # ===================== 第1步：失败任务可以创建重试任务 =====================
     async def test_retry_failed_task_creates_new_task_with_parent(self) -> None:
         session_id = uuid4()

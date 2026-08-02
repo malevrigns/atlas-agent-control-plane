@@ -2,6 +2,7 @@ from typing import Any
 
 import httpx
 
+from app.core.config import settings
 from app.core.exceptions import AppException
 
 
@@ -16,6 +17,7 @@ class SandboxFileClient:
         # base_url 指向 Sandbox 内部 API，例如 http://sandbox:8100/api。
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
+        self.headers = self._auth_headers()
 
     # ===================== 第1步：封装文件列表 =====================
     def list_files(self, path: str = ".") -> dict[str, Any]:
@@ -75,7 +77,7 @@ class SandboxFileClient:
             # Sandbox 是 Docker Compose 内部服务，必须直连服务名 sandbox。
             # trust_env=False 可以避免代理环境变量把内部请求错误转发到外部代理。
             with httpx.Client(timeout=self.timeout_seconds, trust_env=False) as client:
-                response = client.request(method, url, **kwargs)
+                response = client.request(method, url, headers=self.headers, **kwargs)
         except httpx.HTTPError as error:
             raise AppException(
                 message=f"sandbox request failed: {error}",
@@ -107,3 +109,8 @@ class SandboxFileClient:
                 status_code=502,
             )
         return data
+
+    @staticmethod
+    def _auth_headers() -> dict[str, str]:
+        key = settings.atlas_api_key.get_secret_value()
+        return {"X-Atlas-API-Key": key} if key else {}

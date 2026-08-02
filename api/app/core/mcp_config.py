@@ -1,6 +1,8 @@
+import shlex
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 import yaml
 from pydantic import BaseModel, Field, model_validator
@@ -34,6 +36,20 @@ class McpServerConfig(BaseModel):
             raise ValueError("stdio MCP server requires command")
         if self.transport in {"sse", "streamable_http"} and not self.url:
             raise ValueError(f"{self.transport} MCP server requires url")
+        if self.enabled and self.transport == "stdio":
+            allowed = set(settings.mcp_stdio_allowed_commands)
+            command_signature = shlex.join([self.command or "", *self.args])
+            if not settings.mcp_stdio_enabled:
+                raise ValueError("stdio MCP is disabled by operator policy")
+            if command_signature not in allowed:
+                raise ValueError(
+                    f"stdio MCP command signature is not allowlisted: {command_signature}"
+                )
+        if self.enabled and self.transport in {"sse", "streamable_http"}:
+            host = (urlparse(self.url or "").hostname or "").lower()
+            allowed_hosts = {value.lower() for value in settings.mcp_http_allowed_hosts}
+            if not host or host not in allowed_hosts:
+                raise ValueError(f"MCP HTTP host is not allowlisted: {host or '<missing>'}")
         return self
 
 
@@ -59,7 +75,7 @@ def load_mcp_config() -> McpConfig:
 
     path = Path(settings.mcp_config_path)
     if not path.is_file():
-        path = Path("config/mcp.yaml")
+        path = Path(__file__).resolve().parents[2] / "config/mcp.yaml"
     if not path.is_file():
         raise AppException(
             message=f"MCP config file not found: {settings.mcp_config_path}",

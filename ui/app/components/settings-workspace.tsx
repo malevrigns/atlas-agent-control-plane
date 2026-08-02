@@ -35,7 +35,7 @@ type SettingsWorkspaceProps = {
 };
 
 type IntegrationDraft = {
-  kind: "llm" | "search" | "mcp" | "a2a" | "multi_agent" | "sandbox";
+  kind: "llm" | "mcp" | "a2a";
   name: string;
   description: string;
   endpoint: string;
@@ -124,6 +124,9 @@ function SettingsReadyView({
   );
   const activeModule =
     data.modules.find((module) => module.key === activeKey) ?? data.modules[0];
+  const canConfigure = activeModule
+    ? ["llm", "mcp", "a2a"].includes(activeModule.key)
+    : false;
 
   return (
     <>
@@ -158,25 +161,30 @@ function SettingsReadyView({
             <div className="grid gap-5">
               <SettingsModuleCard
                 module={activeModule}
-                onConfigure={() => setEditingModule(activeModule)}
+                canConfigure={canConfigure}
+                onConfigure={() => {
+                  if (canConfigure) setEditingModule(activeModule);
+                }}
                 onDeleteItem={onDeleteItem}
                 onToggleItem={onToggleItem}
                 onToggleModule={onToggleModule}
               />
-              <section className="grid grid-cols-[1fr_360px] gap-5 max-xl:grid-cols-1">
-                <IntegrationList
-                  integrations={data.integrations.filter(
-                    (integration) => integration.kind === activeModule.key,
-                  )}
-                  onDeleteIntegration={onDeleteIntegration}
-                  title={`${activeModule.name} 运行时集成`}
-                />
-                <IntegrationForm
-                  key={activeModule.key}
-                  defaultKind={activeModule.key}
-                  onCreateIntegration={onCreateIntegration}
-                />
-              </section>
+              {canConfigure ? (
+                <section className="grid grid-cols-[1fr_360px] gap-5 max-xl:grid-cols-1">
+                  <IntegrationList
+                    integrations={data.integrations.filter(
+                      (integration) => integration.kind === activeModule.key,
+                    )}
+                    onDeleteIntegration={onDeleteIntegration}
+                    title={`${activeModule.name} 运行时集成`}
+                  />
+                  <IntegrationForm
+                    key={activeModule.key}
+                    defaultKind={activeModule.key as IntegrationDraft["kind"]}
+                    onCreateIntegration={onCreateIntegration}
+                  />
+                </section>
+              ) : null}
             </div>
           ) : null}
         </section>
@@ -217,12 +225,14 @@ function SettingsOverview({ modules }: { modules: SettingsModule[] }) {
 
 // ===================== 第2步：展示单个模块配置 =====================
 function SettingsModuleCard({
+  canConfigure,
   module,
   onConfigure,
   onDeleteItem,
   onToggleItem,
   onToggleModule,
 }: {
+  canConfigure: boolean;
   module: SettingsModule;
   onConfigure: () => void;
   onDeleteItem: SettingsWorkspaceProps["onDeleteItem"];
@@ -244,13 +254,15 @@ function SettingsModuleCard({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-blue-500/40 hover:text-white"
-            onClick={onConfigure}
-            type="button"
-          >
-            配置
-          </button>
+          {canConfigure ? (
+            <button
+              className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-blue-500/40 hover:text-white"
+              onClick={onConfigure}
+              type="button"
+            >
+              配置
+            </button>
+          ) : null}
           <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-500">
             <input
               checked={module.enabled}
@@ -594,16 +606,15 @@ function LlmConfigForm({
           value={endpoint}
         />
       </ConfigField>
-      <ConfigField label="API Key 环境变量或说明">
+      <ConfigField label="API Key 环境变量名">
         <ConfigInput
           onChange={onDescriptionChange}
-          placeholder="sk-..."
-          type="password"
+          placeholder="LLM_API_KEY"
           value={description}
         />
       </ConfigField>
       <p className="text-xs leading-5 text-zinc-600">
-        保存后密钥会写入本地 runtime-config，不会进入 Git。生产环境应改用 KMS、Vault 或数据库加密存储。
+        这里只保存环境变量名，真实密钥必须通过容器 Secret、KMS 或 Vault 注入，API 不会保存或回显密钥。
       </p>
     </div>
   );
@@ -809,7 +820,7 @@ function IntegrationList({
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
       <h3 className="text-base font-semibold text-zinc-50">{title}</h3>
       <p className="mt-1 text-sm leading-6 text-zinc-500">
-        新增记录保存在当前 API 进程中，重启后会回到 YAML 配置
+        记录来自持久化运行时配置；删除会同步更新 YAML，重启后不会恢复
       </p>
 
       <div className="mt-4 grid gap-2">
@@ -884,7 +895,7 @@ function IntegrationForm({
     >
       <h3 className="text-base font-semibold text-zinc-50">新增集成</h3>
       <p className="mt-1 text-sm leading-6 text-zinc-500">
-        先记录配置意图，后续设置页会继续升级为写入配置文件
+        保存后会写入持久化运行时配置，并受运维 allowlist 约束
       </p>
 
       <label className="mt-4 block text-xs font-medium text-zinc-500">
@@ -900,11 +911,8 @@ function IntegrationForm({
           value={draft.kind}
         >
           <option value="llm">LLM</option>
-          <option value="search">Search</option>
           <option value="mcp">MCP</option>
           <option value="a2a">A2A</option>
-          <option value="multi_agent">多 Agent</option>
-          <option value="sandbox">Sandbox</option>
         </select>
       </label>
 

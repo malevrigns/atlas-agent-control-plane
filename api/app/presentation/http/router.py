@@ -5,6 +5,7 @@ from app.presentation.http.routes import (
     acceptance,
     agent_core,
     agent_thinking,
+    auth,
     config,
     control_plane,
     files,
@@ -21,6 +22,7 @@ from app.presentation.http.routes import (
 )
 
 api_router = APIRouter()
+api_router.include_router(auth.router)
 api_router.include_router(a2a.router)
 api_router.include_router(acceptance.router)
 api_router.include_router(status.router)

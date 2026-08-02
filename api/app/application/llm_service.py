@@ -2,6 +2,7 @@ import os
 
 from app.core.exceptions import AppException
 from app.core.llm_config import LLMConfig, load_llm_config
+from app.core.module_policy import module_enabled
 from app.domain.llm.entities import LLMChatRequest, LLMChatResult, LLMMessage
 from app.infrastructure.llm.openai_compatible import OpenAICompatibleClient
 
@@ -24,7 +25,7 @@ class LLMService:
                     "base_url": provider.base_url,
                     "api_key_env": provider.api_key_env,
                     # 只返回是否已配置，不返回真实密钥。
-                    "configured": bool(provider.api_key or os.getenv(provider.api_key_env)),
+                    "configured": bool(os.getenv(provider.api_key_env)),
                 }
                 for name, provider in self.config.providers.items()
             ],
@@ -39,6 +40,8 @@ class LLMService:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> LLMChatResult:
+        if not module_enabled("llm"):
+            raise AppException(message="LLM module is disabled", code=503, status_code=503)
         provider_name = provider or self.config.llm.default_provider
         provider_config = self.config.providers.get(provider_name)
         if provider_config is None:
@@ -48,7 +51,7 @@ class LLMService:
                 status_code=400,
             )
 
-        api_key = provider_config.api_key or os.getenv(provider_config.api_key_env)
+        api_key = os.getenv(provider_config.api_key_env)
         if not api_key:
             # 密钥只能来自环境变量，不能写进 YAML，也不能从接口传入。
             raise AppException(

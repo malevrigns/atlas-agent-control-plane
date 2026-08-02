@@ -12,6 +12,7 @@ from app.application.control_plane_service import ControlPlaneService
 from app.application.unit_of_work import UnitOfWork
 from app.core.config import settings
 from app.core.exceptions import AppException
+from app.core.module_policy import module_enabled, module_for_tool
 from app.domain.agent_core.tools import (
     ToolCallResult,
     ToolInvocationStatus,
@@ -105,7 +106,16 @@ class ToolRuntime:
         definition = tool.definition
         checked_arguments = tool._validate_arguments(arguments)
         request_hash = self._request_hash(tool_name, definition.version, checked_arguments)
-        decision = self.policy.evaluate(definition, context)
+        module_key = module_for_tool(tool_name)
+        if module_key and not module_enabled(module_key):
+            decision = ToolPolicyDecision(
+                decision="deny",
+                reason=f"module is disabled: {module_key}",
+                executable=False,
+                status=ToolInvocationStatus.denied,
+            )
+        else:
+            decision = self.policy.evaluate(definition, context)
 
         cached = await self._find_idempotent(
             tool_name,

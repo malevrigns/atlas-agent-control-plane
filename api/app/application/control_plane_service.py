@@ -121,6 +121,63 @@ class ControlPlaneService:
         await self.get_task(task_id)
         return await self.uow.control_plane.list_checkpoints(task_id, limit)
 
+    async def restore_checkpoint(
+        self,
+        task_id: UUID,
+        checkpoint_id: UUID,
+        *,
+        expected_version: int,
+        resume: bool = False,
+    ) -> dict[str, Any]:
+        """Restore a validated snapshot with optimistic concurrency control."""
+
+        checkpoint = await self.uow.control_plane.get_checkpoint(checkpoint_id)
+        if checkpoint is None or checkpoint["task_id"] != task_id:
+            raise AppException(message="checkpoint not found", code=404, status_code=404)
+        snapshot = dict(checkpoint["snapshot"])
+        if stable_state_hash(snapshot) != checkpoint["state_hash"]:
+            raise AppException(
+                message="checkpoint integrity verification failed",
+                code=409,
+                status_code=409,
+            )
+        if not bool((checkpoint.get("validator_report") or {}).get("valid")):
+            raise AppException(
+                message="checkpoint is not marked as restorable",
+                code=422,
+                status_code=422,
+            )
+
+        restorable_fields = {
+            "goal",
+            "acceptance_criteria",
+            "requirements",
+            "decisions",
+            "progress",
+            "known_failures",
+            "open_questions",
+            "next_actions",
+            "must_preserve",
+            "environment_ref",
+            "status",
+        }
+        patch = {key: snapshot[key] for key in restorable_fields if key in snapshot}
+        if patch.get("environment_ref"):
+            patch["environment_ref"] = UUID(str(patch["environment_ref"]))
+        patch["artifact_refs"] = list(snapshot.get("artifacts") or [])
+        patch["current_event_seq"] = int(snapshot.get("event_seq") or 0)
+        patch["status"] = "running" if resume else "paused"
+        task = await self.update_task(
+            task_id,
+            expected_version=expected_version,
+            patch=patch,
+        )
+        return {
+            "checkpoint_id": checkpoint_id,
+            "resumed": resume,
+            "task": task,
+        }
+
     async def persist_artifact(
         self,
         content: bytes,

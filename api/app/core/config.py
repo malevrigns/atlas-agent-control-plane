@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +9,8 @@ class Settings(BaseSettings):
     api_env: str = "development"
     api_version: str = "0.1.0"
     api_prefix: str = "/api"
+    api_auth_enabled: bool = False
+    atlas_api_key: SecretStr = SecretStr("")
     cors_allow_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -25,6 +28,9 @@ class Settings(BaseSettings):
     database_echo: bool = False
     redis_url: str = "redis://localhost:6379/0"
     agent_task_stream: str = "agent:tasks"
+    agent_task_consumer_group: str = "atlas-agent-runners"
+    agent_task_claim_idle_ms: int = 30_000
+    agent_task_max_concurrency: int = 4
     agent_task_poll_timeout_ms: int = 1000
     context_message_limit: int = 8
     context_event_limit: int = 20
@@ -43,6 +49,7 @@ class Settings(BaseSettings):
     max_upload_size: int = 10 * 1024 * 1024
     max_file_preview_size: int = 64 * 1024
     sandbox_api_base_url: str = "http://localhost:8100/api"
+    sandbox_auth_enabled: bool = False
     sandbox_api_timeout_seconds: float = 30.0
     sandbox_shell_wait_timeout_seconds: float = 10.0
     docker_sandbox_id: str = "default"
@@ -54,6 +61,11 @@ class Settings(BaseSettings):
     bing_search_market: str = "zh-CN"
     search_timeout_seconds: float = 10.0
     search_max_results: int = 5
+    module_config_path: str = "runtime-config/modules.yaml"
+    mcp_stdio_enabled: bool = False
+    mcp_stdio_allowed_commands: list[str] = []
+    mcp_http_allowed_hosts: list[str] = []
+    a2a_http_allowed_hosts: list[str] = []
 
     model_config = SettingsConfigDict(
         env_file=".env",

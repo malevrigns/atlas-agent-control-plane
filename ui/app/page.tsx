@@ -8,7 +8,7 @@ import { ChatWorkspace } from "./components/chat-workspace";
 import { SettingsWorkspace } from "./components/settings-workspace";
 import { StatusBadge } from "./components/status-badge";
 import { useSessionWorkspace } from "./hooks/use-session-workspace";
-import { requestApi } from "./lib/api";
+import { ApiRequestError, createApiSession, requestApi } from "./lib/api";
 import { fetchVncStatus } from "./lib/sandbox-api";
 import {
   createSettingsIntegration,
@@ -28,6 +28,84 @@ import type {
 } from "./types";
 
 export default function Home() {
+  const [access, setAccess] = useState<"checking" | "allowed" | "locked">(
+    "checking",
+  );
+
+  useEffect(() => {
+    requestApi<DatabaseStatusData>("/api/status/database")
+      .then(() => setAccess("allowed"))
+      .catch((error) => {
+        setAccess(error instanceof ApiRequestError && error.status === 401 ? "locked" : "allowed");
+      });
+  }, []);
+
+  if (access === "checking") {
+    return (
+      <main className="grid h-[100dvh] place-items-center bg-[#050506] text-sm text-zinc-500">
+        正在验证控制平面…
+      </main>
+    );
+  }
+  if (access === "locked") {
+    return <AccessGate onAuthenticated={() => setAccess("allowed")} />;
+  }
+  return <WorkspaceHome />;
+}
+
+function AccessGate({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const [apiKey, setApiKey] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
+    try {
+      await createApiSession(apiKey);
+      setApiKey("");
+      onAuthenticated();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "认证失败");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="grid h-[100dvh] place-items-center bg-[#050506] px-5 text-zinc-50">
+      <form className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl" onSubmit={submit}>
+        <div className="text-xs font-medium uppercase tracking-[0.22em] text-blue-400">AtlasAgent</div>
+        <h1 className="mt-3 text-3xl font-semibold">进入控制平面</h1>
+        <p className="mt-3 text-sm leading-6 text-zinc-500">
+          输入启动脚本生成的 API Key。密钥只用于换取 HttpOnly 会话，不会保存在浏览器存储中。
+        </p>
+        <label className="mt-6 block text-xs font-medium text-zinc-400">
+          API Key
+          <input
+            autoComplete="current-password"
+            autoFocus
+            className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-black/40 px-4 font-mono text-sm outline-none focus:border-blue-500/70"
+            onChange={(event) => setApiKey(event.target.value)}
+            type="password"
+            value={apiKey}
+          />
+        </label>
+        {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
+        <button
+          className="mt-5 h-11 w-full rounded-xl bg-blue-500 text-sm font-semibold transition hover:bg-blue-400 disabled:opacity-50"
+          disabled={!apiKey || submitting}
+          type="submit"
+        >
+          {submitting ? "验证中…" : "验证并进入"}
+        </button>
+      </form>
+    </main>
+  );
+}
+
+function WorkspaceHome() {
   const [activeView, setActiveView] = useState<"workspace" | "settings">(
     "workspace",
   );

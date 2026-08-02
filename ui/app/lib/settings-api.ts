@@ -35,7 +35,7 @@ export function deleteSettingsIntegration(
   integrationId: string,
 ): Promise<SettingsIntegration> {
   return requestApi<SettingsIntegration>(
-    `/api/config/integrations/${integrationId}`,
+    `/api/config/integrations/${encodeURIComponent(integrationId)}`,
     { method: "DELETE" },
   );
 }

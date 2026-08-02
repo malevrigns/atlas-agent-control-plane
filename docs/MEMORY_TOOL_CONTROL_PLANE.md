@@ -59,6 +59,7 @@ AtlasAgent 不再把一段可变文本当作任务的唯一事实。系统保留
 | `POST /api/control-plane/tasks` | 新建结构化任务状态 |
 | `PATCH /api/control-plane/tasks/{id}` | 带版本保护更新任务 |
 | `POST /api/control-plane/tasks/{id}/checkpoints` | 创建并校验 Checkpoint |
+| `POST /api/control-plane/tasks/{id}/checkpoints/{checkpoint_id}/restore` | 校验哈希与版本后恢复/继续任务 |
 | `POST /api/control-plane/artifacts` | 保存内容寻址制品 |
 | `POST /api/control-plane/environment` | 捕获环境指纹 |
 | `GET /api/control-plane/tool-invocations` | 查看工具审计记录 |

@@ -21,10 +21,11 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 
 | 范围 | 结果 | 验证内容 |
 | --- | ---: | --- |
-| FastAPI 后端 | **38 项测试** | Memory、Checkpoint、Tool Runtime、兼容接口与边界条件 |
+| FastAPI 后端 | **50 项测试** | 认证、队列恢复、Checkpoint、Tool Runtime、兼容接口与边界条件 |
+| Sandbox | **1 项安全测试** | 健康端点公开、Shell 等状态接口必须认证 |
 | Textual TUI | **3 项测试** | 启动、布局、审计视图与演示模式 |
 | Electron 桌面端 | **构建 + 4 项测试** | 渲染器构建、打包适配与安全壳配置 |
-| OpenAPI | **72 条路径** | 应用完整加载并成功生成接口规范 |
+| OpenAPI | **75 条路径** | 应用完整加载并成功生成接口规范 |
 | Alembic | **完整迁移链** | 可生成离线 SQL，Control Plane 表结构可追踪 |
 
 测试数量是当前仓库的交付快照，不是性能基准。复现命令见 [开发与验证](#开发与验证)。
@@ -122,11 +123,13 @@ BUILD=true ./scripts/start.sh
 - API 健康检查：<http://localhost:8088/api/status>
 - 数据库状态：<http://localhost:8088/api/status/database>
 
-Windows PowerShell：
+启动脚本会为 API 与 PostgreSQL 生成随机密钥，并在终端打印 Web 登录所需的 API Key。除 `/api/status` 外的接口都需要浏览器 HttpOnly 会话或 `X-Atlas-API-Key` 请求头。
 
-```powershell
-Copy-Item .env.example .env
-docker compose up -d --build
+Windows 请在 Git Bash 或已启用 Docker 集成的 WSL 中运行同一个安全启动脚本：
+
+```bash
+cp .env.example .env
+BUILD=true ./scripts/start.sh
 ```
 
 再次启动不需要重新构建：
@@ -169,7 +172,9 @@ CLEAN_VOLUMES=true ./scripts/stop.sh
 ### 1. 创建结构化任务
 
 ```bash
-curl -X POST http://localhost:8000/api/control-plane/tasks \
+ATLAS_KEY="$(sed -n 's/^ATLAS_API_KEY=//p' .env)"
+curl -X POST http://localhost:8088/api/control-plane/tasks \
+  -H "X-Atlas-API-Key: ${ATLAS_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "更新交付物",
@@ -182,7 +187,8 @@ curl -X POST http://localhost:8000/api/control-plane/tasks \
 ### 2. 通过统一 Runtime 调用工具
 
 ```bash
-curl -X POST http://localhost:8000/api/agent-core/tools/draft_plan/invoke \
+curl -X POST http://localhost:8088/api/agent-core/tools/draft_plan/invoke \
+  -H "X-Atlas-API-Key: ${ATLAS_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
     "arguments": {"task": "检查交付质量"},
@@ -195,7 +201,8 @@ curl -X POST http://localhost:8000/api/agent-core/tools/draft_plan/invoke \
 ### 3. 回读工具审计
 
 ```bash
-curl "http://localhost:8000/api/control-plane/tool-invocations?project_id=atlas"
+curl -H "X-Atlas-API-Key: ${ATLAS_KEY}" \
+  "http://localhost:8088/api/control-plane/tool-invocations?project_id=atlas"
 ```
 
 完整数据模型、生命周期和接口说明见 [Memory 与 Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md)。
@@ -262,15 +269,17 @@ npm run test:sites
 服务端常用配置集中在根目录的 [`.env.example`](.env.example)：
 
 - `LLM_API_KEY`：模型服务密钥；未配置时仍可使用不依赖模型的演示与控制平面能力
+- `ATLAS_API_KEY`：控制平面与 Sandbox 的共享访问密钥；启动脚本会替换示例占位符
 - `NGINX_PORT`：统一网关端口，默认 `8088`
+- `NGINX_HOST`：默认 `127.0.0.1`；确需远程访问时必须配合 TLS 与上游身份系统
 - `TOOL_AUTO_APPROVE_RISK`：工具自动批准的最高风险等级
 - `TOOL_DEFAULT_TIMEOUT_SECONDS`：工具默认超时
 - `TOOL_OUTPUT_INLINE_LIMIT`：大输出转为 Artifact 的阈值
 
-客户端地址分别通过 `VITE_ATLAS_API_BASE`（Electron）和 `ATLAS_API_URL`（TUI）设置。
+客户端地址分别通过 `ATLAS_API_BASE_URL`（Electron）和 `ATLAS_API_URL`（TUI）设置；两者都从 `ATLAS_API_KEY` 读取凭据。
 
 > [!IMPORTANT]
-> 不要提交真实 `.env`、模型密钥或第三方服务凭据。生产环境应收紧 CORS、工具权限、自动审批阈值与 Sandbox 网络策略。
+> 不要提交真实 `.env`、模型密钥或第三方服务凭据。stdio MCP、MCP HTTP 与 A2A HTTP 默认关闭或无允许主机，必须由运维通过 allowlist 显式放行。内置 API Key 是单租户/内网边界，互联网多用户部署仍应在网关前接入 TLS、OIDC/RBAC 与限流。
 
 ## 教程路线
 

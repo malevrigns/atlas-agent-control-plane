@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: API tests
+        working-directory: api
+        run: uv run --frozen python -m unittest discover -s tests -v
+      - name: API dependency audit
+        working-directory: api
+        run: uv run --frozen --with pip-audit pip-audit --local
+      - name: Sandbox tests
+        working-directory: sandbox
+        run: uv run --frozen python -m unittest discover -s tests -v
+      - name: Sandbox dependency audit
+        working-directory: sandbox
+        run: uv run --frozen --with pip-audit pip-audit --local
+      - name: TUI tests
+        working-directory: tui
+        run: uv run --frozen python -m unittest discover -s tests -v
+      - name: Startup configuration tests
+        run: python -m unittest discover -s tests -v
+
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ui/package.json
+      - name: Install
+        working-directory: ui
+        run: pnpm install --frozen-lockfile
+      - name: Audit
+        working-directory: ui
+        run: pnpm audit --audit-level high
+      - name: Typecheck
+        working-directory: ui
+        run: pnpm typecheck
+      - name: Production build
+        working-directory: ui
+        run: pnpm build
+
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install
+        working-directory: desktop
+        run: npm ci
+      - name: Audit
+        working-directory: desktop
+        run: npm audit --audit-level high
+      - name: Build
+        working-directory: desktop
+        run: npm run build
+      - name: Sites packaging tests
+        working-directory: desktop
+        run: npm run test:sites
+      - name: Electron syntax
+        working-directory: desktop
+        run: node --check electron/main.cjs && node --check electron/preload.cjs
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose and Nginx configuration
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          sed -e 's/http:\/\/api:8000/http:\/\/127.0.0.1:8000/g' \
+              -e 's/http:\/\/sandbox:8100/http:\/\/127.0.0.1:8100/g' \
+              -e 's/http:\/\/sandbox:6080/http:\/\/127.0.0.1:6080/g' \
+              -e 's/http:\/\/ui:3000/http:\/\/127.0.0.1:3000/g' \
+              nginx/default.conf > nginx/ci-default.conf
+          docker run --rm -v "$PWD/nginx/ci-default.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.27-alpine nginx -t

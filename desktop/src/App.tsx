@@ -18,15 +18,28 @@ import {
   Plus,
   PuzzlePiece,
   RocketLaunch,
-  SidebarSimple,
   TerminalWindow,
-  Wrench,
 } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
+import type {
+  ApiEnvelope,
+  ApiState,
+  AtlasRequestOptions,
+  Checkpoint,
+  CheckpointList,
+  CheckpointRestoreResult,
+  CheckpointView,
+  TaskState,
+  TaskStateList,
+  Theme,
+  ToolPolicy,
+} from "./types";
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE || "http://localhost:8088";
 
-const checkpoints = [
+const demoCheckpoints: CheckpointView[] = [
   {
     id: "CP-001",
     title: "需求梳理与边界对齐",
@@ -69,19 +82,106 @@ const checkpoints = [
   },
 ];
 
-const themeOptions = [
+async function atlasRequest<T>(path: string, options: AtlasRequestOptions = {}): Promise<T> {
+  if (window.atlasDesktop?.request) {
+    return window.atlasDesktop.request<T>(path, options);
+  }
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: options.method || "GET",
+    headers: options.body ? { "Content-Type": "application/json" } : undefined,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const payload = (await response.json()) as ApiEnvelope<T>;
+  if (!response.ok || Number(payload.code ?? response.status) >= 400) {
+    throw new Error(payload.message || `Atlas API returned ${response.status}`);
+  }
+  if (payload.data === undefined) {
+    throw new Error("Atlas API returned an empty response");
+  }
+  return payload.data;
+}
+
+function mapCheckpoint(checkpoint: Checkpoint, task: TaskState, index: number): CheckpointView {
+  const createdAt = new Date(checkpoint.created_at);
+  const valid = Boolean(checkpoint.validator_report?.valid);
+  return {
+    id: `CP-${String(index + 1).padStart(3, "0")}`,
+    rawId: checkpoint.id,
+    title: checkpoint.kind === "incremental" ? task.title : `${task.title} · ${checkpoint.kind}`,
+    description: valid ? "状态哈希与证据范围已通过校验" : "检查点校验未通过",
+    time: Number.isNaN(createdAt.valueOf())
+      ? "--:--"
+      : createdAt.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }),
+    state: valid ? "done" : "pending",
+    eventRange: `${checkpoint.covered_event_start}–${checkpoint.covered_event_end}`,
+    stateHash: String(checkpoint.state_hash || "").replace("sha256:", "").slice(0, 16),
+  };
+}
+
+function formatTimestamp(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf())
+    ? "时间未知"
+    : date.toLocaleString("zh-CN", { hour12: false });
+}
+
+const themeOptions: Array<{ value: Theme; label: string }> = [
   { value: "ink", label: "墨夜" },
   { value: "dawn", label: "晨光" },
   { value: "contrast", label: "高对比" },
 ];
 
-function useTheme() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("atlas-theme") || "ink");
+function isTheme(value: string | null): value is Theme {
+  return value === "ink" || value === "dawn" || value === "contrast";
+}
+
+function useTheme(): [Theme, Dispatch<SetStateAction<Theme>>] {
+  const [theme, setTheme] = useState<Theme>(() => {
+    const savedTheme = localStorage.getItem("atlas-theme");
+    return isTheme(savedTheme) ? savedTheme : "ink";
+  });
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("atlas-theme", theme);
   }, [theme]);
   return [theme, setTheme];
+}
+
+interface IconRailProps {
+  apiState: ApiState;
+}
+
+interface TaskSidebarProps {
+  activeCheckpoint: string;
+  completedCollapsed: boolean;
+  onCollapseCompleted: () => void;
+  onSelectCheckpoint: (checkpointId: string) => void;
+  checkpoints: CheckpointView[];
+}
+
+interface TimelineCheckpointProps {
+  checkpoint: CheckpointView;
+  expanded: boolean;
+  onToggle: () => void;
+  toolPolicy: ToolPolicy;
+  onToolPolicyChange: (policy: ToolPolicy) => void;
+  onRun: () => void;
+  onRestore: () => void | Promise<void>;
+}
+
+interface DetailProps {
+  label: string;
+  value: string;
+}
+
+interface CommandComposerProps {
+  command: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  notice: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void | Promise<void>;
+  onSuggestion: (value: string) => void;
+  submitting: boolean;
 }
 
 export function App() {
@@ -90,30 +190,41 @@ export function App() {
   const [paused, setPaused] = useState(false);
   const [completedCollapsed, setCompletedCollapsed] = useState(false);
   const [command, setCommand] = useState("");
-  const [toolPolicy, setToolPolicy] = useState("自动允许");
+  const [toolPolicy, setToolPolicy] = useState<ToolPolicy>("自动允许");
   const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [apiState, setApiState] = useState("checking");
-  const composerRef = useRef(null);
+  const [apiState, setApiState] = useState<ApiState>("checking");
+  const [task, setTask] = useState<TaskState | null>(null);
+  const [checkpoints, setCheckpoints] = useState<CheckpointView[]>(demoCheckpoints);
+  const composerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 1200);
-    fetch(`${API_BASE}/api/status`, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error("offline");
+    let disposed = false;
+    atlasRequest<TaskStateList>("/api/control-plane/tasks?project_id=default&limit=1")
+      .then(async (data) => {
+        const liveTask = data?.items?.[0];
+        if (!liveTask || disposed) throw new Error("no task");
+        const checkpointData = await atlasRequest<CheckpointList>(`/api/control-plane/tasks/${liveTask.id}/checkpoints`);
+        if (disposed) return;
+        const liveCheckpoints = (checkpointData?.items || []).map((checkpoint, index) => mapCheckpoint(checkpoint, liveTask, index));
+        setTask(liveTask);
+        setPaused(liveTask.status === "paused");
+        if (liveCheckpoints.length) {
+          setCheckpoints(liveCheckpoints);
+          setActiveCheckpoint(liveCheckpoints[0].id);
+        }
         setApiState("connected");
       })
-      .catch(() => setApiState("offline"))
-      .finally(() => window.clearTimeout(timer));
+      .catch(() => {
+        if (!disposed) setApiState("offline");
+      });
     return () => {
-      controller.abort();
-      window.clearTimeout(timer);
+      disposed = true;
     };
   }, []);
 
   useEffect(() => {
-    function onKeyDown(event) {
+    function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         composerRef.current?.focus();
@@ -128,24 +239,71 @@ export function App() {
   });
 
   const active = useMemo(
-    () => checkpoints.find((checkpoint) => checkpoint.id === activeCheckpoint) || checkpoints[3],
-    [activeCheckpoint],
+    () => checkpoints.find((checkpoint) => checkpoint.id === activeCheckpoint) || checkpoints[0],
+    [activeCheckpoint, checkpoints],
   );
 
-  function applySuggestion(value) {
+  function applySuggestion(value: string) {
     setCommand(value);
     window.requestAnimationFrame(() => composerRef.current?.focus());
   }
 
-  function submitCommand() {
+  async function submitCommand() {
     const clean = command.trim();
     if (!clean || submitting) return;
     setSubmitting(true);
-    setNotice("命令已加入 CP-004 的下一步动作，并保留当前状态快照。");
-    window.setTimeout(() => {
+    try {
+      if (!task) throw new Error("当前是离线演示数据，无法提交");
+      const nextActions = [...(task.next_actions || []), { text: clean, source: "desktop" }];
+      const updated = await atlasRequest<TaskState>(`/api/control-plane/tasks/${task.id}`, {
+        method: "PATCH",
+        body: { expected_version: task.version, next_actions: nextActions },
+      });
+      setTask(updated);
+      setNotice("命令已写入控制平面的下一步动作。");
       setSubmitting(false);
       setCommand("");
-    }, 650);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "提交失败");
+      setSubmitting(false);
+    }
+  }
+
+  async function togglePaused() {
+    if (!task) {
+      setNotice("当前是离线演示数据，无法修改任务状态。");
+      return;
+    }
+    const nextPaused = !paused;
+    try {
+      const updated = await atlasRequest<TaskState>(`/api/control-plane/tasks/${task.id}`, {
+        method: "PATCH",
+        body: { expected_version: task.version, status: nextPaused ? "paused" : "running" },
+      });
+      setTask(updated);
+      setPaused(nextPaused);
+      setNotice(nextPaused ? "任务已在控制平面暂停。" : "任务已在控制平面继续。");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "状态更新失败");
+    }
+  }
+
+  async function restoreCheckpoint(checkpoint: CheckpointView) {
+    if (!task || !checkpoint.rawId) {
+      setNotice("离线演示数据不能执行恢复。");
+      return;
+    }
+    try {
+      const restored = await atlasRequest<CheckpointRestoreResult>(
+        `/api/control-plane/tasks/${task.id}/checkpoints/${checkpoint.rawId}/restore`,
+        { method: "POST", body: { expected_version: task.version, resume: false } },
+      );
+      setTask(restored.task);
+      setPaused(true);
+      setNotice(`已恢复到 ${checkpoint.id}，任务保持暂停等待确认。`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "恢复失败");
+    }
   }
 
   return (
@@ -156,27 +314,28 @@ export function App() {
         completedCollapsed={completedCollapsed}
         onCollapseCompleted={() => setCompletedCollapsed((value) => !value)}
         onSelectCheckpoint={setActiveCheckpoint}
+        checkpoints={checkpoints}
       />
       <section className="task-workspace" aria-label="任务执行工作区">
         <header className="task-header">
           <div className="task-heading">
-            <h1>重构 Agent Memory 与 Tool Runtime</h1>
+            <h1>{task?.title || "重构 Agent Memory 与 Tool Runtime"}</h1>
             <div className="task-meta">
               <span className="live-status"><span className="status-pulse" />{paused ? "已暂停" : "进行中"}</span>
-              <span>开始于 2026-08-01 09:58</span>
-              <span>负责人 AtlasAgent</span>
-              <span>模式 自动执行</span>
+              <span>{task ? `更新于 ${formatTimestamp(task.updated_at)}` : "离线演示数据"}</span>
+              <span>项目 {task?.project_id || "default"}</span>
+              <span>{task ? `版本 v${task.version}` : "未连接控制平面"}</span>
             </div>
           </div>
           <div className="header-actions">
             <label className="theme-control">
               <CirclesFour size={17} weight="regular" aria-hidden="true" />
               <span className="sr-only">选择主题</span>
-              <select value={theme} onChange={(event) => setTheme(event.target.value)} aria-label="选择界面主题">
+              <select value={theme} onChange={(event) => setTheme(event.target.value as Theme)} aria-label="选择界面主题">
                 {themeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
-            <button className="outline-button" type="button" onClick={() => setPaused((value) => !value)}>
+            <button className="outline-button" type="button" onClick={togglePaused}>
               {paused ? <Play size={18} weight="fill" /> : <Pause size={18} weight="fill" />}
               {paused ? "继续任务" : "暂停任务"}
             </button>
@@ -195,6 +354,7 @@ export function App() {
                 toolPolicy={toolPolicy}
                 onToolPolicyChange={setToolPolicy}
                 onRun={() => applySuggestion("运行兼容性测试并将完整输出保存为 Artifact")}
+                onRestore={() => restoreCheckpoint(checkpoint)}
               />
             ))}
           </div>
@@ -214,8 +374,8 @@ export function App() {
   );
 }
 
-function IconRail({ apiState }) {
-  const items = [
+function IconRail({ apiState }: IconRailProps) {
+  const items: Array<[Icon, string, boolean?]> = [
     [Play, "任务", true],
     [ListChecks, "运行记录"],
     [GitBranch, "事件关系"],
@@ -242,7 +402,13 @@ function IconRail({ apiState }) {
   );
 }
 
-function TaskSidebar({ activeCheckpoint, completedCollapsed, onCollapseCompleted, onSelectCheckpoint }) {
+function TaskSidebar({
+  activeCheckpoint,
+  completedCollapsed,
+  onCollapseCompleted,
+  onSelectCheckpoint,
+  checkpoints,
+}: TaskSidebarProps) {
   return (
     <aside className="task-sidebar" aria-label="任务与检查点">
       <div className="sidebar-title-row">
@@ -285,7 +451,15 @@ function TaskSidebar({ activeCheckpoint, completedCollapsed, onCollapseCompleted
   );
 }
 
-function TimelineCheckpoint({ checkpoint, expanded, onToggle, toolPolicy, onToolPolicyChange, onRun }) {
+function TimelineCheckpoint({
+  checkpoint,
+  expanded,
+  onToggle,
+  toolPolicy,
+  onToolPolicyChange,
+  onRun,
+  onRestore,
+}: TimelineCheckpointProps) {
   const isDone = checkpoint.state === "done";
   return (
     <article className={`timeline-item ${expanded ? "expanded" : ""}`}>
@@ -319,7 +493,7 @@ function TimelineCheckpoint({ checkpoint, expanded, onToggle, toolPolicy, onTool
             <div className="checkpoint-actions">
               <div className="state-hash">
                 <span>状态哈希</span>
-                <code>a7f9c3d8b2e1f4a9</code>
+                <code>{checkpoint.stateHash || "a7f9c3d8b2e1f4a9"}</code>
               </div>
               <div className="next-action">
                 <span>下一步动作（建议）</span>
@@ -329,10 +503,11 @@ function TimelineCheckpoint({ checkpoint, expanded, onToggle, toolPolicy, onTool
                   <em>推荐</em>
                 </button>
               </div>
+              <button className="outline-button" type="button" onClick={onRestore}>恢复到此检查点</button>
               <label className="tool-policy">
                 <span>工具授权</span>
                 <span className="policy-select"><TerminalWindow size={18} /> pytest · 低风险 ·
-                  <select value={toolPolicy} onChange={(event) => onToolPolicyChange(event.target.value)} aria-label="工具授权策略">
+                  <select value={toolPolicy} onChange={(event) => onToolPolicyChange(event.target.value as ToolPolicy)} aria-label="工具授权策略">
                     <option>自动允许</option>
                     <option>每次询问</option>
                     <option>本次拒绝</option>
@@ -347,11 +522,19 @@ function TimelineCheckpoint({ checkpoint, expanded, onToggle, toolPolicy, onTool
   );
 }
 
-function Detail({ label, value }) {
+function Detail({ label, value }: DetailProps) {
   return <div className="detail-block"><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function CommandComposer({ command, inputRef, notice, onChange, onSubmit, onSuggestion, submitting }) {
+function CommandComposer({
+  command,
+  inputRef,
+  notice,
+  onChange,
+  onSubmit,
+  onSuggestion,
+  submitting,
+}: CommandComposerProps) {
   return (
     <div className="composer-wrap">
       {notice ? <div className="composer-notice" role="status"><CheckCircle size={16} weight="fill" />{notice}</div> : null}

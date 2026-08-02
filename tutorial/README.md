@@ -18,7 +18,7 @@
 - **实现步骤**：分步给出后端 / 前端 / 配置的完整可运行代码。
 - **本章小结 / 验收**：如何确认这一章确实跑通。
 
-​        只要跟着 74 章走完，你就能从一个空目录，亲手搭出一个能规划任务、调用工具、观察结果并生成带证据最终回答的全栈 AI Agent 工作台，并学会把它升级为可恢复、可追溯、可审计的 Control Plane。
+​        只要跟着 74 章走完，你就能从一个空目录，亲手搭出一个能规划任务、调用工具、观察结果并生成带证据最终回答的全栈 AI Agent 工作台，并学会把它升级为有认证、可恢复、可追溯、可审计的 Control Plane。
 
 ### 配套源码
 
@@ -68,13 +68,14 @@ BUILD=true ./scripts/start.sh # 首次构建并启动 nginx / ui / api / sandbox
 # 之后再启动只需 ./scripts/start.sh
 ```
 
-> 网关默认只绑定 `127.0.0.1`。本项目不含鉴权层，详见发行物 README 的「安全模型」。
+> 网关默认只绑定 `127.0.0.1`。启动脚本会生成 API Key；打开 Web 后输入终端打印的 Key，脚本不会把密钥写入浏览器存储。
 
 ​        启动后统一入口在 `http://localhost:8088`，可以先做几个健康检查：
 
 ```bash
 curl http://localhost:8088/api/status
-curl http://localhost:8088/api/status/database
+ATLAS_KEY="$(sed -n 's/^ATLAS_API_KEY=//p' .env)"
+curl -H "X-Atlas-API-Key: ${ATLAS_KEY}" http://localhost:8088/api/status/database
 ```
 
 ​        停止服务：

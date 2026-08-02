@@ -12,6 +12,8 @@ from app.schemas.control_plane import (
     ArtifactResponse,
     CheckpointCreateRequest,
     CheckpointListResponse,
+    CheckpointRestoreRequest,
+    CheckpointRestoreResponse,
     CheckpointResponse,
     EnvironmentSnapshotRequest,
     EnvironmentSnapshotResponse,
@@ -86,6 +88,25 @@ async def list_checkpoints(
 ) -> ApiResponse[CheckpointListResponse]:
     items = await service.list_checkpoints(task_id, limit)
     return ApiResponse(data=CheckpointListResponse(items=[CheckpointResponse.model_validate(item) for item in items]))
+
+
+@router.post(
+    "/tasks/{task_id}/checkpoints/{checkpoint_id}/restore",
+    response_model=ApiResponse[CheckpointRestoreResponse],
+)
+async def restore_checkpoint(
+    task_id: UUID,
+    checkpoint_id: UUID,
+    payload: CheckpointRestoreRequest,
+    service: ControlPlaneService = Depends(build_service),
+) -> ApiResponse[CheckpointRestoreResponse]:
+    restored = await service.restore_checkpoint(
+        task_id,
+        checkpoint_id,
+        expected_version=payload.expected_version,
+        resume=payload.resume,
+    )
+    return ApiResponse(data=CheckpointRestoreResponse.model_validate(restored))
 
 
 @router.post("/artifacts", response_model=ApiResponse[ArtifactResponse])

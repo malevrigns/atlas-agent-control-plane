@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 import yaml
 from pydantic import BaseModel, Field, model_validator
@@ -45,6 +46,11 @@ class A2aAgentConfig(BaseModel):
 
         if self.transport == "http" and not self.url.startswith(("http://", "https://")):
             raise ValueError("http A2A agent requires http or https url")
+        if self.enabled and self.transport == "http":
+            host = (urlparse(self.url).hostname or "").lower()
+            allowed_hosts = {value.lower() for value in settings.a2a_http_allowed_hosts}
+            if not host or host not in allowed_hosts:
+                raise ValueError(f"A2A HTTP host is not allowlisted: {host or '<missing>'}")
         return self
 
 
@@ -70,7 +76,7 @@ def load_a2a_config() -> A2aConfig:
 
     path = Path(settings.a2a_config_path)
     if not path.is_file():
-        path = Path("config/a2a.yaml")
+        path = Path(__file__).resolve().parents[2] / "config/a2a.yaml"
     if not path.is_file():
         raise AppException(
             message=f"A2A config file not found: {settings.a2a_config_path}",
