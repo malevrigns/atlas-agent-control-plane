@@ -45,7 +45,7 @@ backend/api/
 如果用更接近通用 FastAPI 项目的说法对照，可以这样理解：
 
 ```text
-通用示例里的 backend/api/v1/endpoints   -> 本项目 app/presentation/http/routes
+通用示例里的 api/v1/endpoints           -> 本项目 app/presentation/http/routes
 通用示例里的 services           -> 本项目 app/application
 通用示例里的 models             -> 本项目 app/infrastructure/database/models
 通用示例里的 repositories       -> 本项目 app/infrastructure/repositories
