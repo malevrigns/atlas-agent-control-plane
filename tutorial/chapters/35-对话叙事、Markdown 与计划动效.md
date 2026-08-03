@@ -1,20 +1,16 @@
 # 第三十五章. 对话叙事、Markdown 与计划动效
 
-## 35.1 合章说明
+## 35.1 对话叙事流与 Markdown 代码陈列
 
-​        旧版教程把“对话叙事流与 Markdown 代码陈列”与“任务计划折叠条与执行流动效”拆成了相邻两章。两者实际上属于同一条能力链：前者把基础结构立住，后者让它进入可用状态。本章将它们合并为前后两个阶段，保留原来的实现、验证与工程判断，同时减少能力尚未闭环时的章节跳转。
+### 35.1.1 本节目标
 
-## 35.2 第一阶段：对话叙事流与 Markdown 代码陈列
+​        学完本节后，你将能够：
 
-### 35.2.1 本阶段目标
+​        换句话说，第一，理解为什么 Agent 产品的主界面应该围绕“对话叙事流”组织；第二，理解普通文本渲染和 Markdown 渲染在 AI 回复中的差异；第三，使用 `react-markdown` 和 `remark-gfm` 渲染代码块、列表、链接和表格；第四，把 AI 回复和最终总结改成 Markdown 展示；第五，把步骤里的工具调用从“大按钮”收敛成轻量内联节点；第六，让主对话区更接近真实 AI Agent 产品的中间内容流。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        学完本阶段后，你将能够：
+### 35.1.2 最终效果
 
-​        换句话说，第一，理解为什么 Agent 产品的主界面应该围绕“对话叙事流”组织；第二，理解普通文本渲染和 Markdown 渲染在 AI 回复中的差异；第三，使用 `react-markdown` 和 `remark-gfm` 渲染代码块、列表、链接和表格；第四，把 AI 回复和最终总结改成 Markdown 展示；第五，把步骤里的工具调用从“大按钮”收敛成轻量内联节点；第六，让主对话区更接近真实 AI Agent 产品的中间内容流。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
-
-### 35.2.2 最终效果
-
-​        本阶段结束后，访问：
+​        本节结束后，访问：
 
 ```Plain
 http://localhost:8088
@@ -22,13 +18,13 @@ http://localhost:8088
 
 ​        页面仍然是第 34 章的工作台，但中间对话区会发生三个变化：
 
-​        从实现顺序看，第一，AI 回复支持 Markdown；第二，代码块会显示为独立代码区域，不再混在普通文本里；第三，计划步骤下的工具调用变成轻量节点，点击后仍然打开右侧工具详情。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        从实现顺序看，第一，AI 回复支持 Markdown；第二，代码块会显示为独立代码区域，不再混在普通文本里；第三，计划步骤下的工具调用变成轻量节点，点击后仍然打开右侧工具详情。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        本阶段不是最终 UI 封版。本章第二阶段会继续把底部计划条和执行动效做得更像真实任务流，第 36 章会继续重做右侧工具详情。
+​        本节不是最终 UI 封版。本章后文会继续把底部计划条和执行动效做得更像真实任务流，第 36 章会继续重做右侧工具详情。
 
-### 35.2.3 本阶段要解决的问题
+### 35.1.3 本节要解决的问题
 
-​        第 50-54 章已经把前端从功能面板逐步收敛到了 AI 工作台。
+​        第 32–34 章已经把前端从功能面板逐步收敛到了 AI 工作台。
 
 ​        但还有一个很明显的问题：
 
@@ -63,32 +59,32 @@ AI 对话内容看起来还是像普通文本面板。
 右侧详情：点击工具节点后查看完整参数、输出、截图或文件内容
 ```
 
-​        所以本阶段先完成对话流的第一轮产品化对齐。
+​        所以本节先完成对话流的第一轮产品化对齐。
 
-### 35.2.4 新增和修改的文件
+### 35.1.4 新增和修改的文件
 
 ```Plain
 README.md
 docs/course/coverage-matrix.md
 docs/course/outline.md
 docs/course/chapters/55-conversation-narrative-markdown.md
-ui/README.md
-ui/package.json
-ui/pnpm-lock.yaml
-ui/app/components/markdown-content.tsx
-ui/app/components/chat-workspace.tsx
-ui/app/components/conversation/message-bubble.tsx
-ui/app/components/conversation/agent-run-block.tsx
-ui/app/components/conversation/step-card.tsx
+frontend/web/README.md
+frontend/web/package.json
+frontend/web/pnpm-lock.yaml
+frontend/web/app/components/markdown-content.tsx
+frontend/web/app/components/chat-workspace.tsx
+frontend/web/app/components/conversation/message-bubble.tsx
+frontend/web/app/components/conversation/agent-run-block.tsx
+frontend/web/app/components/conversation/step-card.tsx
 ```
 
-### 35.2.5 实施步骤
-#### 35.2.5.1 安装 Markdown 渲染依赖
+### 35.1.5 实施步骤
+#### 35.1.5.1 安装 Markdown 渲染依赖
 
 ​        进入前端目录：
 
 ```Bash
-cd /Users/atlas/Desktop/github/atlas-agents/ui
+cd /Users/atlas/Desktop/github/atlas-agents/frontend/web
 ```
 
 ​        安装依赖：
@@ -97,14 +93,14 @@ cd /Users/atlas/Desktop/github/atlas-agents/ui
 pnpm add react-markdown remark-gfm
 ```
 
-​        安装后，`ui/package.json` 会新增：
+​        安装后，`frontend/web/package.json` 会新增：
 
 ```JSON
 "react-markdown": "^10.1.0",
 "remark-gfm": "^4.0.1"
 ```
 
-##### 35.2.5.1.1 为什么需要这两个依赖
+.1.5.1.1 为什么需要这两个依赖
 
 ​        `react-markdown` 负责把 Markdown 字符串转换成 React 组件。
 
@@ -119,11 +115,11 @@ pnpm add react-markdown remark-gfm
 
 ​        AI 回复非常容易包含代码块和列表，因此从这一阶段开始，不再把 AI 消息当普通纯文本处理。
 
-#### 35.2.5.2 新增 MarkdownContent 组件
+#### 35.1.5.2 新增 MarkdownContent 组件
 
-​        创建 `ui/app/components/markdown-content.tsx`。
+​        创建 `frontend/web/app/components/markdown-content.tsx`。
 
-​        本阶段核心代码如下：
+​        本节核心代码如下：
 
 ```TypeScript
 "use client";
@@ -187,7 +183,7 @@ export function MarkdownContent({ className = "", content }: MarkdownContentProp
 }
 ```
 
-##### 35.2.5.2.1 这段代码的业务作用
+.1.5.2.1 这段代码的业务作用
 
 ​        `MarkdownContent` 是 AI 回复的统一渲染入口。
 
@@ -202,9 +198,9 @@ assistant 消息
 
 ​        这样做的好处是，AI 输出代码时会自然显示为代码块，而不是一段难读的普通文字。
 
-#### 35.2.5.3 让 AI 回复使用 MarkdownContent
+#### 35.1.5.3 让 AI 回复使用 MarkdownContent
 
-​        打开 `ui/app/components/conversation/message-bubble.tsx`。
+​        打开 `frontend/web/app/components/conversation/message-bubble.tsx`。
 
 ​        用户消息仍然用普通气泡展示，因为用户输入通常是短文本。
 
@@ -214,17 +210,17 @@ assistant 消息
 <MarkdownContent className="mt-3" content={message.content} />
 ```
 
-##### 35.2.5.3.1 为什么只改 AI 消息
+.1.5.3.1 为什么只改 AI 消息
 
 ​        用户消息是“任务输入”，更像一条指令。
 
 ​        AI 消息是“执行解释和结果输出”，经常包含结构化内容。
 
-​        所以本阶段先让 AI 消息支持 Markdown。后续如果用户上传 Markdown 片段，也可以再按需要扩展用户消息渲染。
+​        所以本节先让 AI 消息支持 Markdown。后续如果用户上传 Markdown 片段，也可以再按需要扩展用户消息渲染。
 
-#### 35.2.5.4 让最终总结使用 MarkdownContent
+#### 35.1.5.4 让最终总结使用 MarkdownContent
 
-​        打开 `ui/app/components/conversation/agent-run-block.tsx`。
+​        打开 `frontend/web/app/components/conversation/agent-run-block.tsx`。
 
 ​        原来最终回答只是按换行拆成多个段落：
 
@@ -232,13 +228,13 @@ assistant 消息
 <FormattedAnswer value={firstAnswer} />
 ```
 
-​        本阶段改成：
+​        本节改成：
 
 ```TypeScript
 <MarkdownContent content={firstAnswer} />
 ```
 
-##### 35.2.5.4.1 为什么最终总结更需要 Markdown
+.1.5.4.1 为什么最终总结更需要 Markdown
 
 ​        最终总结通常包含：
 
@@ -251,17 +247,17 @@ assistant 消息
 
 ​        这些内容用 Markdown 展示会更清晰。
 
-#### 35.2.5.5 弱化步骤外壳，突出对话流
+#### 35.1.5.5 弱化步骤外壳，突出对话流
 
-​        打开 `ui/app/components/conversation/agent-run-block.tsx`。
+​        打开 `frontend/web/app/components/conversation/agent-run-block.tsx`。
 
-​        本阶段把计划区域从厚重卡片改成更轻的折叠行：
+​        本节把计划区域从厚重卡片改成更轻的折叠行：
 
 ```TypeScript
 <button className="flex w-full items-center justify-between gap-4 rounded-xl px-2 py-2 text-left transition hover:bg-white/[0.035]">
 ```
 
-##### 35.2.5.5.1 为什么这样改
+.1.5.5.1 为什么这样改
 
 ​        主对话区应该让用户先看到：
 
@@ -274,9 +270,9 @@ AI 正在做什么
 
 ​        如果每个计划块都像大面板，页面会更像管理后台，而不是 AI 对话产品。
 
-#### 35.2.5.6 把工具调用改成轻量节点
+#### 35.1.5.6 把工具调用改成轻量节点
 
-​        打开 `ui/app/components/conversation/step-card.tsx`。
+​        打开 `frontend/web/app/components/conversation/step-card.tsx`。
 
 ​        工具调用按钮从大块卡片改成轻量节点：
 
@@ -284,7 +280,7 @@ AI 正在做什么
 <button className="inline-flex w-fit max-w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-1.5 text-left text-sm font-medium text-zinc-500 transition hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-zinc-100">
 ```
 
-##### 35.2.5.6.1 这段代码的业务作用
+.1.5.6.1 这段代码的业务作用
 
 ​        中间对话流只展示工具摘要：
 
@@ -303,9 +299,9 @@ AI 正在做什么
 右侧：看工具证据
 ```
 
-### 35.2.6 关键理解
+### 35.1.6 关键理解
 
-​        本阶段最重要的是理解：Agent 产品不是把日志贴到页面上。
+​        本节最重要的是理解：Agent 产品不是把日志贴到页面上。
 
 ​        更好的展示方式是：
 
@@ -319,20 +315,20 @@ AI 用自然语言说明理解
 
 ​        这样用户可以快速读懂任务过程，也可以在需要时打开右侧详情检查证据。
 
-### 35.2.7 运行验证
+### 35.1.7 运行验证
 
 ​        下面命令默认在项目根目录执行。
 
-#### 35.2.7.1 检查前端类型
+#### 35.1.7.1 检查前端类型
 
 ```Bash
-cd ui
+cd frontend/web
 pnpm typecheck
 ```
 
 ​        预期没有 TypeScript 报错。
 
-#### 35.2.7.2 构建前端
+#### 35.1.7.2 构建前端
 
 ```Bash
 pnpm build
@@ -340,7 +336,7 @@ pnpm build
 
 ​        预期构建成功。
 
-#### 35.2.7.3 Docker 验证
+#### 35.1.7.3 Docker 验证
 
 ​        回到项目根目录：
 
@@ -364,27 +360,27 @@ http://localhost:8088
 
 ​        预期：
 
-​        放到工程语境里看，第一，AI 回复中的代码块有独立背景；第二，列表和加粗能正常显示；第三，计划步骤下的工具调用更轻量；第四，点击工具节点仍然能打开右侧详情。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        放到工程语境里看，第一，AI 回复中的代码块有独立背景；第二，列表和加粗能正常显示；第三，计划步骤下的工具调用更轻量；第四，点击工具节点仍然能打开右侧详情。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 35.2.8 阶段小结
+### 35.1.8 小结
 
-​        本阶段完成了对话流产品化的第一步：
+​        本节完成了对话流产品化的第一步：
 
-​        展开来看，第一，安装了 Markdown 渲染依赖；第二，新增了 `MarkdownContent`；第三，AI 回复和最终总结开始支持 Markdown；第四，工具调用从大按钮收敛为轻量节点；第五，主对话区宽度继续向中间叙事流靠拢。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        展开来看，第一，安装了 Markdown 渲染依赖；第二，新增了 `MarkdownContent`；第三，AI 回复和最终总结开始支持 Markdown；第四，工具调用从大按钮收敛为轻量节点；第五，主对话区宽度继续向中间叙事流靠拢。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        本章第二阶段会继续处理底部计划折叠条和执行流动效，让任务执行过程更像连续的 AI 工作流。
+​        本章后文会继续处理底部计划折叠条和执行流动效，让任务执行过程更像连续的 AI 工作流。
 
-## 35.3 第二阶段：任务计划折叠条与执行流动效
+## 35.2 任务计划折叠条与执行流动效
 
-### 35.3.1 本阶段目标
+### 35.2.1 本节目标
 
-​        学完本阶段后，你将能够：
+​        学完本节后，你将能够：
 
-​        具体来说，第一，理解为什么计划进度适合放在输入框上方；第二，把计划步骤转换成前端 `PlanProgressView`；第三，新增可折叠的底部任务计划条；第四，让中间对话流减少大面板感，专注展示 AI 说明、步骤和工具节点；第五，根据 `plan_created`、`step_started`、`step_completed`、`task_error` 等事件计算当前步骤；第六，理解“中间讲过程，底部看进度，右侧看证据”的前端分工。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        具体来说，第一，理解为什么计划进度适合放在输入框上方；第二，把计划步骤转换成前端 `PlanProgressView`；第三，新增可折叠的底部任务计划条；第四，让中间对话流减少大面板感，专注展示 AI 说明、步骤和工具节点；第五，根据 `plan_created`、`step_started`、`step_completed`、`task_error` 等事件计算当前步骤；第六，理解“中间讲过程，底部看进度，右侧看证据”的前端分工。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 35.3.2 最终效果
+### 35.2.2 最终效果
 
-​        本阶段结束后，访问：
+​        本节结束后，访问：
 
 ```Plain
 http://localhost:8088
@@ -400,11 +396,11 @@ http://localhost:8088
 
 ​        中间对话区不再重复展示厚重的计划标题卡片，而是更专注展示：
 
-​        换句话说，第一，AI 对任务的说明；第二，步骤执行流；第三，轻量工具节点；第四，最终总结。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        换句话说，第一，AI 对任务的说明；第二，步骤执行流；第三，轻量工具节点；第四，最终总结。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 35.3.3 本阶段要解决的问题
+### 35.2.3 本节要解决的问题
 
-​        本章第一阶段已经让 AI 回复支持 Markdown，也把工具调用节点变轻了。
+​        前文已经让 AI 回复支持 Markdown，也把工具调用节点变轻了。
 
 ​        但还有一个问题：
 
@@ -421,7 +417,7 @@ http://localhost:8088
 
 ​        如果计划只在中间时间线里，用户滚动到后面时就看不到整体进度。
 
-​        所以本阶段把计划进度放到底部输入区上方。
+​        所以本节把计划进度放到底部输入区上方。
 
 ​        这样页面分工更清晰：
 
@@ -431,24 +427,24 @@ http://localhost:8088
 右侧工作区：看工具证据
 ```
 
-### 35.3.4 新增和修改的文件
+### 35.2.4 新增和修改的文件
 
 ```Plain
 README.md
 docs/course/chapters/56-plan-progress-streaming.md
-ui/README.md
-ui/app/components/chat-workspace.tsx
-ui/app/components/conversation-timeline.tsx
-ui/app/components/conversation/agent-run-block.tsx
-ui/app/components/conversation/plan-progress-bar.tsx
-ui/app/components/conversation/types.ts
-ui/app/components/conversation/view-model.ts
+frontend/web/README.md
+frontend/web/app/components/chat-workspace.tsx
+frontend/web/app/components/conversation-timeline.tsx
+frontend/web/app/components/conversation/agent-run-block.tsx
+frontend/web/app/components/conversation/plan-progress-bar.tsx
+frontend/web/app/components/conversation/types.ts
+frontend/web/app/components/conversation/view-model.ts
 ```
 
-### 35.3.5 实施步骤
-#### 35.3.5.1 扩展前端计划进度类型
+### 35.2.5 实施步骤
+#### 35.2.5.1 扩展前端计划进度类型
 
-​        打开 `ui/app/components/conversation/types.ts`，新增：
+​        打开 `frontend/web/app/components/conversation/types.ts`，新增：
 
 ```TypeScript
 export type PlanProgressView = {
@@ -463,11 +459,11 @@ export type PlanProgressView = {
 };
 ```
 
-##### 35.3.5.1.1 字段含义
+.2.5.1.1 字段含义
 
-​        从实现顺序看，第一，`activeStep`：当前正在执行或即将执行的步骤；第二，`completedCount`：已完成步骤数量；第三，`totalCount`：总步骤数量；第四，`expandedByDefault`：任务运行时是否默认展开计划条；第五，`failed`：任务是否已经失败；第六，`running`：任务是否正在规划或执行；第七，`steps`：完整步骤列表，用于展开后展示；第八，`title`：计划标题。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        从实现顺序看，第一，`activeStep`：当前正在执行或即将执行的步骤；第二，`completedCount`：已完成步骤数量；第三，`totalCount`：总步骤数量；第四，`expandedByDefault`：任务运行时是否默认展开计划条；第五，`failed`：任务是否已经失败；第六，`running`：任务是否正在规划或执行；第七，`steps`：完整步骤列表，用于展开后展示；第八，`title`：计划标题。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-##### 35.3.5.1.2 为什么这样设计
+.2.5.1.2 为什么这样设计
 
 ​        底部计划条不应该直接读取原始事件。
 
@@ -483,9 +479,9 @@ export type PlanProgressView = {
 
 ​        所以先定义 `PlanProgressView`，再让组件只关心这个结构。
 
-#### 35.3.5.2 从事件生成计划进度模型
+#### 35.2.5.2 从事件生成计划进度模型
 
-​        打开 `ui/app/components/conversation/view-model.ts`，新增：
+​        打开 `frontend/web/app/components/conversation/view-model.ts`，新增：
 
 ```TypeScript
 export function buildPlanProgressView(
@@ -519,7 +515,7 @@ export function buildPlanProgressView(
 }
 ```
 
-##### 35.3.5.2.1 这段代码的业务流程
+.2.5.2.1 这段代码的业务流程
 
 ​        这段函数把后端事件转换成底部计划条需要的数据。
 
@@ -541,7 +537,7 @@ export function buildPlanProgressView(
 生成 PlanProgressView
 ```
 
-##### 35.3.5.2.2 为什么使用 runningStep 和 pendingStep
+.2.5.2.2 为什么使用 runningStep 和 pendingStep
 
 ​        如果某一步已经开始，就展示它。
 
@@ -549,9 +545,9 @@ export function buildPlanProgressView(
 
 ​        如果任务失败，就不再展示 activeStep，而是让计划条显示失败状态。
 
-#### 35.3.5.3 新增 PlanProgressBar 组件
+#### 35.2.5.3 新增 PlanProgressBar 组件
 
-​        创建 `ui/app/components/conversation/plan-progress-bar.tsx`。
+​        创建 `frontend/web/app/components/conversation/plan-progress-bar.tsx`。
 
 ​        核心结构如下：
 
@@ -609,7 +605,7 @@ export function PlanProgressBar({ progress }: PlanProgressBarProps) {
 }
 ```
 
-##### 35.3.5.3.1 这段代码的业务作用
+.2.5.3.1 这段代码的业务作用
 
 ​        `PlanProgressBar` 是底部计划条。
 
@@ -622,9 +618,9 @@ export function PlanProgressBar({ progress }: PlanProgressBarProps) {
 
 ​        任务运行时，`expandedByDefault` 会让它自动展开。这样用户发送任务后，能立刻看到任务被拆成了哪些步骤。
 
-#### 35.3.5.4 把计划条接入输入区
+#### 35.2.5.4 把计划条接入输入区
 
-​        打开 `ui/app/components/chat-workspace.tsx`，先构建进度模型：
+​        打开 `frontend/web/app/components/chat-workspace.tsx`，先构建进度模型：
 
 ```TypeScript
 const eventItems = events.type === "ready" ? events.data : [];
@@ -642,7 +638,7 @@ const planProgress = buildPlanProgressView(
 <PlanProgressBar progress={planProgress} />
 ```
 
-##### 35.3.5.4.1 为什么放在输入框上方
+.2.5.4.1 为什么放在输入框上方
 
 ​        输入区是用户持续关注的位置。
 
@@ -656,11 +652,11 @@ const planProgress = buildPlanProgressView(
 
 ​        把计划条放在输入框上方，可以让这些信息聚在一起。
 
-#### 35.3.5.5 调整中间时间线
+#### 35.2.5.5 调整中间时间线
 
-​        打开 `ui/app/components/conversation-timeline.tsx`。
+​        打开 `frontend/web/app/components/conversation-timeline.tsx`。
 
-​        本阶段不再让 `plan_created` 事件在中间生成一块厚重的计划卡。
+​        本节不再让 `plan_created` 事件在中间生成一块厚重的计划卡。
 
 ​        中间时间线保留：
 
@@ -672,7 +668,7 @@ AI 回复
 最终总结
 ```
 
-##### 35.3.5.5.1 为什么这样调整
+.2.5.5.1 为什么这样调整
 
 ​        计划进度已经在底部持续可见。
 
@@ -685,13 +681,13 @@ AI 回复
 中间看过程细节
 ```
 
-#### 35.3.5.6 弱化 AgentRunBlock 的计划标题卡
+#### 35.2.5.6 弱化 AgentRunBlock 的计划标题卡
 
-​        打开 `ui/app/components/conversation/agent-run-block.tsx`。
+​        打开 `frontend/web/app/components/conversation/agent-run-block.tsx`。
 
 ​        原来这里有一个可折叠的计划标题卡。
 
-​        本阶段改成更轻的说明：
+​        本节改成更轻的说明：
 
 ```TypeScript
 <p className="mt-3 text-base leading-8 text-zinc-400">
@@ -702,7 +698,7 @@ AI 回复
 
 ​        然后直接展示步骤流。
 
-##### 35.3.5.6.1 这样改后的效果
+.2.5.6.1 这样改后的效果
 
 ​        中间对话区更像：
 
@@ -723,9 +719,9 @@ AtlasAgent：我会按计划推进任务
 大工具按钮
 ```
 
-### 35.3.6 关键理解
+### 35.2.6 关键理解
 
-​        本阶段最重要的是前端信息分层。
+​        本节最重要的是前端信息分层。
 
 ​        不要把所有信息都塞进同一个区域。
 
@@ -737,20 +733,20 @@ AtlasAgent：我会按计划推进任务
 
 ​        这样用户既能快速知道任务进展，也能在需要时展开细节。
 
-### 35.3.7 运行验证
+### 35.2.7 运行验证
 
 ​        下面命令默认在项目根目录执行。
 
-#### 35.3.7.1 检查前端类型
+#### 35.2.7.1 检查前端类型
 
 ```Bash
-cd ui
+cd frontend/web
 pnpm typecheck
 ```
 
 ​        预期没有 TypeScript 报错。
 
-#### 35.3.7.2 构建前端
+#### 35.2.7.2 构建前端
 
 ```Bash
 pnpm build
@@ -758,7 +754,7 @@ pnpm build
 
 ​        预期构建成功。
 
-#### 35.3.7.3 Docker 构建和启动
+#### 35.2.7.3 Docker 构建和启动
 
 ```Bash
 cd /Users/atlas/Desktop/github/atlas-agents
@@ -766,7 +762,7 @@ docker compose build ui
 docker compose up -d --force-recreate ui nginx
 ```
 
-#### 35.3.7.4 页面验证
+#### 35.2.7.4 页面验证
 
 ​        访问：
 
@@ -778,17 +774,17 @@ http://localhost:8088
 
 ​        预期：
 
-​        放到工程语境里看，第一，底部输入框上方出现计划进度条；第二，折叠状态显示当前步骤和 `已完成 / 总数`；第三，点击计划条可以展开完整步骤列表；第四，中间对话区不再重复显示厚重计划标题卡；第五，步骤流和工具节点仍然可以打开右侧详情。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        放到工程语境里看，第一，底部输入框上方出现计划进度条；第二，折叠状态显示当前步骤和 `已完成 / 总数`；第三，点击计划条可以展开完整步骤列表；第四，中间对话区不再重复显示厚重计划标题卡；第五，步骤流和工具节点仍然可以打开右侧详情。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 35.3.8 阶段小结
+### 35.2.8 小结
 
-​        本阶段完成了任务进度体验的进一步收敛：
+​        本节完成了任务进度体验的进一步收敛：
 
-​        展开来看，第一，新增 `PlanProgressView`；第二，新增 `buildPlanProgressView()`；第三，新增底部 `PlanProgressBar`；第四，把计划进度放到输入框上方；第五，中间对话流去掉厚重计划标题卡；第六，页面更接近连续任务执行体验。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        展开来看，第一，新增 `PlanProgressView`；第二，新增 `buildPlanProgressView()`；第三，新增底部 `PlanProgressBar`；第四，把计划进度放到输入框上方；第五，中间对话流去掉厚重计划标题卡；第六，页面更接近连续任务执行体验。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        下一章会继续把右侧工具详情、浏览器截图、VNC 和文件预览做最终对齐。
 
-## 35.4 本章小结
+## 35.3 本章小结
 
 ​        完成“对话叙事流与 Markdown 代码陈列”和“任务计划折叠条与执行流动效”两个阶段后，这条能力链已经形成闭环。读者仍然可以在每个阶段结束时单独运行验证，但理解上应把两者视作一个连续决策：先建立可靠边界，再让上层能力真正依赖它。
 

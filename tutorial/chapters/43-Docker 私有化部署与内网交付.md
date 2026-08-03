@@ -205,9 +205,9 @@ v1.0.0
 ​        给镜像打 tag：
 
 ```Bash
-docker tag atlas-agents-api registry.example.com/atlas-agents/api:v1.0.0
-docker tag atlas-agents-ui registry.example.com/atlas-agents/ui:v1.0.0
-docker tag atlas-agents-sandbox registry.example.com/atlas-agents/sandbox:v1.0.0
+docker tag atlas-agents-api registry.example.com/atlas-agents/backend/api:v1.0.0
+docker tag atlas-agents-ui registry.example.com/atlas-agents/frontend/web:v1.0.0
+docker tag atlas-agents-sandbox registry.example.com/atlas-agents/backend/sandbox:v1.0.0
 ```
 
 #### 43.7.4.1 为什么要打版本 tag
@@ -236,9 +236,9 @@ docker login registry.example.com
 ​        推送镜像：
 
 ```Bash
-docker push registry.example.com/atlas-agents/api:v1.0.0
-docker push registry.example.com/atlas-agents/ui:v1.0.0
-docker push registry.example.com/atlas-agents/sandbox:v1.0.0
+docker push registry.example.com/atlas-agents/backend/api:v1.0.0
+docker push registry.example.com/atlas-agents/frontend/web:v1.0.0
+docker push registry.example.com/atlas-agents/backend/sandbox:v1.0.0
 ```
 
 ​        如果服务器不能访问 Docker Hub 或 GitHub Container Registry，私有镜像仓库就是最稳的交付方式。
@@ -252,13 +252,13 @@ docker push registry.example.com/atlas-agents/sandbox:v1.0.0
 ```YAML
 services:
   api:
-    image: registry.example.com/atlas-agents/api:v1.0.0
+    image: registry.example.com/atlas-agents/backend/api:v1.0.0
 
   ui:
-    image: registry.example.com/atlas-agents/ui:v1.0.0
+    image: registry.example.com/atlas-agents/frontend/web:v1.0.0
 
   sandbox:
-    image: registry.example.com/atlas-agents/sandbox:v1.0.0
+    image: registry.example.com/atlas-agents/backend/sandbox:v1.0.0
 ```
 
 ​        这样服务器启动时只需要拉镜像，不需要现场构建。
@@ -303,7 +303,7 @@ cd /opt/atlas-agents
 ./scripts/seed-runtime-config.sh
 ```
 
-​        脚本会把 `api/config` 下的默认配置复制到 `api_runtime_config` 卷中。
+​        脚本会把 `backend/api/config` 下的默认配置复制到 `api_runtime_config` 卷中。
 
 ​        默认不会覆盖已有文件。如果你确认要重新覆盖，可以执行：
 

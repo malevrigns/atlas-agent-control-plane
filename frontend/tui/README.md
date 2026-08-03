@@ -3,7 +3,7 @@
 键盘优先的控制平面客户端。它读取与 Web/Electron 相同的 API，集中展示任务状态、Checkpoint 时间线和 Tool Runtime 审计；API 不可用时自动进入带标签的演示数据模式。
 
 ```bash
-cd tui
+cd frontend/tui
 uv sync
 uv run atlas-tui
 ```

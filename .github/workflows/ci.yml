@@ -24,19 +24,19 @@ jobs:
         with:
           enable-cache: true
       - name: API tests
-        working-directory: api
+        working-directory: backend/api
         run: uv run --frozen python -m unittest discover -s tests -v
       - name: API dependency audit
-        working-directory: api
+        working-directory: backend/api
         run: uv run --frozen --with pip-audit pip-audit --local
       - name: Sandbox tests
-        working-directory: sandbox
+        working-directory: backend/sandbox
         run: uv run --frozen python -m unittest discover -s tests -v
       - name: Sandbox dependency audit
-        working-directory: sandbox
+        working-directory: backend/sandbox
         run: uv run --frozen --with pip-audit pip-audit --local
       - name: TUI tests
-        working-directory: tui
+        working-directory: frontend/tui
         run: uv run --frozen python -m unittest discover -s tests -v
       - name: Startup configuration tests
         run: python -m unittest discover -s tests -v
@@ -50,18 +50,18 @@ jobs:
           node-version: "24"
       - uses: pnpm/action-setup@v4
         with:
-          package_json_file: ui/package.json
+          package_json_file: frontend/web/package.json
       - name: Install
-        working-directory: ui
+        working-directory: frontend/web
         run: pnpm install --frozen-lockfile
       - name: Audit
-        working-directory: ui
+        working-directory: frontend/web
         run: pnpm audit --audit-level high
       - name: Typecheck
-        working-directory: ui
+        working-directory: frontend/web
         run: pnpm typecheck
       - name: Production build
-        working-directory: ui
+        working-directory: frontend/web
         run: pnpm build
 
   desktop:
@@ -72,21 +72,21 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: desktop/package-lock.json
+          cache-dependency-path: frontend/desktop/package-lock.json
       - name: Install
-        working-directory: desktop
+        working-directory: frontend/desktop
         run: npm ci
       - name: Audit
-        working-directory: desktop
+        working-directory: frontend/desktop
         run: npm audit --audit-level high
       - name: Build
-        working-directory: desktop
+        working-directory: frontend/desktop
         run: npm run build
       - name: Sites packaging tests
-        working-directory: desktop
+        working-directory: frontend/desktop
         run: npm run test:sites
       - name: Electron syntax
-        working-directory: desktop
+        working-directory: frontend/desktop
         run: node --check electron/main.cjs && node --check electron/preload.cjs
 
   compose:

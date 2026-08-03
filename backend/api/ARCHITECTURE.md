@@ -13,7 +13,7 @@
 ## 目录结构
 
 ```text
-api/
+backend/api/
 ├── app/
 │   ├── main.py                       # 应用入口：创建 FastAPI，注册中间件、异常处理和路由
 │   ├── core/                         # 跨层通用能力：配置、异常、日志、配置文件读取
@@ -45,7 +45,7 @@ api/
 如果用更接近通用 FastAPI 项目的说法对照，可以这样理解：
 
 ```text
-通用示例里的 api/v1/endpoints   -> 本项目 app/presentation/http/routes
+通用示例里的 backend/api/v1/endpoints   -> 本项目 app/presentation/http/routes
 通用示例里的 services           -> 本项目 app/application
 通用示例里的 models             -> 本项目 app/infrastructure/database/models
 通用示例里的 repositories       -> 本项目 app/infrastructure/repositories
@@ -384,19 +384,19 @@ Agent 运行上下文
 
 ## 为什么使用 `presentation/http`
 
-外层 `api/` 是 monorepo 中的后端服务目录。
+外层 `backend/api/` 是 monorepo 中的后端服务目录。
 
-旧目录 `api/app/api/` 在技术上可用，但容易让读者混淆“服务目录”和“HTTP 接口层”。
+旧目录 `backend/api/app/api/` 在技术上可用，但容易让读者混淆“服务目录”和“HTTP 接口层”。
 
 现在改为：
 
 ```text
-api/app/presentation/http/
+backend/api/app/presentation/http/
 ```
 
 含义更明确：
 
-- `api/`：后端服务。
+- `backend/api/`：后端服务。
 - `presentation/http/`：后端应用的 HTTP 表现层。
 
 后续如果新增 CLI、WebSocket 或其他入口，也可以放到 `presentation/` 下的其他目录中。

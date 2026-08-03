@@ -16,8 +16,8 @@ class ProductionStartupConfigTest(unittest.TestCase):
         self.assertIn("docker compose down", stop_script.read_text())
 
     def test_api_container_runs_start_script_with_migrations(self) -> None:
-        dockerfile = (ROOT / "api" / "Dockerfile").read_text()
-        start_script = (ROOT / "api" / "scripts" / "start.sh").read_text()
+        dockerfile = (ROOT / "backend" / "api" / "Dockerfile").read_text()
+        start_script = (ROOT / "backend" / "api" / "scripts" / "start.sh").read_text()
 
         self.assertIn("COPY scripts ./scripts", dockerfile)
         self.assertIn('CMD ["./scripts/start.sh"]', dockerfile)

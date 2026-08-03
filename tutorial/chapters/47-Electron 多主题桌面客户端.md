@@ -31,7 +31,7 @@ Web 工作台依然保留，但长时间运行的 Agent 还需要一个适合驻
 
 ## 47.4 Electron 安全边界
 
-`desktop/electron/main.cjs` 开启：
+`frontend/desktop/electron/main.cjs` 开启：
 
 ```javascript
 webPreferences: {
@@ -66,7 +66,7 @@ webPreferences: {
 渲染入口为 `src/main.tsx`，主界面为 `src/App.tsx`，API、任务与 Checkpoint 模型集中在 `src/types.ts`。`tsconfig.json` 开启 `strict`、未使用符号检查和 Bundler 模块解析；不要仅把 `.jsx` 改名为 `.tsx` 后用 `any` 绕过错误。
 
 ```bash
-cd desktop
+cd frontend/desktop
 npm install
 npm run electron:dev
 ```

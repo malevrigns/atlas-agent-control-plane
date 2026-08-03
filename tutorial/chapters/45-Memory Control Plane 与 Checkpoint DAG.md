@@ -27,7 +27,7 @@ Control Plane 不是又建一张“万能记忆表”，而是明确四类数据
 
 ## 45.3 结构化任务状态
 
-新的 `TaskState` 在 `api/app/domain/control_plane/entities.py` 中定义。它包含：
+新的 `TaskState` 在 `backend/api/app/domain/control_plane/entities.py` 中定义。它包含：
 
 ```text
 goal + acceptance_criteria
@@ -147,7 +147,7 @@ X-Atlas-API-Key: <key>
 ## 45.8 本章验收
 
 ```bash
-cd api
+cd backend/api
 uv run alembic upgrade head
 uv run python -m unittest tests.test_checkpoint_service tests.test_memory_control_plane
 ```

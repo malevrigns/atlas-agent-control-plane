@@ -125,35 +125,35 @@ session_events.tool_called
 
 ```Plain
 README.md
-api/README.md
-api/app/domain/multi_agent/__init__.py
-api/app/domain/multi_agent/entities.py
-api/app/application/multi_agent_service.py
-api/app/schemas/multi_agent.py
-api/app/presentation/http/routes/multi_agent.py
-api/app/presentation/http/router.py
-api/app/infrastructure/agent_tools/multi_agent.py
-api/app/infrastructure/agent_tools/builtin.py
-api/app/application/react_agent_service.py
-ui/app/types.ts
-ui/app/lib/multi-agent-api.ts
-ui/app/components/multi-agent-panel.tsx
-ui/app/components/tool-preview-panel.tsx
-ui/app/components/chat-workspace.tsx
-ui/app/page.tsx
+backend/api/README.md
+backend/api/app/domain/multi_agent/__init__.py
+backend/api/app/domain/multi_agent/entities.py
+backend/api/app/application/multi_agent_service.py
+backend/api/app/schemas/multi_agent.py
+backend/api/app/presentation/http/routes/multi_agent.py
+backend/api/app/presentation/http/router.py
+backend/api/app/infrastructure/agent_tools/multi_agent.py
+backend/api/app/infrastructure/agent_tools/builtin.py
+backend/api/app/application/react_agent_service.py
+frontend/web/app/types.ts
+frontend/web/app/lib/multi-agent-api.ts
+frontend/web/app/components/multi-agent-panel.tsx
+frontend/web/app/components/tool-preview-panel.tsx
+frontend/web/app/components/chat-workspace.tsx
+frontend/web/app/page.tsx
 docs/course/chapters/36-multi-agent-orchestration.md
 ```
 
 ## 24.6 实施步骤
 ### 24.6.1 定义多 Agent 领域对象
 
-​        创建 `api/app/domain/multi_agent/__init__.py`：
+​        创建 `backend/api/app/domain/multi_agent/__init__.py`：
 
 ```Python
 """Multi-agent collaboration domain package."""
 ```
 
-​        创建 `api/app/domain/multi_agent/entities.py`：
+​        创建 `backend/api/app/domain/multi_agent/entities.py`：
 
 ```Python
 from dataclasses import dataclass
@@ -217,7 +217,7 @@ class MultiAgentRunResult:
 
 ### 24.6.2 实现多 Agent 应用服务
 
-​        创建 `api/app/application/multi_agent_service.py`：
+​        创建 `backend/api/app/application/multi_agent_service.py`：
 
 ```Python
 from app.domain.multi_agent.entities import (
@@ -339,7 +339,7 @@ _summarize()         Manager 汇总答案
 
 ### 24.6.3 定义 API Schema
 
-​        创建 `api/app/schemas/multi_agent.py`：
+​        创建 `backend/api/app/schemas/multi_agent.py`：
 
 ```Python
 from pydantic import BaseModel, Field
@@ -401,7 +401,7 @@ session_events.payload.output
 
 ### 24.6.4 新增多 Agent API 路由
 
-​        创建 `api/app/presentation/http/routes/multi_agent.py`：
+​        创建 `backend/api/app/presentation/http/routes/multi_agent.py`：
 
 ```Python
 from fastapi import APIRouter, Depends
@@ -508,7 +508,7 @@ async def run_multi_agent_collaboration(
     return ApiResponse(data=to_run_response(result))
 ```
 
-​        打开 `api/app/presentation/http/router.py`，注册路由：
+​        打开 `backend/api/app/presentation/http/router.py`，注册路由：
 
 ```Python
 from app.presentation.http.routes import (
@@ -546,7 +546,7 @@ api_router.include_router(multi_agent.router)
 
 ### 24.6.5 把多 Agent 注册成 AgentTool
 
-​        创建 `api/app/infrastructure/agent_tools/multi_agent.py`：
+​        创建 `backend/api/app/infrastructure/agent_tools/multi_agent.py`：
 
 ```Python
 import json
@@ -594,7 +594,7 @@ def register_multi_agent_tools(
     )
 ```
 
-​        打开 `api/app/infrastructure/agent_tools/builtin.py`，注册工具：
+​        打开 `backend/api/app/infrastructure/agent_tools/builtin.py`，注册工具：
 
 ```Python
 from app.infrastructure.agent_tools.multi_agent import register_multi_agent_tools
@@ -624,7 +624,7 @@ step_started -> tool_called -> step_completed
 
 ### 24.6.6 让 ReAct 执行器选择多 Agent 工具
 
-​        打开 `api/app/application/react_agent_service.py`，在工具选择逻辑中加入多 Agent 分支：
+​        打开 `backend/api/app/application/react_agent_service.py`，在工具选择逻辑中加入多 Agent 分支：
 
 ```Python
 if self._needs_multi_agent(text):
@@ -691,7 +691,7 @@ A2A
 
 ### 24.6.7 前端新增类型和请求函数
 
-​        打开 `ui/app/types.ts`，新增：
+​        打开 `frontend/web/app/types.ts`，新增：
 
 ```TypeScript
 export type MultiAgentRoleItem = {
@@ -706,7 +706,7 @@ export type MultiAgentRoleListData = {
 };
 ```
 
-​        创建 `ui/app/lib/multi-agent-api.ts`：
+​        创建 `frontend/web/app/lib/multi-agent-api.ts`：
 
 ```TypeScript
 import { requestApi } from "./api";
@@ -731,7 +731,7 @@ export function fetchMultiAgentRoles(): Promise<MultiAgentRoleListData> {
 
 ### 24.6.8 新增多 Agent 环境面板
 
-​        创建 `ui/app/components/multi-agent-panel.tsx`：
+​        创建 `frontend/web/app/components/multi-agent-panel.tsx`：
 
 ```TypeScript
 import { GitBranch, RefreshCcw } from "lucide-react";
@@ -790,7 +790,7 @@ page.tsx               组织页面级状态加载
 
 ### 24.6.9 工具预览支持多 Agent 结果
 
-​        打开 `ui/app/components/tool-preview-panel.tsx`。
+​        打开 `frontend/web/app/components/tool-preview-panel.tsx`。
 
 ​        新增结果类型：
 
@@ -919,7 +919,7 @@ multi_agent_result
 
 ### 24.6.10 把多 Agent 状态接入页面
 
-​        打开 `ui/app/page.tsx`，新增状态：
+​        打开 `frontend/web/app/page.tsx`，新增状态：
 
 ```TypeScript
 const [multiAgentRoles, setMultiAgentRoles] = useState<
@@ -1009,14 +1009,14 @@ cd /Users/atlas/Desktop/github/atlas-agents
 ### 24.8.1 编译后端
 
 ```Bash
-cd api
+cd backend/api
 uv run python -m compileall app
 ```
 
 ### 24.8.2 检查前端类型
 
 ```Bash
-cd ../ui
+cd ../../frontend/web
 pnpm typecheck
 ```
 

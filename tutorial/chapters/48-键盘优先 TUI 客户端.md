@@ -43,7 +43,7 @@ TUI 使用三栏布局：
 ## 48.5 运行
 
 ```bash
-cd tui
+cd frontend/tui
 uv sync
 uv run atlas-tui
 ```
@@ -67,7 +67,7 @@ ATLAS_API_URL=http://localhost:8000 uv run atlas-tui
 Textual 的 `run_test()` 可在无真实终端的环境中驱动应用：
 
 ```bash
-cd tui
+cd frontend/tui
 uv run python -m unittest discover -s tests
 ```
 

@@ -4,7 +4,7 @@
 
 ## Electron 桌面客户端
 
-桌面端位于 `desktop/`，渲染层使用 React + TypeScript（TSX），界面采用选定的 Checkpoint 时间线方向：左侧图标导航，中间任务/Checkpoint 列表，主区域展示可展开的时间线与工具审计，底部固定命令输入。
+桌面端位于 `frontend/desktop/`，渲染层使用 React + TypeScript（TSX），界面采用选定的 Checkpoint 时间线方向：左侧图标导航，中间任务/Checkpoint 列表，主区域展示可展开的时间线与工具审计，底部固定命令输入。
 
 内置主题：
 
@@ -17,7 +17,7 @@
 开发与构建：
 
 ```bash
-cd desktop
+cd frontend/desktop
 npm install
 npm run electron:dev
 npm run typecheck
@@ -37,10 +37,10 @@ npm run build
 
 ## Textual TUI
 
-TUI 位于 `tui/`，提供任务、Checkpoint、工具审计三栏信息和命令输入，支持三套终端主题及离线演示数据。
+TUI 位于 `frontend/tui/`，提供任务、Checkpoint、工具审计三栏信息和命令输入，支持三套终端主题及离线演示数据。
 
 ```bash
-cd tui
+cd frontend/tui
 uv sync
 ATLAS_API_URL=http://localhost:8088 ATLAS_API_KEY=... uv run atlas-tui
 ```

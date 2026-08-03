@@ -116,22 +116,22 @@ POST {base_url}/chat/completions
 ```Plain
 .env.example
 README.md
-api/README.md
-api/Dockerfile
-api/config/llm.yaml
-api/pyproject.toml
-api/uv.lock
-api/app/api/router.py
-api/app/api/routes/config.py
-api/app/api/routes/llm.py
-api/app/application/llm_service.py
-api/app/core/config.py
-api/app/core/llm_config.py
-api/app/domain/llm/__init__.py
-api/app/domain/llm/entities.py
-api/app/infrastructure/llm/__init__.py
-api/app/infrastructure/llm/openai_compatible.py
-api/app/schemas/llm.py
+backend/api/README.md
+backend/api/Dockerfile
+backend/api/config/llm.yaml
+backend/api/pyproject.toml
+backend/api/uv.lock
+backend/api/app/api/router.py
+backend/api/app/api/routes/config.py
+backend/api/app/api/routes/llm.py
+backend/api/app/application/llm_service.py
+backend/api/app/core/config.py
+backend/api/app/core/llm_config.py
+backend/api/app/domain/llm/__init__.py
+backend/api/app/domain/llm/entities.py
+backend/api/app/infrastructure/llm/__init__.py
+backend/api/app/infrastructure/llm/openai_compatible.py
+backend/api/app/schemas/llm.py
 docker-compose.yml
 docs/course/chapter-template.md
 docs/course/conventions.md
@@ -143,7 +143,7 @@ docs/course/chapters/15-llm-client.md
 ​        进入后端目录：
 
 ```Bash
-cd api
+cd backend/api
 ```
 
 ​        安装依赖：
@@ -155,13 +155,13 @@ uv add httpx pyyaml
 ​        这一步会更新：
 
 ```Plain
-api/pyproject.toml
-api/uv.lock
+backend/api/pyproject.toml
+backend/api/uv.lock
 ```
 
 ​        `httpx` 用来发起异步 HTTP 请求。
 ​        `pyyaml` 用来读取 YAML 配置文件。
-​        这一步完成后，`api/pyproject.toml` 的依赖里会出现：
+​        这一步完成后，`backend/api/pyproject.toml` 的依赖里会出现：
 
 ```TOML
 "httpx>=0.28.1",
@@ -172,7 +172,7 @@ api/uv.lock
 ​        不要只手动改 `pyproject.toml`。如果不更新 `uv.lock`，Docker 构建时会因为锁文件和依赖声明不一致而失败。
 
 ### 11.6.2 创建 LLM YAML 配置
-​        创建 `api/config/llm.yaml`：
+​        创建 `backend/api/config/llm.yaml`：
 
 ```YAML
 llm:
@@ -197,7 +197,7 @@ LLMService 初始化
 load_llm_config()
   |
   v
-读取 api/config/llm.yaml
+读取 backend/api/config/llm.yaml
 ```
 
 ​        输入和输出：
@@ -220,7 +220,7 @@ LLM_API_KEY=真实密钥
 ```
 
 ### 11.6.3 让 Settings 知道配置文件路径
-​        打开 `api/app/core/config.py`，加入：
+​        打开 `backend/api/app/core/config.py`，加入：
 
 ```Python
 llm_config_path: str = "config/llm.yaml"
@@ -259,7 +259,7 @@ load_llm_config()
 ​        你在宿主机 `.env` 里写了 `LLM_API_KEY`，不代表容器自动能读到。Compose 需要显式把环境变量传给 `api` 服务。
 
 ### 11.6.4 编写 LLM 配置加载器
-​        创建 `api/app/core/llm_config.py`：
+​        创建 `backend/api/app/core/llm_config.py`：
 
 ```Python
 from functools import lru_cache
@@ -348,7 +348,7 @@ Route -> LLMService -> load_llm_config -> YAML 文件
 ​        本章不做在线修改配置。配置修改仍然通过文件和环境变量完成。
 
 ### 11.6.5 定义 LLM 领域数据结构
-​        创建 `api/app/domain/llm/entities.py`：
+​        创建 `backend/api/app/domain/llm/entities.py`：
 
 ```Python
 from dataclasses import dataclass
@@ -407,7 +407,7 @@ assistant
 ​        本章在 API Schema 里会限制这三个值。
 
 ### 11.6.6 编写 OpenAI 兼容客户端
-​        创建 `api/app/infrastructure/llm/openai_compatible.py`：
+​        创建 `backend/api/app/infrastructure/llm/openai_compatible.py`：
 
 ```Python
 import httpx
@@ -542,7 +542,7 @@ f"{self.base_url}/chat/completions"
 ​        本章不做流式输出。`chat()` 会等模型完整返回后，再把内容返回给前端。
 
 ### 11.6.7 编写 LLM 应用服务
-​        创建 `api/app/application/llm_service.py`：
+​        创建 `backend/api/app/application/llm_service.py`：
 
 ```Python
 import os
@@ -658,7 +658,7 @@ OpenAICompatibleClient
 ​        本章不把 LLMService 接到会话消息发送流程。现在只是先确认模型客户端可以独立工作。
 
 ### 11.6.8 定义 API Schema
-​        创建 `api/app/schemas/llm.py`：
+​        创建 `backend/api/app/schemas/llm.py`：
 
 ```Python
 from pydantic import BaseModel, Field
@@ -725,7 +725,7 @@ Route
 ​        如果用户传了非法 role，应该在进入模型调用前就返回 422。
 
 ### 11.6.9 编写配置接口
-​        创建 `api/app/api/routes/config.py`：
+​        创建 `backend/api/app/api/routes/config.py`：
 
 ```Python
 from fastapi import APIRouter, Depends
@@ -767,7 +767,7 @@ LLMService.get_public_config()
 ​        它只表示当前环境变量里没有 `LLM_API_KEY`。
 
 ### 11.6.10 编写聊天接口
-​        创建 `api/app/api/routes/llm.py`：
+​        创建 `backend/api/app/api/routes/llm.py`：
 
 ```Python
 from fastapi import APIRouter, Depends
@@ -860,7 +860,7 @@ OpenAICompatibleClient.chat()
 ​        这三层分开以后，后续把 LLM 接到会话任务时，可以直接复用 `LLMService`。
 
 ### 11.6.11 注册路由并更新 Dockerfile
-​        打开 `api/app/api/router.py`：
+​        打开 `backend/api/app/api/router.py`：
 
 ```Python
 from fastapi import APIRouter
@@ -875,7 +875,7 @@ api_router.include_router(config.router)
 api_router.include_router(llm.router)
 ```
 
-​        打开 `api/Dockerfile`，把配置目录放进镜像：
+​        打开 `backend/api/Dockerfile`，把配置目录放进镜像：
 
 ```Dockerfile
 COPY app ./app
@@ -941,7 +941,7 @@ messages: [{role, content}]
 ### 11.10.1 检查后端代码
 
 ```Bash
-cd api
+cd backend/api
 uv run python -m compileall app
 ```
 
@@ -1033,7 +1033,7 @@ LLM_API_KEY=你的真实密钥
 ​        如果使用的不是 OpenAI 官方地址，需要修改：
 
 ```Plain
-api/config/llm.yaml
+backend/api/config/llm.yaml
 ```
 
 ​        例如把 `base_url` 改成你的服务商地址。

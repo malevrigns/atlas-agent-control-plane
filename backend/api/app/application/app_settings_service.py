@@ -58,7 +58,7 @@ class AppSettingsSnapshot:
 class AppSettingsService:
     """聚合 LLM、MCP、A2A 和多 Agent 的设置页数据。
 
-    第 62 章开始，设置页不再只保存进程内状态。
+    第 38 章开始，设置页不再只保存进程内状态。
     用户保存 LLM/MCP/A2A 配置时，会写入 runtime-config 目录，
     然后清理配置缓存并重建对应服务，让新配置立即参与后续任务。
     """

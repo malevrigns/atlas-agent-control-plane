@@ -153,24 +153,24 @@ POST /api/sessions/{session_id}/plan/tasks
 ```Plain
 .env.example
 README.md
-api/README.md
-api/pyproject.toml
-api/uv.lock
-api/app/api/routes/sessions.py
-api/app/application/agent_task_runner.py
-api/app/core/config.py
-api/app/infrastructure/task_queue.py
-api/app/main.py
-api/app/schemas/session.py
+backend/api/README.md
+backend/api/pyproject.toml
+backend/api/uv.lock
+backend/api/app/api/routes/sessions.py
+backend/api/app/application/agent_task_runner.py
+backend/api/app/core/config.py
+backend/api/app/infrastructure/task_queue.py
+backend/api/app/main.py
+backend/api/app/schemas/session.py
 docker-compose.yml
 docs/course/chapters/20-agent-task-runner.md
-ui/README.md
-ui/app/components/chat-workspace.tsx
-ui/app/components/plan-panel.tsx
-ui/app/lib/session-api.ts
-ui/app/page.tsx
-ui/app/stores/session-store.ts
-ui/app/types.ts
+frontend/web/README.md
+frontend/web/app/components/chat-workspace.tsx
+frontend/web/app/components/plan-panel.tsx
+frontend/web/app/lib/session-api.ts
+frontend/web/app/page.tsx
+frontend/web/app/stores/session-store.ts
+frontend/web/app/types.ts
 ```
 
 ## 14.6 本章代码写法说明
@@ -183,7 +183,7 @@ ui/app/types.ts
 ​        进入后端目录：
 
 ```Bash
-cd api
+cd backend/api
 ```
 
 ​        安装依赖：
@@ -195,8 +195,8 @@ uv add "redis>=5.2,<6.0"
 ​        这条命令会更新两个文件：
 
 ```Plain
-api/pyproject.toml
-api/uv.lock
+backend/api/pyproject.toml
+backend/api/uv.lock
 ```
 
 #### 14.7.1.1 代码讲解
@@ -204,7 +204,7 @@ api/uv.lock
 ​        不要用同步 Redis 客户端阻塞事件循环。FastAPI 路由、后台 Runner、数据库访问都是异步代码，Redis 客户端也保持异步会更一致。
 
 ### 14.7.2 增加 Redis 和任务配置
-​        打开 `api/app/core/config.py`，在 `Settings` 中加入：
+​        打开 `backend/api/app/core/config.py`，在 `Settings` 中加入：
 
 ```Python
 redis_url: str = "redis://localhost:6379/0"
@@ -231,7 +231,7 @@ redis://redis:6379/0
 ​        `agent_task_poll_timeout_ms` 是 Runner 读取 Stream 的等待时间。本章设置为 1000 毫秒，表示如果暂时没有任务，Runner 最多阻塞 1 秒再继续循环。
 
 ### 14.7.3 编写 RedisAgentTaskQueue
-​        创建 `api/app/infrastructure/task_queue.py`。
+​        创建 `backend/api/app/infrastructure/task_queue.py`。
 ​        这个文件负责两件事：
 
 ```Plain
@@ -523,7 +523,7 @@ agent:tasks
 ```
 
 ### 14.7.4 编写 AgentTaskRunner
-​        创建 `api/app/application/agent_task_runner.py`。
+​        创建 `backend/api/app/application/agent_task_runner.py`。
 ​        Runner 的职责是：
 
 ```Plain
@@ -753,7 +753,7 @@ HTTP 请求数据库会话：只属于当前请求
 ​        这是后台任务代码里非常重要的边界。
 
 ### 14.7.5 把 Runner 接入 FastAPI 生命周期
-​        打开 `api/app/main.py`，新增 `lifespan`：
+​        打开 `backend/api/app/main.py`，新增 `lifespan`：
 ​        完整代码如下：
 
 ```Python
@@ -877,7 +877,7 @@ def get_task_queue(request: Request) -> RedisAgentTaskQueue:
 ​        这样每个请求不需要重新创建 Redis 连接。
 
 ### 14.7.6 编写任务 API
-​        打开 `api/app/schemas/session.py`，新增：
+​        打开 `backend/api/app/schemas/session.py`，新增：
 
 ```Python
 class AgentTaskResponse(BaseModel):
@@ -1003,7 +1003,7 @@ docker compose restart api nginx
 ```
 
 ### 14.7.8 更新前端类型和 API 函数
-​        打开 `ui/app/types.ts`，新增任务类型：
+​        打开 `frontend/web/app/types.ts`，新增任务类型：
 
 ```TypeScript
 export type AgentTaskItem = {
@@ -1017,8 +1017,8 @@ export type AgentTaskItem = {
 };
 ```
 
-​        打开 `ui/app/lib/session-api.ts`，新增：
-​        本章完成后，`ui/app/lib/session-api.ts` 的完整代码如下：
+​        打开 `frontend/web/app/lib/session-api.ts`，新增：
+​        本章完成后，`frontend/web/app/lib/session-api.ts` 的完整代码如下：
 
 ```TypeScript
 import { requestApi } from "./api";
@@ -1208,7 +1208,7 @@ cancelAgentTask 取消后台任务
 ​        这三个函数都只关心任务，不直接关心 ReActAgent 具体怎么执行。
 
 ### 14.7.9 更新 zustand store
-​        打开 `ui/app/stores/session-store.ts`。
+​        打开 `frontend/web/app/stores/session-store.ts`。
 ​        这个文件已经在前面章节积累了 600 多行代码，本章不要整篇重写。按下面四处修改即可。
 ​        第一处，在 import 区域补充任务 API 和任务类型：
 
@@ -1385,9 +1385,9 @@ task_done
 ​        另外，`cancelPlanTask()` 本章只是把 Redis 里的任务状态标记为 `cancelled`。如果 Runner 已经开始执行一个很短的计划，它可能很快就执行完了。长任务的精确中断会在后续章节继续增强。
 
 ### 14.7.10 更新计划面板
-​        打开 `ui/app/components/plan-panel.tsx`。
+​        打开 `frontend/web/app/components/plan-panel.tsx`。
 ​        新增 props：
-​        本章完成后，`ui/app/components/plan-panel.tsx` 的完整代码如下：
+​        本章完成后，`frontend/web/app/components/plan-panel.tsx` 的完整代码如下：
 
 ```TypeScript
 import { GitBranch, Loader2, Play, Sparkles, Square } from "lucide-react";
@@ -1625,7 +1625,7 @@ Redis Stream：让 Runner 知道有什么任务要执行
 ​        如果还没有同步本章依赖：
 
 ```Bash
-cd api
+cd backend/api
 uv sync
 ```
 
@@ -1640,7 +1640,7 @@ uv run python -m compileall app
 ### 14.11.3 检查前端类型
 
 ```Bash
-cd ../ui
+cd ../../frontend/web
 pnpm typecheck
 ```
 

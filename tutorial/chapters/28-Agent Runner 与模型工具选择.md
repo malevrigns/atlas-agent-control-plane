@@ -1,20 +1,16 @@
 # 第二十八章. Agent Runner 与模型工具选择
 
-## 28.1 合章说明
+## 28.1 Agent Runner 归一
 
-​        旧版教程把“Agent Runner 归一”与“模型工具选择策略精进”拆成了相邻两章。两者实际上属于同一条能力链：前者把基础结构立住，后者让它进入可用状态。本章将它们合并为前后两个阶段，保留原来的实现、验证与工程判断，同时减少能力尚未闭环时的章节跳转。
+### 28.1.1 本节目标
 
-## 28.2 第一阶段：Agent Runner 归一
+​        学完本节后，你将能够：
 
-### 28.2.1 本阶段目标
+​        展开来看，第一，理解为什么 Agent 主执行链路不能长期写在 HTTP 路由里；第二，把“用户消息 -> 计划生成 -> 步骤执行 -> 事件输出”收敛到统一 Runner；第三，让 SSE 流式接口复用同一个 Runner；第四，让同步执行接口和 Redis 后台任务也复用同一个 Runner；第五，理解 `AgentRunnerService`、`PlannerService`、`ReActAgentService` 的职责边界；第六，编写 Runner 的单元测试，保证事件输出顺序稳定。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        学完本阶段后，你将能够：
+### 28.1.2 最终效果
 
-​        展开来看，第一，理解为什么 Agent 主执行链路不能长期写在 HTTP 路由里；第二，把“用户消息 -> 计划生成 -> 步骤执行 -> 事件输出”收敛到统一 Runner；第三，让 SSE 流式接口复用同一个 Runner；第四，让同步执行接口和 Redis 后台任务也复用同一个 Runner；第五，理解 `AgentRunnerService`、`PlannerService`、`ReActAgentService` 的职责边界；第六，编写 Runner 的单元测试，保证事件输出顺序稳定。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
-
-### 28.2.2 最终效果
-
-​        本阶段结束后，前端发送消息的接口不变：
+​        本节结束后，前端发送消息的接口不变：
 
 ```Plain
 POST /api/sessions/{session_id}/messages/stream
@@ -57,9 +53,9 @@ AgentRunnerService.execute_latest_plan()
 ReActAgentService.execute_latest_plan()
 ```
 
-​        也就是说，本阶段不是新增一个演示功能，而是整理项目的核心执行入口。
+​        也就是说，本节不是新增一个演示功能，而是整理项目的核心执行入口。
 
-### 28.2.3 本阶段要解决的问题
+### 28.1.3 本节要解决的问题
 
 ​        前面章节为了逐步验证能力，把很多流程直接写在路由里。
 
@@ -79,9 +75,9 @@ ReActAgentService.execute_latest_plan()
 
 ​        这样在早期很直观，但继续发展会有几个问题：
 
-​        具体来说，第一，HTTP 路由承担了业务编排职责；第二，SSE 接口、同步执行接口、后台任务接口可能走出不同逻辑；第三，后续加入模型工具选择、复杂任务恢复、重试和 Harness 时，会找不到统一入口；第四，测试很难只测 Agent 主流程，不经过 HTTP 层。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        具体来说，第一，HTTP 路由承担了业务编排职责；第二，SSE 接口、同步执行接口、后台任务接口可能走出不同逻辑；第三，后续加入模型工具选择、复杂任务恢复、重试和 Harness 时，会找不到统一入口；第四，测试很难只测 Agent 主流程，不经过 HTTP 层。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        所以本阶段新增：
+​        所以本节新增：
 
 ```Plain
 AgentRunnerService
@@ -89,9 +85,9 @@ AgentRunnerService
 
 ​        它负责统一编排一次 Agent 任务。
 
-### 28.2.4 本阶段技术方案
+### 28.1.4 本节技术方案
 
-​        本阶段不推翻前面的服务，而是在它们上面加一个更清晰的应用服务：
+​        本节不推翻前面的服务，而是在它们上面加一个更清晰的应用服务：
 
 ```Plain
 AgentRunnerService
@@ -127,31 +123,31 @@ PlannerService：管计划
 ReActAgentService：管步骤执行
 ```
 
-​        本阶段暂时不做这些内容：
+​        本节暂时不做这些内容：
 
-​        换句话说，第一，不改模型驱动工具选择策略；第二，不重写前端时间线样式；第三，不做复杂任务恢复和重试；第四，不做 Harness 任务评测。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        换句话说，第一，不改模型驱动工具选择策略；第二，不重写前端时间线样式；第三，不做复杂任务恢复和重试；第四，不做 Harness 任务评测。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        这些会在本章第二阶段之后继续完成。
+​        这些会在本章后文之后继续完成。
 
-### 28.2.5 新增和修改的文件
+### 28.1.5 新增和修改的文件
 
 ```Plain
 README.md
-api/README.md
-api/app/application/agent_runner_service.py
-api/app/application/agent_task_runner.py
-api/app/presentation/http/routes/sessions.py
-api/tests/test_agent_runner_service.py
+backend/api/README.md
+backend/api/app/application/agent_runner_service.py
+backend/api/app/application/agent_task_runner.py
+backend/api/app/presentation/http/routes/sessions.py
+backend/api/tests/test_agent_runner_service.py
 docs/course/chapters/42-agent-runner-alignment.md
 ```
 
-### 28.2.6 实施步骤
-#### 28.2.6.1 先写 Runner 单元测试
+### 28.1.6 实施步骤
+#### 28.1.6.1 先写 Runner 单元测试
 
 ​        创建：
 
 ```Plain
-api/tests/test_agent_runner_service.py
+backend/api/tests/test_agent_runner_service.py
 ```
 
 ​        完整代码如下：
@@ -306,7 +302,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-##### 28.2.6.1.1 这段测试在验证什么
+.1.6.1.1 这段测试在验证什么
 
 ​        测试没有连接数据库，也没有调用真实 LLM。
 
@@ -324,12 +320,12 @@ stream_done
 
 ​        这正是前端 SSE 时间线依赖的事件顺序。
 
-#### 28.2.6.2 创建 AgentRunnerService
+#### 28.1.6.2 创建 AgentRunnerService
 
 ​        创建：
 
 ```Plain
-api/app/application/agent_runner_service.py
+backend/api/app/application/agent_runner_service.py
 ```
 
 ​        完整代码如下：
@@ -464,13 +460,13 @@ class AgentRunnerService:
         return await self.react_service.execute_latest_plan(session_id)
 ```
 
-##### 28.2.6.2.1 代码讲解
+.1.6.2.1 代码讲解
 
 ​        `AgentRunnerStreamItem` 是 Runner 和 HTTP 层之间的桥。
 
 ​        它没有直接使用 Pydantic 响应模型，因为应用服务不应该知道 HTTP 响应怎么编码。
 
-​        `stream_user_message()` 是本阶段的核心方法。
+​        `stream_user_message()` 是本节的核心方法。
 
 ​        它按 5 步完成一次对话执行：
 
@@ -482,12 +478,12 @@ class AgentRunnerService:
 
 ​        `execute_latest_plan()` 先保留旧能力，内部仍然调用 `ReActAgentService`。这样原来的 `/plan/execute` 和后台任务不会被破坏。
 
-#### 28.2.6.3 让 SSE 路由复用 Runner
+#### 28.1.6.3 让 SSE 路由复用 Runner
 
 ​        打开：
 
 ```Plain
-api/app/presentation/http/routes/sessions.py
+backend/api/app/presentation/http/routes/sessions.py
 ```
 
 ​        新增导入：
@@ -550,7 +546,7 @@ async def stream_message(
     )
 ```
 
-##### 28.2.6.3.1 为什么路由变短了
+.1.6.3.1 为什么路由变短了
 
 ​        路由现在只做两件事：
 
@@ -569,7 +565,7 @@ async def stream_message(
 
 ​        这些都属于 Agent 主流程，应该放在 Runner。
 
-#### 28.2.6.4 让同步执行接口复用 Runner
+#### 28.1.6.4 让同步执行接口复用 Runner
 
 ​        继续打开 `sessions.py`，把 `/plan/execute` 改成：
 
@@ -590,22 +586,22 @@ async def execute_plan(
     )
 ```
 
-##### 28.2.6.4.1 为什么同步接口还保留
+.1.6.4.1 为什么同步接口还保留
 
 ​        前端主流程已经使用 `/messages/stream`。
 
 ​        但是同步执行接口仍然适合：
 
-​        从实现顺序看，第一，curl 验证；第二，教程排查；第三，单步调试；第四，后续 Harness 复用。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        从实现顺序看，第一，curl 验证；第二，教程排查；第三，单步调试；第四，后续 Harness 复用。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        所以本阶段不删除它，而是让它和 SSE 一样复用 Runner。
+​        所以本节不删除它，而是让它和 SSE 一样复用 Runner。
 
-#### 28.2.6.5 让后台任务复用 Runner
+#### 28.1.6.5 让后台任务复用 Runner
 
 ​        打开：
 
 ```Plain
-api/app/application/agent_task_runner.py
+backend/api/app/application/agent_task_runner.py
 ```
 
 ​        把导入改成：
@@ -625,7 +621,7 @@ async def _execute_plan(self, session_id: UUID):
         return await service.execute_latest_plan(session_id)
 ```
 
-##### 28.2.6.5.1 这段代码的业务流程
+.1.6.5.1 这段代码的业务流程
 
 ​        后台任务仍然由 Redis Stream 触发。
 
@@ -638,9 +634,9 @@ async def _execute_plan(self, session_id: UUID):
 
 ​        这样以后如果 Runner 加入任务恢复、停止点、统一错误处理，后台任务也能自动复用。
 
-### 28.2.7 关键理解
+### 28.1.7 关键理解
 
-​        本阶段最重要的是理解“Runner 是应用层主流程，不是工具本身”。
+​        本节最重要的是理解“Runner 是应用层主流程，不是工具本身”。
 
 ​        `PlannerService` 负责生成计划。
 
@@ -664,23 +660,23 @@ HTTP 路由不应该承载业务编排。
 
 ​        路由越薄，后续越容易支持：
 
-​        放到工程语境里看，第一，SSE；第二，后台任务；第三，Harness 评测；第四，CLI 调用；第五，任务恢复。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        放到工程语境里看，第一，SSE；第二，后台任务；第三，Harness 评测；第四，CLI 调用；第五，任务恢复。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 28.2.8 技术难点与亮点
+### 28.1.8 技术难点与亮点
 
 ​        技术难点：
 
-​        展开来看，第一，不能破坏现有前端 SSE 事件名称；第二，不能让应用服务依赖 HTTP 响应模型；第三，同步执行、流式执行和后台任务要逐步收敛，不能一次性重写所有能力；第四，Runner 要复用第 27 章的上下文和长期记忆注入，而不是另开一套逻辑。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        展开来看，第一，不能破坏现有前端 SSE 事件名称；第二，不能让应用服务依赖 HTTP 响应模型；第三，同步执行、流式执行和后台任务要逐步收敛，不能一次性重写所有能力；第四，Runner 要复用第 27 章的上下文和长期记忆注入，而不是另开一套逻辑。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        项目亮点：
 
-​        具体来说，第一，Agent 主执行链路有了明确入口；第二，SSE 路由明显变薄；第三，Redis 后台任务和同步执行接口开始复用同一套 Runner；第四，Runner 有单元测试保护事件顺序；第五，为本章第二阶段模型驱动工具选择、第 29 章任务恢复、第 29 章 Harness 打基础。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        具体来说，第一，Agent 主执行链路有了明确入口；第二，SSE 路由明显变薄；第三，Redis 后台任务和同步执行接口开始复用同一套 Runner；第四，Runner 有单元测试保护事件顺序；第五，为本章后文模型驱动工具选择、第 29 章任务恢复、第 29 章 Harness 打基础。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 28.2.9 面试考点
+### 28.1.9 面试考点
 
-​        换句话说，第一，为什么不能把 Agent 编排长期写在 HTTP 路由里？；第二，Runner、Planner、ReAct 分别负责什么？；第三，为什么应用服务不应该直接返回 FastAPI Response？；第四，SSE 接口为什么适合消费 Runner 的流式输出？；第五，后台任务和同步接口为什么要复用同一个 Runner？。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        换句话说，第一，为什么不能把 Agent 编排长期写在 HTTP 路由里？；第二，Runner、Planner、ReAct 分别负责什么？；第三，为什么应用服务不应该直接返回 FastAPI Response？；第四，SSE 接口为什么适合消费 Runner 的流式输出？；第五，后台任务和同步接口为什么要复用同一个 Runner？。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 28.2.10 运行验证
+### 28.1.10 运行验证
 
 ​        下面命令默认在项目根目录执行：
 
@@ -688,10 +684,10 @@ HTTP 路由不应该承载业务编排。
 cd /Users/atlas/Desktop/github/atlas-agents
 ```
 
-#### 28.2.10.1 运行后端单元测试
+#### 28.1.10.1 运行后端单元测试
 
 ```Bash
-cd api
+cd backend/api
 uv run python -m unittest discover -s tests -v
 ```
 
@@ -701,7 +697,7 @@ uv run python -m unittest discover -s tests -v
 test_stream_user_message_yields_unified_runner_events ... ok
 ```
 
-#### 28.2.10.2 编译后端代码
+#### 28.1.10.2 编译后端代码
 
 ```Bash
 uv run python -m compileall app
@@ -709,17 +705,17 @@ uv run python -m compileall app
 
 ​        预期没有 Python 语法错误。
 
-#### 28.2.10.3 检查前端
+#### 28.1.10.3 检查前端
 
-​        本阶段没有修改前端代码，但仍建议确认现有 UI 没有类型问题：
+​        本节没有修改前端代码，但仍建议确认现有 UI 没有类型问题：
 
 ```Bash
-cd ../ui
+cd ../../frontend/web
 pnpm typecheck
 pnpm build
 ```
 
-#### 28.2.10.4 启动服务
+#### 28.1.10.4 启动服务
 
 ​        回到项目根目录：
 
@@ -730,9 +726,9 @@ docker compose up -d nginx
 docker compose exec api uv run alembic upgrade head
 ```
 
-​        本阶段没有新增数据库迁移，执行 `alembic upgrade head` 是为了确认数据库处于最新状态。
+​        本节没有新增数据库迁移，执行 `alembic upgrade head` 是为了确认数据库处于最新状态。
 
-#### 28.2.10.5 页面验证
+#### 28.1.10.5 页面验证
 
 ​        访问：
 
@@ -742,11 +738,11 @@ http://localhost:8088
 
 ​        操作：
 
-​        从实现顺序看，第一，创建或选择一个会话；第二，在输入框发送一个任务；第三，确认页面仍然自动出现用户消息、计划步骤、工具调用和完成状态；第四，点击“上下文”，确认长期记忆和短期上下文仍然可以查看。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        从实现顺序看，第一，创建或选择一个会话；第二，在输入框发送一个任务；第三，确认页面仍然自动出现用户消息、计划步骤、工具调用和完成状态；第四，点击“上下文”，确认长期记忆和短期上下文仍然可以查看。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        这说明前端接口没有变化，但后端编排已经切换到 Runner。
 
-#### 28.2.10.6 curl 验证 SSE
+#### 28.1.10.6 curl 验证 SSE
 
 ​        创建会话：
 
@@ -778,25 +774,25 @@ event: session_status
 event: stream_done
 ```
 
-### 28.2.11 阶段小结
+### 28.1.11 小结
 
-​        本阶段完成了 Agent 主执行链路的第一轮最终对齐：
+​        本节完成了 Agent 主执行链路的第一轮最终对齐：
 
-​        放到工程语境里看，第一，新增 `AgentRunnerService`；第二，新增 `AgentRunnerStreamItem`；第三，`/messages/stream` 改成调用 Runner；第四，`/plan/execute` 改成调用 Runner；第五，`AgentTaskRunner` 后台计划任务改成调用 Runner；第六，新增 Runner 单元测试，验证流式事件顺序。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        放到工程语境里看，第一，新增 `AgentRunnerService`；第二，新增 `AgentRunnerStreamItem`；第三，`/messages/stream` 改成调用 Runner；第四，`/plan/execute` 改成调用 Runner；第五，`AgentTaskRunner` 后台计划任务改成调用 Runner；第六，新增 Runner 单元测试，验证流式事件顺序。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        从这一阶段开始，后续模型工具选择、任务恢复、Harness 评测和生产化状态管理都有了更清楚的主入口。
 
-## 28.3 第二阶段：模型工具选择策略精进
+## 28.2 模型工具选择策略精进
 
-### 28.3.1 本阶段目标
+### 28.2.1 本节目标
 
-​        学完本阶段后，你将能够：
+​        学完本节后，你将能够：
 
-​        展开来看，第一，理解为什么关键词规则不能长期承担 Agent 工具选择；第二，把工具 schema 注入模型上下文；第三，让模型输出结构化 tool call；第四，在模型不可用、输出不是 JSON、工具名不存在时回退到确定性规则；第五，在工具参数缺失时做最小参数修复；第六，让 ReAct 执行步骤时使用统一的 `ModelToolSelectionService`；第七，理解为什么工具选择过程只展示可观察摘要，不暴露隐藏推理。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        展开来看，第一，理解为什么关键词规则不能长期承担 Agent 工具选择；第二，把工具 schema 注入模型上下文；第三，让模型输出结构化 tool call；第四，在模型不可用、输出不是 JSON、工具名不存在时回退到确定性规则；第五，在工具参数缺失时做最小参数修复；第六，让 ReAct 执行步骤时使用统一的 `ModelToolSelectionService`；第七，理解为什么工具选择过程只展示可观察摘要，不暴露隐藏推理。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 28.3.2 最终效果
+### 28.2.2 最终效果
 
-​        本阶段结束后，用户仍然通过同一个前端输入框发任务：
+​        本节结束后，用户仍然通过同一个前端输入框发任务：
 
 ```Plain
 http://localhost:8088
@@ -854,9 +850,9 @@ AgentTool
 
 ​        如果模型不可用，系统会自动回退到稳定规则，页面仍然能看到工具调用事件。
 
-### 28.3.3 本阶段要解决的问题
+### 28.2.3 本节要解决的问题
 
-​        第 13 章到本章第一阶段，ReAct 执行步骤时主要靠关键词选择工具。
+​        第 13 章到前文，ReAct 执行步骤时主要靠关键词选择工具。
 
 ​        例如：
 
@@ -883,9 +879,9 @@ AgentTool
 
 ​        这些任务不一定包含固定关键词。工具选择应该结合：
 
-​        具体来说，第一，用户任务目标；第二，Planner 生成的当前步骤；第三，第 15 章短期上下文；第四，第 27 章长期记忆；第五，工具 schema；第六，子 Agent 能力说明；第七，沙箱状态。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        具体来说，第一，用户任务目标；第二，Planner 生成的当前步骤；第三，第 15 章短期上下文；第四，第 27 章长期记忆；第五，工具 schema；第六，子 Agent 能力说明；第七，沙箱状态。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        本阶段先完成第一步：
+​        本节先完成第一步：
 
 ```Plain
 模型基于工具 schema 输出结构化 tool call
@@ -893,12 +889,12 @@ AgentTool
 
 ​        并保留 fallback，保证本地网络或 API Key 不可用时仍能验证。
 
-### 28.3.4 本阶段技术方案
+### 28.2.4 本节技术方案
 
 ​        新增：
 
 ```Plain
-api/app/application/tool_selection_service.py
+backend/api/app/application/tool_selection_service.py
 ```
 
 ​        核心类：
@@ -944,30 +940,30 @@ ToolCallResult
 写入 tool_called 事件
 ```
 
-​        本阶段暂时不做这些内容：
+​        本节暂时不做这些内容：
 
-​        换句话说，第一，不把 MCP 动态工具展开成大量细粒度工具；第二，不做复杂重试链路；第三，不做工具调用失败后的模型自我修复多轮循环；第四，不展示隐藏推理；第五，不重构前端样式。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        换句话说，第一，不把 MCP 动态工具展开成大量细粒度工具；第二，不做复杂重试链路；第三，不做工具调用失败后的模型自我修复多轮循环；第四，不展示隐藏推理；第五，不重构前端样式。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        这些会在后续章节继续增强。
 
-### 28.3.5 新增和修改的文件
+### 28.2.5 新增和修改的文件
 
 ```Plain
 README.md
-api/README.md
-api/app/application/tool_selection_service.py
-api/app/application/react_agent_service.py
-api/tests/test_tool_selection_service.py
+backend/api/README.md
+backend/api/app/application/tool_selection_service.py
+backend/api/app/application/react_agent_service.py
+backend/api/tests/test_tool_selection_service.py
 docs/course/chapters/43-model-tool-selection.md
 ```
 
-### 28.3.6 实施步骤
-#### 28.3.6.1 编写工具选择服务测试
+### 28.2.6 实施步骤
+#### 28.2.6.1 编写工具选择服务测试
 
 ​        创建：
 
 ```Plain
-api/tests/test_tool_selection_service.py
+backend/api/tests/test_tool_selection_service.py
 ```
 
 ​        完整代码如下：
@@ -1098,20 +1094,20 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-##### 28.3.6.1.1 测试覆盖了什么
+.2.6.1.1 测试覆盖了什么
 
 ​        这三个测试分别覆盖：
 
-​        从实现顺序看，第一，模型输出合法 JSON 时，优先使用模型选择；第二，模型输出坏 JSON 时，fallback 仍能选工具；第三，模型遗漏必填参数时，服务会尝试从任务文本修复。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        从实现顺序看，第一，模型输出合法 JSON 时，优先使用模型选择；第二，模型输出坏 JSON 时，fallback 仍能选工具；第三，模型遗漏必填参数时，服务会尝试从任务文本修复。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        这里使用假工具注册表，避免单元测试访问真实搜索、浏览器或沙箱。
 
-#### 28.3.6.2 实现 ModelToolSelectionService
+#### 28.2.6.2 实现 ModelToolSelectionService
 
 ​        创建：
 
 ```Plain
-api/app/application/tool_selection_service.py
+backend/api/app/application/tool_selection_service.py
 ```
 
 ​        核心代码如下：
@@ -1181,7 +1177,7 @@ class ModelToolSelectionService:
         return tool.call(arguments)
 ```
 
-##### 28.3.6.2.1 代码讲解
+.2.6.2.1 代码讲解
 
 ​        `call_tool_for_step()` 是对外入口。
 
@@ -1206,7 +1202,7 @@ class ModelToolSelectionService:
 AgentTool.call()
 ```
 
-##### 28.3.6.2.2 模型提示词如何写
+.2.6.2.2 模型提示词如何写
 
 ​        `_select_with_model()` 会把工具 schema 渲染给模型：
 
@@ -1223,17 +1219,17 @@ f"{agent_context or '暂无额外上下文'}\n\n"
 
 ​        这段提示词有两个关键点：
 
-​        放到工程语境里看，第一，要求只返回 JSON，方便程序解析；第二，要求不要输出隐藏推理，只输出可观察工具选择结果。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        放到工程语境里看，第一，要求只返回 JSON，方便程序解析；第二，要求不要输出隐藏推理，只输出可观察工具选择结果。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-##### 28.3.6.2.3 为什么还要 fallback
+.2.6.2.3 为什么还要 fallback
 
 ​        模型工具选择可能失败：
 
-​        展开来看，第一，API Key 没配置；第二，网络超时；第三，模型返回 Markdown；第四，模型输出不存在的工具名；第五，模型参数缺失。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        展开来看，第一，API Key 没配置；第二，网络超时；第三，模型返回 Markdown；第四，模型输出不存在的工具名；第五，模型参数缺失。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        如果没有 fallback，本地课程会因为外部模型状态不稳定而无法验证。
 
-​        所以本阶段保留确定性规则：
+​        所以本节保留确定性规则：
 
 ```Plain
 搜索/检索 -> search_web
@@ -1245,12 +1241,12 @@ A2A -> a2a_call
 默认 -> summarize_text
 ```
 
-#### 28.3.6.3 接入 ReActAgentService
+#### 28.2.6.3 接入 ReActAgentService
 
 ​        打开：
 
 ```Plain
-api/app/application/react_agent_service.py
+backend/api/app/application/react_agent_service.py
 ```
 
 ​        新增导入：
@@ -1311,7 +1307,7 @@ async def _call_tool_for_step(
     }
 ```
 
-##### 28.3.6.3.1 这段代码的业务变化
+.2.6.3.1 这段代码的业务变化
 
 ​        ReAct 不再自己维护工具选择策略。
 
@@ -1338,9 +1334,9 @@ fallback
 
 ​        这样第 29 章之后再做重试、恢复、评测时，工具选择会更容易单独测试和替换。
 
-### 28.3.7 关键理解
+### 28.2.7 关键理解
 
-​        本阶段最重要的是理解：
+​        本节最重要的是理解：
 
 ```Plain
 工具选择不是工具执行。
@@ -1374,25 +1370,25 @@ ReActAgentService -> 写事件和推进步骤
 
 ​        前端可以展示：
 
-​        具体来说，第一，工具名；第二，调用参数；第三，工具输出；第四，可观察摘要。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        具体来说，第一，工具名；第二，调用参数；第三，工具输出；第四，可观察摘要。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        但不应该展示模型内部推理过程。
 
-### 28.3.8 技术难点与亮点
+### 28.2.8 技术难点与亮点
 
 ​        技术难点：
 
-​        换句话说，第一，模型输出不稳定，必须解析和兜底；第二，工具参数可能缺失，不能直接让任务失败；第三，长期记忆可能包含旧工具关键词，不能无脑让记忆触发工具；第四，ReAct 要变薄，但不能破坏已有工具调用事件。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        换句话说，第一，模型输出不稳定，必须解析和兜底；第二，工具参数可能缺失，不能直接让任务失败；第三，长期记忆可能包含旧工具关键词，不能无脑让记忆触发工具；第四，ReAct 要变薄，但不能破坏已有工具调用事件。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        项目亮点：
 
-​        从实现顺序看，第一，工具选择从 ReAct 中抽离成独立服务；第二，工具 schema 真正进入模型上下文；第三，模型输出结构化 tool call；第四，fallback 保证本地验证稳定；第五，参数修复减少简单模型错误导致的任务失败。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        从实现顺序看，第一，工具选择从 ReAct 中抽离成独立服务；第二，工具 schema 真正进入模型上下文；第三，模型输出结构化 tool call；第四，fallback 保证本地验证稳定；第五，参数修复减少简单模型错误导致的任务失败。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 28.3.9 面试考点
+### 28.2.9 面试考点
 
-​        放到工程语境里看，第一，为什么工具选择应该和工具执行分开？；第二，为什么模型工具选择需要结构化 JSON？；第三，为什么模型输出必须校验工具名和参数？；第四，为什么模型不可用时仍然需要 fallback？；第五，为什么不能把隐藏推理展示给用户？。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        放到工程语境里看，第一，为什么工具选择应该和工具执行分开？；第二，为什么模型工具选择需要结构化 JSON？；第三，为什么模型输出必须校验工具名和参数？；第四，为什么模型不可用时仍然需要 fallback？；第五，为什么不能把隐藏推理展示给用户？。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 28.3.10 运行验证
+### 28.2.10 运行验证
 
 ​        下面命令默认在项目根目录执行：
 
@@ -1400,10 +1396,10 @@ ReActAgentService -> 写事件和推进步骤
 cd /Users/atlas/Desktop/github/atlas-agents
 ```
 
-#### 28.3.10.1 运行后端单元测试
+#### 28.2.10.1 运行后端单元测试
 
 ```Bash
-cd api
+cd backend/api
 uv run python -m unittest discover -s tests -v
 ```
 
@@ -1415,7 +1411,7 @@ test_falls_back_to_rule_when_model_output_is_invalid ... ok
 test_repairs_missing_required_argument_before_calling_tool ... ok
 ```
 
-#### 28.3.10.2 编译后端代码
+#### 28.2.10.2 编译后端代码
 
 ```Bash
 uv run python -m compileall app
@@ -1423,17 +1419,17 @@ uv run python -m compileall app
 
 ​        预期没有 Python 语法错误。
 
-#### 28.3.10.3 检查前端
+#### 28.2.10.3 检查前端
 
-​        本阶段没有修改前端代码，但仍建议执行：
+​        本节没有修改前端代码，但仍建议执行：
 
 ```Bash
-cd ../ui
+cd ../../frontend/web
 pnpm typecheck
 pnpm build
 ```
 
-#### 28.3.10.4 启动服务
+#### 28.2.10.4 启动服务
 
 ```Bash
 cd /Users/atlas/Desktop/github/atlas-agents
@@ -1442,9 +1438,9 @@ docker compose up -d nginx
 docker compose exec api uv run alembic upgrade head
 ```
 
-​        本阶段没有新增数据库迁移。
+​        本节没有新增数据库迁移。
 
-#### 28.3.10.5 页面验证
+#### 28.2.10.5 页面验证
 
 ​        访问：
 
@@ -1460,7 +1456,7 @@ http://localhost:8088
 
 ​        预期：
 
-​        展开来看，第一，页面出现用户消息；第二，系统生成计划；第三，执行过程中出现 `tool_called`；第四，工具名优先可能是 `search_web`；第五，如果 LLM 不可用，fallback 仍然会根据“搜索”关键词选择 `search_web`。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        展开来看，第一，页面出现用户消息；第二，系统生成计划；第三，执行过程中出现 `tool_called`；第四，工具名优先可能是 `search_web`；第五，如果 LLM 不可用，fallback 仍然会根据“搜索”关键词选择 `search_web`。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        再发送：
 
@@ -1470,17 +1466,17 @@ http://localhost:8088
 
 ​        预期：
 
-​        具体来说，第一，工具调用可能是 `summarize_text` 或模型选择的更合适工具；第二，页面不应该显示隐藏推理，只显示工具调用参数和输出。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        具体来说，第一，工具调用可能是 `summarize_text` 或模型选择的更合适工具；第二，页面不应该显示隐藏推理，只显示工具调用参数和输出。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-### 28.3.11 阶段小结
+### 28.2.11 小结
 
-​        本阶段完成了工具选择策略的关键升级：
+​        本节完成了工具选择策略的关键升级：
 
-​        换句话说，第一，新增 `ModelToolSelectionService`；第二，工具 schema 注入模型提示词；第三，模型输出结构化 tool call；第四，模型不可用或输出异常时 fallback；第五，工具参数缺失时做最小修复；第六，ReAct 执行步骤时改用统一工具选择服务；第七，增加工具选择单元测试。这些点放在一起看，构成了本阶段叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
+​        换句话说，第一，新增 `ModelToolSelectionService`；第二，工具 schema 注入模型提示词；第三，模型输出结构化 tool call；第四，模型不可用或输出异常时 fallback；第五，工具参数缺失时做最小修复；第六，ReAct 执行步骤时改用统一工具选择服务；第七，增加工具选择单元测试。这些点放在一起看，构成了本节叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
 ​        从这一阶段开始，工具调用不再只是关键词规则，而是具备了模型驱动选择的基础结构。
 
-## 28.4 本章小结
+## 28.3 本章小结
 
 ​        完成“Agent Runner 归一”和“模型工具选择策略精进”两个阶段后，这条能力链已经形成闭环。读者仍然可以在每个阶段结束时单独运行验证，但理解上应把两者视作一个连续决策：先建立可靠边界，再让上层能力真正依赖它。
 

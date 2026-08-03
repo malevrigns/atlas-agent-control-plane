@@ -1,17 +1,13 @@
 # 第十二章. Agent 思维、Memory 与工具协议
 
-## 12.1 合章说明
+## 12.1 Agent 思维模型立论
 
-​        旧版教程把“Agent 思维模型立论”与“Agent Memory 与工具协议”拆成了相邻两章。两者实际上属于同一条能力链：前者把基础结构立住，后者让它进入可用状态。本章将它们合并为前后两个阶段，保留原来的实现、验证与工程判断，同时减少能力尚未闭环时的章节跳转。
+### 12.1.1 本节目标
+​        第 11 章让项目具备了调用 LLM 的基础能力，但“能调用模型”和“具备 Agent 能力”不是同一件事。普通聊天调用通常只是一问一答，而复杂 Agent 需要理解目标、拆解步骤、选择工具、观察结果，再决定是否继续执行。本节先不急着接真实模型，而是用一个稳定的演示模块，把几种典型思维模式放在同一个页面里对比。
+​        本节会区分普通 ChatBot、CoT、ReAct 和任务拆解，并实现一个不依赖 API Key 的 Agent 思维模型演示服务。后端暴露模式说明接口和任务对比接口，前端通过独立 API、store、hook 和组件展示同一个任务在不同模式下的处理差异。这样读者可以先看清概念边界，再进入后续真实 Agent 调用循环。
 
-## 12.2 第一阶段：Agent 思维模型立论
-
-### 12.2.1 本阶段目标
-​        第 11 章让项目具备了调用 LLM 的基础能力，但“能调用模型”和“具备 Agent 能力”不是同一件事。普通聊天调用通常只是一问一答，而复杂 Agent 需要理解目标、拆解步骤、选择工具、观察结果，再决定是否继续执行。本阶段先不急着接真实模型，而是用一个稳定的演示模块，把几种典型思维模式放在同一个页面里对比。
-​        本阶段会区分普通 ChatBot、CoT、ReAct 和任务拆解，并实现一个不依赖 API Key 的 Agent 思维模型演示服务。后端暴露模式说明接口和任务对比接口，前端通过独立 API、store、hook 和组件展示同一个任务在不同模式下的处理差异。这样读者可以先看清概念边界，再进入后续真实 Agent 调用循环。
-
-### 12.2.2 最终效果
-​        本阶段结束后，后端新增两个接口：
+### 12.1.2 最终效果
+​        本节结束后，后端新增两个接口：
 
 ```Plain
 GET  /api/agent-thinking/modes
@@ -40,9 +36,9 @@ ReAct
 任务拆解
 ```
 
-​        本阶段先不调用真实 LLM。第 11 章已经完成了 LLM 客户端，但本阶段的重点是理解 Agent 的思维结构。如果一上来就把模型调用、提示词、工具调用、流式输出全部混在一起，会很难看清每个概念的边界。
+​        本节先不调用真实 LLM。第 11 章已经完成了 LLM 客户端，但本节的重点是理解 Agent 的思维结构。如果一上来就把模型调用、提示词、工具调用、流式输出全部混在一起，会很难看清每个概念的边界。
 
-### 12.2.3 本阶段要解决的问题
+### 12.1.3 本节要解决的问题
 ​        第 11 章已经可以调用 LLM，但直接调用 LLM 还不是 Agent。
 ​        普通聊天调用的链路是：
 
@@ -79,17 +75,17 @@ LLM
 
 ​        这就是为什么需要先理解几种基本思维模型。
 
-### 12.2.4 本阶段技术方案
-​        本阶段新增一个独立模块：
+### 12.1.4 本节技术方案
+​        本节新增一个独立模块：
 
 ```Plain
-api/app/domain/agent_thinking
-api/app/application/agent_thinking_service.py
-api/app/api/routes/agent_thinking.py
-ui/app/lib/agent-thinking-api.ts
-ui/app/stores/agent-thinking-store.ts
-ui/app/hooks/use-agent-thinking.ts
-ui/app/components/agent-thinking-panel.tsx
+backend/api/app/domain/agent_thinking
+backend/api/app/application/agent_thinking_service.py
+backend/api/app/api/routes/agent_thinking.py
+frontend/web/app/lib/agent-thinking-api.ts
+frontend/web/app/stores/agent-thinking-store.ts
+frontend/web/app/hooks/use-agent-thinking.ts
+frontend/web/app/components/agent-thinking-panel.tsx
 ```
 
 ​        后端调用链路：
@@ -122,38 +118,38 @@ agent-thinking-api
 /api/agent-thinking/*
 ```
 
-​        本阶段选择确定性演示，不调用真实 LLM，原因是：
+​        本节选择确定性演示，不调用真实 LLM，原因是：
 ​        这样做有两个好处。首先，它不需要 API Key，也不会受到模型随机性和网络状态影响，每次点击都能得到稳定结果，适合用来理解概念。其次，它把 ChatBot、CoT、ReAct 和任务拆解的差异放在同一张页面里，让后续接入 PlannerAgent 和 ReActAgent 时有一个清楚的参照。
 
-### 12.2.5 新增和修改的文件
+### 12.1.5 新增和修改的文件
 
 ```Plain
 README.md
-api/README.md
-api/app/api/router.py
-api/app/api/routes/agent_thinking.py
-api/app/application/agent_thinking_service.py
-api/app/domain/agent_thinking/__init__.py
-api/app/domain/agent_thinking/entities.py
-api/app/schemas/agent_thinking.py
-ui/README.md
-ui/app/components/agent-thinking-panel.tsx
-ui/app/hooks/use-agent-thinking.ts
-ui/app/lib/agent-thinking-api.ts
-ui/app/page.tsx
-ui/app/stores/agent-thinking-store.ts
-ui/app/types.ts
+backend/api/README.md
+backend/api/app/api/router.py
+backend/api/app/api/routes/agent_thinking.py
+backend/api/app/application/agent_thinking_service.py
+backend/api/app/domain/agent_thinking/__init__.py
+backend/api/app/domain/agent_thinking/entities.py
+backend/api/app/schemas/agent_thinking.py
+frontend/web/README.md
+frontend/web/app/components/agent-thinking-panel.tsx
+frontend/web/app/hooks/use-agent-thinking.ts
+frontend/web/app/lib/agent-thinking-api.ts
+frontend/web/app/page.tsx
+frontend/web/app/stores/agent-thinking-store.ts
+frontend/web/app/types.ts
 ```
 
-### 12.2.6 实施步骤
-#### 12.2.6.1 定义 Agent 思维领域实体
-​        创建 `api/app/domain/agent_thinking/__init__.py`：
+### 12.1.6 实施步骤
+#### 12.1.6.1 定义 Agent 思维领域实体
+​        创建 `backend/api/app/domain/agent_thinking/__init__.py`：
 
 ```Python
 """Agent thinking domain objects."""
 ```
 
-​        创建 `api/app/domain/agent_thinking/entities.py`：
+​        创建 `backend/api/app/domain/agent_thinking/entities.py`：
 
 ```Python
 from dataclasses import dataclass
@@ -204,7 +200,7 @@ class ThinkingComparison:
     demos: list[ThinkingModeDemo]
 ```
 
-##### 12.2.6.1.1 代码讲解
+.1.6.1.1 代码讲解
 ​        这个文件属于领域层，负责定义“业务概念”，不负责 HTTP、数据库或页面展示。
 ​        `ThinkingMode` 是枚举，表示系统当前支持的四种思维模式。使用枚举的好处是避免到处写散落的字符串，例如 `"react"` 或 `"decomposition"`。后续如果要新增 `planner`，只需要先从这里扩展。
 ​        `ThinkingModeInfo` 用于模式介绍页。它回答的是：
@@ -234,8 +230,8 @@ class ThinkingComparison:
 
 ​        而不是把模型自身的全部隐式推理原样显示。
 
-#### 12.2.6.2 编写 AgentThinkingService
-​        创建 `api/app/application/agent_thinking_service.py`：
+#### 12.1.6.2 编写 AgentThinkingService
+​        创建 `backend/api/app/application/agent_thinking_service.py`：
 
 ```Python
 from app.core.exceptions import AppException
@@ -388,10 +384,10 @@ class AgentThinkingService:
         )
 ```
 
-##### 12.2.6.2.1 代码讲解
-​        `MODE_INFOS` 是模式说明。它是固定数据，所以本阶段不需要建表。
+.1.6.2.1 代码讲解
+​        `MODE_INFOS` 是模式说明。它是固定数据，所以本节不需要建表。
 ​        `list_modes()` 给前端页面加载右侧模式说明。这个接口不需要请求体。
-​        `compare()` 是本阶段的核心入口。业务流程是：
+​        `compare()` 是本节的核心入口。业务流程是：
 
 ```Plain
 接收 task
@@ -419,10 +415,10 @@ read_file(path)
 run_command(command)
 ```
 
-​        这些工具还没有真正实现。现在只是让你先看到 ReAct 为什么离不开工具协议。本章第二阶段会正式进入 Memory 和工具协议。
+​        这些工具还没有真正实现。现在只是让你先看到 ReAct 为什么离不开工具协议。本章后文会正式进入 Memory 和工具协议。
 
-#### 12.2.6.3 定义接口 Schema
-​        创建 `api/app/schemas/agent_thinking.py`：
+#### 12.1.6.3 定义接口 Schema
+​        创建 `backend/api/app/schemas/agent_thinking.py`：
 
 ```Python
 from pydantic import BaseModel, Field
@@ -457,7 +453,7 @@ class ThinkingComparisonResponse(BaseModel):
     demos: list[ThinkingModeDemoResponse]
 ```
 
-##### 12.2.6.3.1 代码讲解
+.1.6.3.1 代码讲解
 ​        Schema 是 API 边界层。领域实体是后端自己用的结构，Schema 是接口返回给前端的结构。
 ​        `ThinkingCompareRequest` 使用：
 
@@ -475,8 +471,8 @@ demos  四种模式的对比结果
 
 ​        前端不需要理解领域对象，只要按照这个响应结构渲染即可。
 
-#### 12.2.6.4 编写 API 路由
-​        创建 `api/app/api/routes/agent_thinking.py`：
+#### 12.1.6.4 编写 API 路由
+​        创建 `backend/api/app/api/routes/agent_thinking.py`：
 
 ```Python
 from fastapi import APIRouter, Depends
@@ -568,7 +564,7 @@ async def compare_thinking_modes(
     return ApiResponse(data=to_comparison_response(comparison))
 ```
 
-##### 12.2.6.4.1 代码讲解
+.1.6.4.1 代码讲解
 ​        路由层只做三件事：
 
 ```Plain
@@ -582,8 +578,8 @@ async def compare_thinking_modes(
 ​        为什么不直接返回领域对象？
 ​        因为领域对象服务于业务，接口对象服务于前端。两者分开以后，后端业务结构可以调整，而不轻易破坏前端接口。
 
-#### 12.2.6.5 注册路由
-​        打开 `api/app/api/router.py`：
+#### 12.1.6.5 注册路由
+​        打开 `backend/api/app/api/router.py`：
 
 ```Python
 from fastapi import APIRouter
@@ -599,7 +595,7 @@ api_router.include_router(llm.router)
 api_router.include_router(agent_thinking.router)
 ```
 
-##### 12.2.6.5.1 代码讲解
+.1.6.5.1 代码讲解
 ​        新增路由文件后，必须在总路由里注册。
 ​        如果忘了这一步，文件虽然存在，但接口不会出现在 FastAPI 应用中。访问：
 
@@ -609,8 +605,8 @@ api_router.include_router(agent_thinking.router)
 
 ​        会返回 404。
 
-#### 12.2.6.6 扩展前端类型
-​        打开 `ui/app/types.ts`，新增：
+#### 12.1.6.6 扩展前端类型
+​        打开 `frontend/web/app/types.ts`，新增：
 
 ```TypeScript
 export type ThinkingModeInfo = {
@@ -640,7 +636,7 @@ export type ThinkingComparisonData = {
 };
 ```
 
-##### 12.2.6.6.1 代码讲解
+.1.6.6.1 代码讲解
 ​        前端类型要和后端 Schema 对齐。
 ​        这里的结构关系是：
 
@@ -653,8 +649,8 @@ ThinkingComparisonData
 
 ​        页面渲染时，会对 `demos` 做循环，为每一种模式渲染一张卡片。
 
-#### 12.2.6.7 封装前端 API 请求
-​        创建 `ui/app/lib/agent-thinking-api.ts`：
+#### 12.1.6.7 封装前端 API 请求
+​        创建 `frontend/web/app/lib/agent-thinking-api.ts`：
 
 ```TypeScript
 import { requestApi } from "./api";
@@ -679,7 +675,7 @@ export function compareThinkingModes(task: string) {
 }
 ```
 
-##### 12.2.6.7.1 代码讲解
+.1.6.7.1 代码讲解
 ​        组件不应该直接写：
 
 ```TypeScript
@@ -688,8 +684,8 @@ fetch("/api/agent-thinking/compare")
 
 ​        原因是接口路径、统一响应解析和错误处理都属于 API 层职责。统一放到 `lib/agent-thinking-api.ts` 后，组件只关心“加载模式”和“生成对比”两个动作。
 
-#### 12.2.6.8 创建独立 zustand store
-​        创建 `ui/app/stores/agent-thinking-store.ts`：
+#### 12.1.6.8 创建独立 zustand store
+​        创建 `frontend/web/app/stores/agent-thinking-store.ts`：
 
 ```TypeScript
 import { create } from "zustand";
@@ -770,7 +766,7 @@ export const useAgentThinkingStore = create<
 }));
 ```
 
-##### 12.2.6.8.1 代码讲解
+.1.6.8.1 代码讲解
 ​        这个 store 不和 `session-store.ts` 混在一起。原因是这两个模块的业务不同：
 
 ```Plain
@@ -807,8 +803,8 @@ POST /api/agent-thinking/compare
 结束 running
 ```
 
-#### 12.2.6.9 创建 hook 管页面生命周期
-​        创建 `ui/app/hooks/use-agent-thinking.ts`：
+#### 12.1.6.9 创建 hook 管页面生命周期
+​        创建 `frontend/web/app/hooks/use-agent-thinking.ts`：
 
 ```TypeScript
 import { useEffect } from "react";
@@ -827,7 +823,7 @@ export function useAgentThinking() {
 }
 ```
 
-##### 12.2.6.9.1 代码讲解
+.1.6.9.1 代码讲解
 ​        hook 负责“页面什么时候加载数据”。
 ​        如果把 `useEffect()` 写在组件里，组件会同时负责：
 
@@ -840,8 +836,8 @@ export function useAgentThinking() {
 
 ​        职责会变重。拆成 hook 后，组件只负责展示，store 负责状态，API 文件负责请求。
 
-#### 12.2.6.10 创建 AgentThinkingPanel 组件
-​        创建 `ui/app/components/agent-thinking-panel.tsx`。
+#### 12.1.6.10 创建 AgentThinkingPanel 组件
+​        创建 `frontend/web/app/components/agent-thinking-panel.tsx`。
 ​        完整代码如下。这个文件较长，分成四块理解：
 
 ```Plain
@@ -1059,7 +1055,7 @@ function SmallState({
 }
 ```
 
-##### 12.2.6.10.1 代码讲解
+.1.6.10.1 代码讲解
 ​        这个组件是受控组件。`textarea` 的值来自 `task`，输入变化时调用 `onTaskChange()`。
 ​        点击按钮时调用 `onRun()`，组件本身不直接请求接口。这样组件可以保持简单：
 
@@ -1072,8 +1068,8 @@ store 处理业务
 ​        按钮在 `running` 时禁用，避免连续点击造成重复请求。
 ​        `ModeList` 和 `ComparisonResult` 都接收 `LoadState`。这样加载中、错误和成功状态都有明确展示，不会出现页面空白。
 
-#### 12.2.6.11 在首页接入面板
-​        打开 `ui/app/page.tsx`，新增导入：
+#### 12.1.6.11 在首页接入面板
+​        打开 `frontend/web/app/page.tsx`，新增导入：
 
 ```TypeScript
 import { AgentThinkingPanel } from "./components/agent-thinking-panel";
@@ -1099,7 +1095,7 @@ const agentThinking = useAgentThinking();
 />
 ```
 
-##### 12.2.6.11.1 代码讲解
+.1.6.11.1 代码讲解
 ​        `page.tsx` 仍然只做页面编排。它不直接写接口请求，也不直接写对比逻辑。
 ​        首页现在的大结构是：
 
@@ -1109,9 +1105,9 @@ Agent 思维模型面板
 聊天工作台
 ```
 
-​        这个顺序是有原因的：先让用户理解任务可以用哪些模式处理，再进入下方真实会话区。本章第二阶段开始，Agent 能力会逐渐从演示面板迁移到真实会话流程。
+​        这个顺序是有原因的：先让用户理解任务可以用哪些模式处理，再进入下方真实会话区。本章后文开始，Agent 能力会逐渐从演示面板迁移到真实会话流程。
 
-### 12.2.7 关键理解
+### 12.1.7 关键理解
 ​        普通 ChatBot 适合简单任务。
 ​        CoT 适合需要分析和解释的任务，但页面上更建议展示“思考摘要”而不是完整隐藏推理。
 ​        ReAct 适合需要工具的任务。它的关键不是“想得更久”，而是：
@@ -1125,35 +1121,35 @@ Agent 思维模型面板
 
 ​        任务拆解适合长任务。它会把一个大目标变成多个可执行步骤，这就是 PlannerAgent 的基础。
 
-### 12.2.8 技术难点与亮点
-​        本阶段的难点是把概念讲清楚，同时不把概念写成散乱文案。聊天回复、思考摘要、工具行动和任务计划不是同一类东西；页面可以展示过程摘要和执行步骤，但不应该把模型隐藏推理当成普通内容暴露出来。即使这一阶段只是概念演示，也要有可运行接口和可观察页面。
+### 12.1.8 技术难点与亮点
+​        本节的难点是把概念讲清楚，同时不把概念写成散乱文案。聊天回复、思考摘要、工具行动和任务计划不是同一类东西；页面可以展示过程摘要和执行步骤，但不应该把模型隐藏推理当成普通内容暴露出来。即使这一阶段只是概念演示，也要有可运行接口和可观察页面。
 ​        项目亮点在于它不依赖真实 LLM，也能讲清 Agent 思维差异。新增接口稳定可测，前端使用独立状态管理，没有污染会话 store；页面还能直观看到 ReAct 为什么需要工具协议，以及任务拆解为什么会成为 PlannerAgent 的前置能力。
 
-### 12.2.9 面试考点
+### 12.1.9 面试考点
 ​        面试里可以围绕 ChatBot 和 Agent 的区别展开：ChatBot 更像直接回答，Agent 则强调目标、计划、工具和观察。CoT 适合复杂推理，但页面上更应该展示可解释摘要，而不是完整隐藏推理。ReAct 中的 Reason 对应判断和选择，Act 对应工具调用或外部动作；任务拆解则把长任务变成可执行计划。概念演示也写成 API，是为了让后续真实 Agent 能平滑替换演示数据。
 
-### 12.2.10 运行验证
+### 12.1.10 运行验证
 ​        下面命令默认在项目根目录执行。
 
-#### 12.2.10.1 检查后端代码
+#### 12.1.10.1 检查后端代码
 
 ```Bash
-cd api
+cd backend/api
 uv run python -m compileall app
 ```
 
 ​        预期没有 Python 编译错误。
 
-#### 12.2.10.2 检查前端类型
+#### 12.1.10.2 检查前端类型
 
 ```Bash
-cd ../ui
+cd ../../frontend/web
 pnpm typecheck
 ```
 
 ​        预期没有 TypeScript 报错。
 
-#### 12.2.10.3 启动服务
+#### 12.1.10.3 启动服务
 ​        回到项目根目录：
 
 ```Bash
@@ -1173,7 +1169,7 @@ docker compose build --pull=false api ui
 docker compose up -d nginx
 ```
 
-#### 12.2.10.4 验证模式列表接口
+#### 12.1.10.4 验证模式列表接口
 
 ```Bash
 curl http://localhost:8088/api/agent-thinking/modes
@@ -1188,7 +1184,7 @@ ReAct
 任务拆解
 ```
 
-#### 12.2.10.5 验证任务对比接口
+#### 12.1.10.5 验证任务对比接口
 
 ```Bash
 curl -X POST http://localhost:8088/api/agent-thinking/compare \
@@ -1204,7 +1200,7 @@ react 模式里有 tool_calls
 decomposition 模式里有计划步骤
 ```
 
-#### 12.2.10.6 验证页面
+#### 12.1.10.6 验证页面
 ​        访问：
 
 ```Plain
@@ -1215,20 +1211,20 @@ http://localhost:8088
 ​        操作步骤：
 ​        验证时输入一个任务，点击“生成对比”，页面应当出现四张对比卡片。普通 ChatBot 卡片会直接给出整体回答，CoT 卡片会展示分析摘要，ReAct 卡片会出现可能调用的工具，任务拆解卡片会把目标拆成多个阶段。这个结果说明后端演示接口和前端状态流都已经接通。
 
-### 12.2.11 阶段小结
-​        本阶段完成了 Agent 思维模型的第一个可运行演示。后端定义了 ChatBot、CoT、ReAct 和任务拆解四种模式，新增模式说明接口和任务对比接口；前端新增 Agent 思维模型面板，并继续保持 API、store、hook、组件拆分。这个稳定演示说明了为什么 Agent 不只是聊天框，而需要规划、工具和可观察过程。
-​        本章第二阶段会进入 Agent 记忆与工具协议，实现 Memory、工具装饰器、工具 schema 和基础 Agent 调用循环。
+### 12.1.11 小结
+​        本节完成了 Agent 思维模型的第一个可运行演示。后端定义了 ChatBot、CoT、ReAct 和任务拆解四种模式，新增模式说明接口和任务对比接口；前端新增 Agent 思维模型面板，并继续保持 API、store、hook、组件拆分。这个稳定演示说明了为什么 Agent 不只是聊天框，而需要规划、工具和可观察过程。
+​        本章后文会进入 Agent 记忆与工具协议，实现 Memory、工具装饰器、工具 schema 和基础 Agent 调用循环。
 
-## 12.3 第二阶段：Agent Memory 与工具协议
+## 12.2 Agent Memory 与工具协议
 
-> **演进提示**：本阶段保留了早期教学版的 `ConversationMemory + ToolRegistry` 最小闭环，用于讲清基本概念。完整项目已在第 69、70 章升级为分层 Memory Control Plane 和统一 Tool Runtime；生产代码请以后两章为准。
+> **演进提示**：本节保留了早期教学版的 `ConversationMemory + ToolRegistry` 最小闭环，用于讲清基本概念。完整项目会在第 45、46 章升级为分层 Memory Control Plane 和统一 Tool Runtime；生产代码请以后两章为准。
 
-### 12.3.1 本阶段目标
-​        本章第一阶段已经把 ChatBot、CoT、ReAct 和任务拆解放在同一个页面里比较过，但那一章仍然停留在“思维模型”的层面。真正进入 Agent 执行之前，还需要补上两个基础能力：一个是 Agent 运行时要看的上下文，也就是 Memory；另一个是 Agent 能够识别、选择和调用的工具协议。
-​        本阶段会把这两部分做成一个最小闭环。后端会定义 `ConversationMemory`、工具 schema、工具注册表和内置教学工具，再通过 `AgentCoreService` 把用户任务、工具选择、工具结果和下一步提示写进同一段 Memory。前端则继续按照 API、store、hook、组件拆分，把工具列表、参数 schema、Memory 时间线和工具调用结果展示出来。这样到了第 13 章时，PlannerAgent 和 ReActAgent 就不是凭空出现，而是接在这一阶段搭好的上下文和工具系统之上。
+### 12.2.1 本节目标
+​        前文已经把 ChatBot、CoT、ReAct 和任务拆解放在同一个页面里比较过，但那一章仍然停留在“思维模型”的层面。真正进入 Agent 执行之前，还需要补上两个基础能力：一个是 Agent 运行时要看的上下文，也就是 Memory；另一个是 Agent 能够识别、选择和调用的工具协议。
+​        本节会把这两部分做成一个最小闭环。后端会定义 `ConversationMemory`、工具 schema、工具注册表和内置教学工具，再通过 `AgentCoreService` 把用户任务、工具选择、工具结果和下一步提示写进同一段 Memory。前端则继续按照 API、store、hook、组件拆分，把工具列表、参数 schema、Memory 时间线和工具调用结果展示出来。这样到了第 13 章时，PlannerAgent 和 ReActAgent 就不是凭空出现，而是接在这一阶段搭好的上下文和工具系统之上。
 
-### 12.3.2 最终效果
-​        本阶段结束后，后端新增两个接口：
+### 12.2.2 最终效果
+​        本节结束后，后端新增两个接口：
 
 ```Plain
 GET  /api/agent-core/tools
@@ -1249,10 +1245,10 @@ draft_plan
 ```
 
 ​        点击“运行演示”后，页面会展示当前可用工具、选中工具的参数 schema、一次 Agent 调用形成的 Memory 时间线、工具执行后的输出，以及后续如何把这些 Memory 消息交给 LLM 继续生成回答。读者在页面上看到的不是单次接口返回，而是一条可观察的 Agent 运行轨迹。
-​        本阶段仍然不实现完整 PlannerAgent 和 ReActAgent。它先把 Memory 和工具协议搭起来。第 13 章会让 PlannerAgent 生成计划，第 13 章会让 ReActAgent 根据计划逐步执行。
+​        本节仍然不实现完整 PlannerAgent 和 ReActAgent。它先把 Memory 和工具协议搭起来。第 13 章会让 PlannerAgent 生成计划，第 13 章会让 ReActAgent 根据计划逐步执行。
 
-### 12.3.3 本阶段要解决的问题
-​        本章第一阶段已经解释了 ChatBot、CoT、ReAct 和任务拆解的区别。
+### 12.2.3 本节要解决的问题
+​        前文已经解释了 ChatBot、CoT、ReAct 和任务拆解的区别。
 ​        但是要真正实现 ReActAgent，必须先解决两个基础问题：
 
 ```Plain
@@ -1275,7 +1271,7 @@ tool      工具执行结果
 assistant Agent 根据工具结果继续回答
 ```
 
-​        所以本阶段先做一个最小闭环：
+​        所以本节先做一个最小闭环：
 
 ```Plain
 用户输入任务
@@ -1296,24 +1292,24 @@ assistant Agent 根据工具结果继续回答
 返回给前端展示
 ```
 
-### 12.3.4 本阶段技术方案
+### 12.2.4 本节技术方案
 ​        后端新增模块：
 
 ```Plain
-api/app/domain/agent_core/memory.py
-api/app/domain/agent_core/tools.py
-api/app/infrastructure/agent_tools/builtin.py
-api/app/application/agent_core_service.py
-api/app/api/routes/agent_core.py
+backend/api/app/domain/agent_core/memory.py
+backend/api/app/domain/agent_core/tools.py
+backend/api/app/infrastructure/agent_tools/builtin.py
+backend/api/app/application/agent_core_service.py
+backend/api/app/api/routes/agent_core.py
 ```
 
 ​        前端新增模块：
 
 ```Plain
-ui/app/lib/agent-core-api.ts
-ui/app/stores/agent-core-store.ts
-ui/app/hooks/use-agent-core.ts
-ui/app/components/agent-core-panel.tsx
+frontend/web/app/lib/agent-core-api.ts
+frontend/web/app/stores/agent-core-store.ts
+frontend/web/app/hooks/use-agent-core.ts
+frontend/web/app/components/agent-core-panel.tsx
 ```
 
 ​        调用链路如下：
@@ -1341,42 +1337,42 @@ AgentCoreService
   +-- AgentTool.call()
 ```
 
-​        本阶段只使用内置确定性工具，不调用真实外部工具。这样做是为了先把协议讲清楚：工具需要先被描述给模型或前端，调用前要根据 schema 检查参数，调用后要把结果重新写回 Memory，最后再由前端把这个过程展示出来。等这个闭环稳定后，再把搜索、文件、Shell 或浏览器工具接进来，复杂度才不会一下子失控。
+​        本节只使用内置确定性工具，不调用真实外部工具。这样做是为了先把协议讲清楚：工具需要先被描述给模型或前端，调用前要根据 schema 检查参数，调用后要把结果重新写回 Memory，最后再由前端把这个过程展示出来。等这个闭环稳定后，再把搜索、文件、Shell 或浏览器工具接进来，复杂度才不会一下子失控。
 
-### 12.3.5 新增和修改的文件
+### 12.2.5 新增和修改的文件
 
 ```Plain
 README.md
-api/README.md
-api/app/api/router.py
-api/app/api/routes/agent_core.py
-api/app/application/agent_core_service.py
-api/app/domain/agent_core/__init__.py
-api/app/domain/agent_core/memory.py
-api/app/domain/agent_core/tools.py
-api/app/infrastructure/agent_tools/__init__.py
-api/app/infrastructure/agent_tools/builtin.py
-api/app/schemas/agent_core.py
+backend/api/README.md
+backend/api/app/api/router.py
+backend/api/app/api/routes/agent_core.py
+backend/api/app/application/agent_core_service.py
+backend/api/app/domain/agent_core/__init__.py
+backend/api/app/domain/agent_core/memory.py
+backend/api/app/domain/agent_core/tools.py
+backend/api/app/infrastructure/agent_tools/__init__.py
+backend/api/app/infrastructure/agent_tools/builtin.py
+backend/api/app/schemas/agent_core.py
 docs/course/chapters/17-agent-memory-tools.md
 docs/course/outline.md
-ui/README.md
-ui/app/components/agent-core-panel.tsx
-ui/app/hooks/use-agent-core.ts
-ui/app/lib/agent-core-api.ts
-ui/app/page.tsx
-ui/app/stores/agent-core-store.ts
-ui/app/types.ts
+frontend/web/README.md
+frontend/web/app/components/agent-core-panel.tsx
+frontend/web/app/hooks/use-agent-core.ts
+frontend/web/app/lib/agent-core-api.ts
+frontend/web/app/page.tsx
+frontend/web/app/stores/agent-core-store.ts
+frontend/web/app/types.ts
 ```
 
-### 12.3.6 实施步骤
-#### 12.3.6.1 定义 Agent Memory
-​        创建 `api/app/domain/agent_core/__init__.py`：
+### 12.2.6 实施步骤
+#### 12.2.6.1 定义 Agent Memory
+​        创建 `backend/api/app/domain/agent_core/__init__.py`：
 
 ```Python
 """Agent memory and tool protocol domain objects."""
 ```
 
-​        创建 `api/app/domain/agent_core/memory.py`：
+​        创建 `backend/api/app/domain/agent_core/memory.py`：
 
 ```Python
 from dataclasses import dataclass, field
@@ -1455,7 +1451,7 @@ class ConversationMemory:
         return message
 ```
 
-##### 12.3.6.1.1 代码讲解
+.2.6.1.1 代码讲解
 ​        Memory 是 Agent 的上下文容器。
 ​        普通聊天场景里，消息通常只有：
 
@@ -1482,8 +1478,8 @@ tool
 ​        `MemoryMessage.name` 用来保存工具名。对于 `tool` 角色来说，`name="read_file"` 或 `name="draft_plan"` 可以告诉后续模型：这条内容来自哪个工具。
 ​        `ConversationMemory._append()` 是一个私有辅助方法。它把创建消息时反复出现的字段集中到一个地方处理，包括消息 `id`、角色 `role`、正文 `content`、创建时间 `created_at`，以及工具消息可能携带的 `name`。这样 `add_user_message()`、`add_assistant_message()`、`add_tool_message()` 只表达“要追加哪类消息”，不用在每个方法里重复生成 UUID 和时间戳。
 
-#### 12.3.6.2 定义工具协议
-​        创建 `api/app/domain/agent_core/tools.py`：
+#### 12.2.6.2 定义工具协议
+​        创建 `backend/api/app/domain/agent_core/tools.py`：
 
 ```Python
 from collections.abc import Callable
@@ -1662,7 +1658,7 @@ def _to_schema_type(annotation: Any) -> str:
     return "string"
 ```
 
-##### 12.3.6.2.1 代码讲解
+.2.6.2.1 代码讲解
 ​        工具协议分成四层：
 
 ```Plain
@@ -1695,14 +1691,14 @@ def draft_plan(task: str) -> str:
 
 ​        这样函数本身只关注业务逻辑，工具名称、描述、参数描述都由装饰器生成。
 
-#### 12.3.6.3 编写内置工具
-​        创建 `api/app/infrastructure/agent_tools/__init__.py`：
+#### 12.2.6.3 编写内置工具
+​        创建 `backend/api/app/infrastructure/agent_tools/__init__.py`：
 
 ```Python
 """Built-in agent tools."""
 ```
 
-​        创建 `api/app/infrastructure/agent_tools/builtin.py`：
+​        创建 `backend/api/app/infrastructure/agent_tools/builtin.py`：
 
 ```Python
 from app.domain.agent_core.tools import ToolRegistry, agent_tool
@@ -1777,13 +1773,13 @@ def build_builtin_tool_registry() -> ToolRegistry:
     return registry
 ```
 
-##### 12.3.6.3.1 代码讲解
+.2.6.3.1 代码讲解
 ​        这里定义了三个教学工具。`summarize_text` 用来演示最简单的“文本输入到文本输出”，`extract_keywords` 用来模拟 Agent 从任务中抓重点，`draft_plan` 则把任务改写成三个粗粒度步骤。它们的能力都很克制，但三者足以覆盖工具 schema、参数构造、工具执行和结果回写 Memory 的完整路径。
-​        这些工具现在都不调用外部 API，原因是本阶段重点是工具协议，而不是工具能力本身。真实工具会牵涉网络、文件系统、权限、超时和错误处理，如果在这里提前引入，读者反而不容易看清工具协议这一层到底负责什么。
+​        这些工具现在都不调用外部 API，原因是本节重点是工具协议，而不是工具能力本身。真实工具会牵涉网络、文件系统、权限、超时和错误处理，如果在这里提前引入，读者反而不容易看清工具协议这一层到底负责什么。
 ​        `build_builtin_tool_registry()` 负责把工具注册到 `ToolRegistry`。后续新增搜索工具、文件工具、Shell 工具时，也会进入类似的注册流程。
 
-#### 12.3.6.4 编写 AgentCoreService
-​        创建 `api/app/application/agent_core_service.py`：
+#### 12.2.6.4 编写 AgentCoreService
+​        创建 `backend/api/app/application/agent_core_service.py`：
 
 ```Python
 from app.core.exceptions import AppException
@@ -1880,8 +1876,8 @@ class AgentCoreService:
         return arguments
 ```
 
-##### 12.3.6.4.1 代码讲解
-​        `run_demo()` 是本阶段后端最重要的业务流程：
+.2.6.4.1 代码讲解
+​        `run_demo()` 是本节后端最重要的业务流程：
 
 ```Plain
 清理 task
@@ -1917,10 +1913,10 @@ class AgentCoreService:
 观察任务 -> 决定工具 -> 执行工具 -> 观察结果 -> 继续回答
 ```
 
-​        本阶段的 `_choose_tool()` 只是简单规则。第 13 章会让 LLM 根据上下文选择工具。
+​        本节的 `_choose_tool()` 只是简单规则。第 13 章会让 LLM 根据上下文选择工具。
 
-#### 12.3.6.5 定义接口 Schema
-​        创建 `api/app/schemas/agent_core.py`：
+#### 12.2.6.5 定义接口 Schema
+​        创建 `backend/api/app/schemas/agent_core.py`：
 
 ```Python
 from datetime import datetime
@@ -1969,7 +1965,7 @@ class AgentCoreDemoResponse(BaseModel):
     next_step: str
 ```
 
-##### 12.3.6.5.1 代码讲解
+.2.6.5.1 代码讲解
 ​        Schema 是接口契约。
 ​        前端最关心这三个结构：
 
@@ -1981,8 +1977,8 @@ tool_result 工具执行结果
 
 ​        `AgentCoreDemoRequest.tool_name` 允许为空。为空时后端会根据任务内容自动选择工具；有值时使用前端选中的工具。
 
-#### 12.3.6.6 编写 API 路由
-​        创建 `api/app/api/routes/agent_core.py`：
+#### 12.2.6.6 编写 API 路由
+​        创建 `backend/api/app/api/routes/agent_core.py`：
 
 ```Python
 from fastapi import APIRouter, Depends
@@ -2085,7 +2081,7 @@ async def run_demo(
     )
 ```
 
-##### 12.3.6.6.1 代码讲解
+.2.6.6.1 代码讲解
 ​        路由层继续保持薄：
 
 ```Plain
@@ -2098,8 +2094,8 @@ async def run_demo(
 ​        这里有很多 `to_*_response()` 函数，它们看起来有点啰嗦，但很重要。
 ​        原因是领域层和接口层要隔离。领域层以后可能把 `ToolDefinition` 改得更适合模型，接口层仍然可以保持前端需要的结构。
 
-#### 12.3.6.7 注册路由
-​        打开 `api/app/api/router.py`：
+#### 12.2.6.7 注册路由
+​        打开 `backend/api/app/api/router.py`：
 
 ```Python
 from fastapi import APIRouter
@@ -2124,12 +2120,12 @@ api_router.include_router(agent_thinking.router)
 api_router.include_router(agent_core.router)
 ```
 
-##### 12.3.6.7.1 代码讲解
+.2.6.7.1 代码讲解
 ​        新增路由文件后必须注册到总路由。
 ​        否则 `agent_core.py` 文件存在，但接口不会被 FastAPI 加载，访问时会得到 404。
 
-#### 12.3.6.8 扩展前端类型
-​        打开 `ui/app/types.ts`，新增：
+#### 12.2.6.8 扩展前端类型
+​        打开 `frontend/web/app/types.ts`，新增：
 
 ```TypeScript
 export type ToolParameter = {
@@ -2171,7 +2167,7 @@ export type AgentCoreDemoData = {
 };
 ```
 
-##### 12.3.6.8.1 代码讲解
+.2.6.8.1 代码讲解
 ​        这些类型和后端 `agent_core.py` schema 对齐。
 ​        页面最终展示的三个核心数据是：
 
@@ -2189,8 +2185,8 @@ ToolCallResult        工具执行结果
 
 ​        这样前端写错角色时，TypeScript 会及时报错。
 
-#### 12.3.6.9 封装前端 API
-​        创建 `ui/app/lib/agent-core-api.ts`：
+#### 12.2.6.9 封装前端 API
+​        创建 `frontend/web/app/lib/agent-core-api.ts`：
 
 ```TypeScript
 import { requestApi } from "./api";
@@ -2215,14 +2211,14 @@ export function runAgentCoreDemo(task: string, toolName: string | null) {
 }
 ```
 
-##### 12.3.6.9.1 代码讲解
+.2.6.9.1 代码讲解
 ​        组件不直接写接口路径。
 ​        `fetchAgentTools()` 只负责读取工具列表。
 ​        `runAgentCoreDemo()` 只负责提交任务和工具名。
 ​        这样组件不需要知道后端返回外层是 `ApiResponse`，也不需要重复写 `fetch()`。
 
-#### 12.3.6.10 创建前端 store
-​        创建 `ui/app/stores/agent-core-store.ts`：
+#### 12.2.6.10 创建前端 store
+​        创建 `frontend/web/app/stores/agent-core-store.ts`：
 
 ```TypeScript
 import { create } from "zustand";
@@ -2297,9 +2293,9 @@ export const useAgentCoreStore = create<AgentCoreState & AgentCoreActions>(
 );
 ```
 
-##### 12.3.6.10.1 代码讲解
+.2.6.10.1 代码讲解
 ​        这个 store 独立于 `session-store` 和 `agent-thinking-store`。
-​        原因是本阶段的状态是工具协议演示：
+​        原因是本节的状态是工具协议演示：
 
 ```Plain
 工具列表
@@ -2328,8 +2324,8 @@ export const useAgentCoreStore = create<AgentCoreState & AgentCoreActions>(
 保存 Memory 和工具结果
 ```
 
-#### 12.3.6.11 创建 hook
-​        创建 `ui/app/hooks/use-agent-core.ts`：
+#### 12.2.6.11 创建 hook
+​        创建 `frontend/web/app/hooks/use-agent-core.ts`：
 
 ```TypeScript
 import { useEffect } from "react";
@@ -2348,12 +2344,12 @@ export function useAgentCore() {
 }
 ```
 
-##### 12.3.6.11.1 代码讲解
+.2.6.11.1 代码讲解
 ​        hook 负责页面生命周期。
 ​        组件挂载时，`useEffect()` 会调用 `loadTools()`，这样页面一打开就能看到工具列表。
 
-#### 12.3.6.12 创建 AgentCorePanel 组件
-​        创建 `ui/app/components/agent-core-panel.tsx`。
+#### 12.2.6.12 创建 AgentCorePanel 组件
+​        创建 `frontend/web/app/components/agent-core-panel.tsx`。
 ​        这个文件包含：
 
 ```Plain
@@ -2609,7 +2605,7 @@ function SmallState({
 }
 ```
 
-##### 12.3.6.12.1 组件讲解
+.2.6.12.1 组件讲解
 ​        `AgentCorePanel` 是受控组件。
 ​        它不直接请求后端，只接收：
 
@@ -2631,8 +2627,8 @@ onRun
 
 ​        真正的请求和状态更新都在 store 里完成。
 
-#### 12.3.6.13 在首页接入 AgentCorePanel
-​        打开 `ui/app/page.tsx`，新增导入：
+#### 12.2.6.13 在首页接入 AgentCorePanel
+​        打开 `frontend/web/app/page.tsx`，新增导入：
 
 ```TypeScript
 import { AgentCorePanel } from "./components/agent-core-panel";
@@ -2660,7 +2656,7 @@ const agentCore = useAgentCore();
 />
 ```
 
-##### 12.3.6.13.1 代码讲解
+.2.6.13.1 代码讲解
 ​        首页现在的 Agent 学习路径是：
 
 ```Plain
@@ -2675,7 +2671,7 @@ Agent 记忆与工具协议
 
 ​        这能让用户先理解概念，再观察工具协议，最后回到真实会话流程。
 
-### 12.3.7 关键理解
+### 12.2.7 关键理解
 ​        Memory 不是数据库表，也不是最终聊天记录。
 ​        Memory 是 Agent 每次运行时给模型看的上下文材料。它可以来自用户消息，也可以来自历史对话、上传文件、工具结果、计划步骤和上一步执行结果。数据库负责长期保存，Memory 负责把当前这次推理最需要的材料组织成模型能理解的上下文，两者职责不能混在一起。
 ​        工具协议也不是工具函数本身。
@@ -2690,42 +2686,42 @@ Agent 记忆与工具协议
 
 ​        Agent 只有拿到工具 schema，才能决定什么时候调用工具，以及如何构造参数。
 
-### 12.3.8 技术难点与亮点
-​        本阶段的难点不在代码量，而在边界划分。Memory、聊天记录和数据库持久化看起来都在保存消息，但 Memory 面向的是“本次推理要给模型看的上下文”；工具 schema 和工具函数也不能混在一起，前者用于描述和选择，后者才是真正执行。装饰器从函数签名生成参数描述，工具注册表负责发现和查找工具，工具执行结果再回写 Memory，这几步必须连成一条清晰链路。
+### 12.2.8 技术难点与亮点
+​        本节的难点不在代码量，而在边界划分。Memory、聊天记录和数据库持久化看起来都在保存消息，但 Memory 面向的是“本次推理要给模型看的上下文”；工具 schema 和工具函数也不能混在一起，前者用于描述和选择，后者才是真正执行。装饰器从函数签名生成参数描述，工具注册表负责发现和查找工具，工具执行结果再回写 Memory，这几步必须连成一条清晰链路。
 ​        项目亮点在于后续 ReActAgent 需要的基础结构已经出现了。新增工具时，不需要在多个地方硬编码工具信息，只要用装饰器声明名称、描述和参数说明，再注册到 `ToolRegistry` 即可。前端也没有等到最后才补页面，而是同步展示工具 schema、Memory 和结果，这会让读者在开发过程中始终看到 Agent 内部状态的变化。
 
-### 12.3.9 面试考点
-​        面试里可以从 Agent Memory 和普通聊天消息的区别讲起。普通聊天消息主要面向展示和历史记录，Agent Memory 更强调本次推理上下文；工具 schema 的价值在于让模型或服务知道有哪些工具、每个工具需要什么参数；装饰器解决的是“业务函数”和“工具描述”重复维护的问题；`ToolRegistry` 则提供统一的工具注册、列表查询和按名称调用入口。工具结果必须写回 Memory，是因为 Agent 后续回答需要基于观察结果继续判断。本阶段不直接实现完整 ReActAgent，是为了先把 Memory 和工具协议两块地基铺稳。
+### 12.2.9 面试考点
+​        面试里可以从 Agent Memory 和普通聊天消息的区别讲起。普通聊天消息主要面向展示和历史记录，Agent Memory 更强调本次推理上下文；工具 schema 的价值在于让模型或服务知道有哪些工具、每个工具需要什么参数；装饰器解决的是“业务函数”和“工具描述”重复维护的问题；`ToolRegistry` 则提供统一的工具注册、列表查询和按名称调用入口。工具结果必须写回 Memory，是因为 Agent 后续回答需要基于观察结果继续判断。本节不直接实现完整 ReActAgent，是为了先把 Memory 和工具协议两块地基铺稳。
 
-### 12.3.10 运行验证
+### 12.2.10 运行验证
 ​        下面命令默认在项目根目录执行。
 
-#### 12.3.10.1 检查后端代码
+#### 12.2.10.1 检查后端代码
 
 ```Bash
-cd api
+cd backend/api
 uv run python -m compileall app
 ```
 
 ​        预期没有 Python 编译错误。
 
-#### 12.3.10.2 检查前端类型
+#### 12.2.10.2 检查前端类型
 
 ```Bash
-cd ../ui
+cd ../../frontend/web
 pnpm typecheck
 ```
 
 ​        预期没有 TypeScript 报错。
 
-#### 12.3.10.3 启动服务
+#### 12.2.10.3 启动服务
 ​        回到项目根目录：
 
 ```Bash
 cd /Users/atlas/Desktop/github/atlas-agents
 ```
 
-​        本阶段修改了 API 和 UI 代码，需要重新构建：
+​        本节修改了 API 和 UI 代码，需要重新构建：
 
 ```Bash
 docker compose build --pull=false api ui
@@ -2734,7 +2730,7 @@ docker compose up -d --force-recreate api ui nginx
 
 ​        这里重启 Nginx 是为了让它重新解析新的 API/UI 容器地址，避免旧容器 IP 导致 502。
 
-#### 12.3.10.4 验证工具列表接口
+#### 12.2.10.4 验证工具列表接口
 
 ```Bash
 curl http://localhost:8088/api/agent-core/tools
@@ -2748,7 +2744,7 @@ extract_keywords
 draft_plan
 ```
 
-#### 12.3.10.5 验证 Agent 核心演示接口
+#### 12.2.10.5 验证 Agent 核心演示接口
 
 ```Bash
 curl -X POST http://localhost:8088/api/agent-core/demo \
@@ -2764,7 +2760,7 @@ selected_tool.name 是 draft_plan
 tool_result.output 中有 3 个计划步骤
 ```
 
-#### 12.3.10.6 验证页面
+#### 12.2.10.6 验证页面
 ​        访问：
 
 ```Plain
@@ -2775,11 +2771,11 @@ http://localhost:8088
 ​        操作步骤：
 ​        验证时先输入一个任务，再选择 `draft_plan`、`extract_keywords` 或 `summarize_text` 中的一个工具，随后点击“运行演示”。页面应当同时更新 Memory 时间线和工具结果区域。Memory 中先出现用户任务，再出现 Agent 决定调用工具的消息，随后是带工具名的 `tool` 消息，最后出现提示下一步可以交给 LLM 继续生成回答的 assistant 消息。
 
-### 12.3.11 阶段小结
-​        本阶段完成了 Agent 核心的第二块基础能力。后端定义了 Agent Memory、工具参数、工具 schema 和工具执行结果，并用装饰器把普通 Python 函数封装成可注册、可列举、可按名称调用的工具；应用服务把用户任务、工具选择、工具结果和下一步提示写入同一段 Memory；前端则新增了工具协议演示面板，把工具列表、参数 schema、Memory 时间线和工具输出放在同一个可观察界面中。
-​        第 13 章会进入 PlannerAgent 任务规划，让 LLM 根据用户任务生成结构化计划，并在前端展示计划目标、步骤和预期输出。到那时，本阶段的 Memory 和工具协议会继续作为后续 Agent 执行链路的基础。
+### 12.2.11 小结
+​        本节完成了 Agent 核心的第二块基础能力。后端定义了 Agent Memory、工具参数、工具 schema 和工具执行结果，并用装饰器把普通 Python 函数封装成可注册、可列举、可按名称调用的工具；应用服务把用户任务、工具选择、工具结果和下一步提示写入同一段 Memory；前端则新增了工具协议演示面板，把工具列表、参数 schema、Memory 时间线和工具输出放在同一个可观察界面中。
+​        第 13 章会进入 PlannerAgent 任务规划，让 LLM 根据用户任务生成结构化计划，并在前端展示计划目标、步骤和预期输出。到那时，本节的 Memory 和工具协议会继续作为后续 Agent 执行链路的基础。
 
-## 12.4 本章小结
+## 12.3 本章小结
 
 ​        完成“Agent 思维模型立论”和“Agent Memory 与工具协议”两个阶段后，这条能力链已经形成闭环。读者仍然可以在每个阶段结束时单独运行验证，但理解上应把两者视作一个连续决策：先建立可靠边界，再让上层能力真正依赖它。
 

@@ -8,7 +8,7 @@
 - `/api/status` 状态检查接口
 - API 服务的 Dockerfile
 - Docker Compose 中的 `api` 服务配置
-- API 容器启动脚本 `api/scripts/start.sh`
+- API 容器启动脚本 `backend/api/scripts/start.sh`
 - 容器启动时自动执行 Alembic 迁移
 - pydantic-settings 配置读取
 - 统一响应结构
@@ -120,20 +120,20 @@
 后端分层规则见：
 
 ```text
-api/ARCHITECTURE.md
+backend/api/ARCHITECTURE.md
 ```
 
 后端依赖用途见：
 
 ```text
-api/DEPENDENCIES.md
+backend/api/DEPENDENCIES.md
 ```
 
 ## 本地运行
 
 ```bash
 docker compose up -d postgres redis
-cd api
+cd backend/api
 uv venv --python 3.11
 uv sync
 uv run uvicorn app.main:app --reload
@@ -213,7 +213,7 @@ http://localhost:8000/api/agent-core/tools
 uv run alembic upgrade head
 ```
 
-Docker Compose 运行时，API 容器会通过 `api/scripts/start.sh` 默认执行：
+Docker Compose 运行时，API 容器会通过 `backend/api/scripts/start.sh` 默认执行：
 
 ```text
 uv run alembic upgrade head

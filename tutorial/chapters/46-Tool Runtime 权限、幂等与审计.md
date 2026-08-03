@@ -106,7 +106,7 @@ GET /api/control-plane/tool-invocations?project_id=atlas&task_id=<task-id>
 ## 46.8 本章验收
 
 ```bash
-cd api
+cd backend/api
 uv run python -m unittest tests.test_tool_runtime tests.test_tool_selection_service
 ```
 

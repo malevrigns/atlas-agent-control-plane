@@ -1,19 +1,15 @@
 # 第七章. 对话消息与 SSE 事件流
 
-## 7.1 合章说明
+## 7.1 对话输入与消息事件
 
-​        旧版教程把“对话输入与消息事件”与“SSE 事件如流”拆成了相邻两章。两者实际上属于同一条能力链：前者把基础结构立住，后者让它进入可用状态。本章将它们合并为前后两个阶段，保留原来的实现、验证与工程判断，同时减少能力尚未闭环时的章节跳转。
-
-## 7.2 第一阶段：对话输入与消息事件
-
-### 7.2.1 本阶段目标
+### 7.1.1 本节目标
 
 ​        第 6 章让页面有了真实会话列表，但会话还只是入口。一个 Agent 工作台真正开始像产品，是从用户能在某个会话里输入任务、看到消息、看到系统事件开始的。聊天框只是表面，背后需要消息表、事件表、接口、事务和前端状态共同配合。
-​        本阶段要完成基础聊天工作台。读者会设计消息表和事件表，理解为什么聊天系统不只保存消息，还要保存事件；会编写会话详情、消息列表、发送消息和事件列表接口；也会使用 Unit of Work 保证“写消息、写事件、更新会话时间”在同一个事务中完成。前端会引入 zustand，把会话、消息和事件状态从 `page.tsx` 中抽离出来，再用 hook 组织页面初始化和选中会话后的联动加载。到这一阶段结束时，页面会拥有聊天输入框、消息时间线和事件面板。
+​        本节要完成基础聊天工作台。读者会设计消息表和事件表，理解为什么聊天系统不只保存消息，还要保存事件；会编写会话详情、消息列表、发送消息和事件列表接口；也会使用 Unit of Work 保证“写消息、写事件、更新会话时间”在同一个事务中完成。前端会引入 zustand，把会话、消息和事件状态从 `page.tsx` 中抽离出来，再用 hook 组织页面初始化和选中会话后的联动加载。到这一阶段结束时，页面会拥有聊天输入框、消息时间线和事件面板。
 
-### 7.2.2 最终效果
+### 7.1.2 最终效果
 
-​        本阶段结束后，页面不再只显示会话列表，而是可以进入一个基础聊天工作台。
+​        本节结束后，页面不再只显示会话列表，而是可以进入一个基础聊天工作台。
 
 ​        访问：
 
@@ -36,9 +32,9 @@ POST /api/sessions/{session_id}/messages
 GET  /api/sessions/{session_id}/events
 ```
 
-​        本阶段先不接 LLM。发送消息后，只保存用户消息和一条 `message_created` 事件。这个限制是有意的：在让模型参与之前，先把“消息如何落库、事件如何记录、前端如何刷新”这条基础链路跑稳。本章第二阶段会把事件改造成 SSE 流式输出。
+​        本节先不接 LLM。发送消息后，只保存用户消息和一条 `message_created` 事件。这个限制是有意的：在让模型参与之前，先把“消息如何落库、事件如何记录、前端如何刷新”这条基础链路跑稳。本章后文会把事件改造成 SSE 流式输出。
 
-### 7.2.3 本阶段要解决的问题
+### 7.1.3 本节要解决的问题
 
 ​        第 6 章已经有了会话列表，但会话只是一个入口，还不能承载真正的聊天内容。一个 Agent 产品里，用户每输入一次任务，系统至少要记录两类数据：
 
@@ -57,7 +53,7 @@ tool_called
 task_done
 ```
 
-​        本阶段先实现最小版本：
+​        本节先实现最小版本：
 
 ```Plain
 用户发送消息
@@ -74,7 +70,7 @@ task_done
 
 ​        这样后续接入 SSE 时，事件模型已经存在，不需要重新推翻数据结构。消息回答“对话里说了什么”，事件回答“系统在执行中发生了什么”。这两个问题分开建模，后续 Agent 推理过程才有地方承载。
 
-### 7.2.4 本阶段技术方案
+### 7.1.4 本节技术方案
 
 ​        后端继续沿用第 07、08 章的分层：
 
@@ -102,31 +98,31 @@ UnitOfWork
 5. commit
 ```
 
-​        前端从本阶段开始使用 zustand。
+​        前端从本节开始使用 zustand。
 
-​        第 6 章的 `page.tsx` 已经明显承担了越来越多状态：会话列表、选中会话、表单标题、错误信息。本阶段加入消息、事件和聊天输入后，如果继续放在 `page.tsx`，页面会很快变成一个大文件。
+​        第 6 章的 `page.tsx` 已经明显承担了越来越多状态：会话列表、选中会话、表单标题、错误信息。本节加入消息、事件和聊天输入后，如果继续放在 `page.tsx`，页面会很快变成一个大文件。
 
-​        本阶段前端分层如下：
+​        本节前端分层如下：
 
 ```Plain
-ui/app/page.tsx
+frontend/web/app/page.tsx
   |
   +-- 只组合页面区域和服务状态
 
-ui/app/hooks/use-session-workspace.ts
+frontend/web/app/hooks/use-session-workspace.ts
   |
   +-- 页面初始化
   +-- 选中会话后的消息和事件加载
   +-- 派生 selectedSession
 
-ui/app/stores/session-store.ts
+frontend/web/app/stores/session-store.ts
   |
   +-- 会话列表状态
   +-- 消息状态
   +-- 事件状态
   +-- 创建会话、删除会话、发送消息
 
-ui/app/components
+frontend/web/app/components
   |
   +-- ChatWorkspace
   +-- ChatInput
@@ -134,46 +130,46 @@ ui/app/components
   +-- EventTimeline
 ```
 
-​        本阶段暂时不接 LLM，不生成 assistant 消息，不做 SSE，不做消息分页，也不做附件上传和任务停止。这里仍然只完成最小但真实的聊天链路：用户消息能写入数据库，事件能被记录，前端能看到两条时间线。
+​        本节暂时不接 LLM，不生成 assistant 消息，不做 SSE，不做消息分页，也不做附件上传和任务停止。这里仍然只完成最小但真实的聊天链路：用户消息能写入数据库，事件能被记录，前端能看到两条时间线。
 
-### 7.2.5 新增和修改的文件
+### 7.1.5 新增和修改的文件
 
 ```Plain
 README.md
-api/README.md
-ui/README.md
-api/app/domain/sessions/entities.py
-api/app/domain/sessions/repositories.py
-api/app/infrastructure/database/models/__init__.py
-api/app/infrastructure/database/models/session_message.py
-api/app/infrastructure/database/models/session_event.py
-api/app/infrastructure/repositories/session_repository.py
-api/app/application/unit_of_work.py
-api/app/application/session_service.py
-api/app/api/routes/sessions.py
-api/app/schemas/session.py
-api/migrations/versions/202606030002_create_session_messages_events.py
-ui/package.json
-ui/pnpm-lock.yaml
-ui/app/types.ts
-ui/app/lib/session-api.ts
-ui/app/stores/session-store.ts
-ui/app/hooks/use-session-workspace.ts
-ui/app/components/app-sidebar.tsx
-ui/app/components/chat-input.tsx
-ui/app/components/message-timeline.tsx
-ui/app/components/event-timeline.tsx
-ui/app/components/chat-workspace.tsx
-ui/app/page.tsx
+backend/api/README.md
+frontend/web/README.md
+backend/api/app/domain/sessions/entities.py
+backend/api/app/domain/sessions/repositories.py
+backend/api/app/infrastructure/database/models/__init__.py
+backend/api/app/infrastructure/database/models/session_message.py
+backend/api/app/infrastructure/database/models/session_event.py
+backend/api/app/infrastructure/repositories/session_repository.py
+backend/api/app/application/unit_of_work.py
+backend/api/app/application/session_service.py
+backend/api/app/api/routes/sessions.py
+backend/api/app/schemas/session.py
+backend/api/migrations/versions/202606030002_create_session_messages_events.py
+frontend/web/package.json
+frontend/web/pnpm-lock.yaml
+frontend/web/app/types.ts
+frontend/web/app/lib/session-api.ts
+frontend/web/app/stores/session-store.ts
+frontend/web/app/hooks/use-session-workspace.ts
+frontend/web/app/components/app-sidebar.tsx
+frontend/web/app/components/chat-input.tsx
+frontend/web/app/components/message-timeline.tsx
+frontend/web/app/components/event-timeline.tsx
+frontend/web/app/components/chat-workspace.tsx
+frontend/web/app/page.tsx
 ```
 
-### 7.2.6 实施步骤
-#### 7.2.6.1 安装 zustand
+### 7.1.6 实施步骤
+#### 7.1.6.1 安装 zustand
 
 ​        进入 `ui` 目录：
 
 ```Bash
-cd ui
+cd frontend/web
 ```
 
 ​        安装 zustand：
@@ -182,19 +178,19 @@ cd ui
 pnpm add zustand
 ```
 
-​        安装完成后，`ui/package.json` 会新增：
+​        安装完成后，`frontend/web/package.json` 会新增：
 
 ```JSON
 "zustand": "^5.0.14"
 ```
 
-​        `ui/pnpm-lock.yaml` 也会同步更新。
+​        `frontend/web/pnpm-lock.yaml` 也会同步更新。
 
-##### 7.2.6.1.1 这一步的作用
+.1.6.1.1 这一步的作用
 
 ​        zustand 是一个轻量状态管理库。
 
-​        本阶段使用它管理会话页面的共享状态，例如：
+​        本节使用它管理会话页面的共享状态，例如：
 
 ```Plain
 当前选中的会话
@@ -208,9 +204,9 @@ pnpm add zustand
 
 ​        这些状态会被侧边栏、聊天输入框、消息时间线、事件面板同时使用。放进 store 后，组件之间不用一层层传很多 props。
 
-#### 7.2.6.2 定义消息和事件领域实体
+#### 7.1.6.2 定义消息和事件领域实体
 
-​        打开 `api/app/domain/sessions/entities.py`，新增消息角色和事件类型：
+​        打开 `backend/api/app/domain/sessions/entities.py`，新增消息角色和事件类型：
 
 ```Python
 class MessageRole(StrEnum):
@@ -242,7 +238,7 @@ class SessionEvent:
     created_at: datetime
 ```
 
-##### 7.2.6.2.1 这段代码的业务流程
+.1.6.2.1 这段代码的业务流程
 
 ​        `SessionMessage` 表示聊天内容。
 
@@ -265,15 +261,15 @@ class SessionEvent:
 }
 ```
 
-##### 7.2.6.2.2 为什么这样设计
+.1.6.2.2 为什么这样设计
 
 ​        消息和事件不要混成一张表。
 
 ​        消息更关注“对话内容”，事件更关注“过程记录”。后续 Agent 执行时，工具调用、计划更新、步骤开始、任务完成都不是普通聊天消息，但它们都应该进入事件流。
 
-#### 7.2.6.3 扩展 Repository 协议
+#### 7.1.6.3 扩展 Repository 协议
 
-​        打开 `api/app/domain/sessions/repositories.py`，为会话仓库增加 `touch()`：
+​        打开 `backend/api/app/domain/sessions/repositories.py`，为会话仓库增加 `touch()`：
 
 ```Python
 async def touch(self, session_id: UUID) -> None:
@@ -303,7 +299,7 @@ class SessionEventRepository(Protocol):
         raise NotImplementedError
 ```
 
-##### 7.2.6.3.1 这段代码的业务流程
+.1.6.3.1 这段代码的业务流程
 
 ​        `SessionMessageRepository` 负责消息读写。
 
@@ -311,15 +307,15 @@ class SessionEventRepository(Protocol):
 
 ​        `touch()` 负责更新会话的 `updated_at`。发送消息后，左侧会话列表应该把最近有动作的会话排到前面，所以需要刷新会话更新时间。
 
-##### 7.2.6.3.2 常见误区
+.1.6.3.2 常见误区
 
 ​        不要让消息仓库直接修改会话表。
 
 ​        消息仓库只管消息，会话仓库只管会话。一次业务动作要写多张表时，由应用服务和 Unit of Work 负责协调。
 
-#### 7.2.6.4 创建 SQLAlchemy 模型
+#### 7.1.6.4 创建 SQLAlchemy 模型
 
-​        创建 `api/app/infrastructure/database/models/session_message.py`：
+​        创建 `backend/api/app/infrastructure/database/models/session_message.py`：
 
 ```Python
 class SessionMessageModel(Base):
@@ -340,7 +336,7 @@ class SessionMessageModel(Base):
     )
 ```
 
-​        创建 `api/app/infrastructure/database/models/session_event.py`：
+​        创建 `backend/api/app/infrastructure/database/models/session_event.py`：
 
 ```Python
 class SessionEventModel(Base):
@@ -361,7 +357,7 @@ class SessionEventModel(Base):
     )
 ```
 
-​        同时更新 `api/app/infrastructure/database/models/__init__.py`，确保 Alembic 能加载模型：
+​        同时更新 `backend/api/app/infrastructure/database/models/__init__.py`，确保 Alembic 能加载模型：
 
 ```Python
 from app.infrastructure.database.models.session_event import SessionEventModel
@@ -371,7 +367,7 @@ from app.infrastructure.database.models.session import SessionModel
 __all__ = ["SessionEventModel", "SessionMessageModel", "SessionModel"]
 ```
 
-##### 7.2.6.4.1 这段代码的业务流程
+.1.6.4.1 这段代码的业务流程
 
 ​        `session_messages.session_id` 指向 `sessions.id`。
 
@@ -387,15 +383,15 @@ sessions
   +-- session_events
 ```
 
-##### 7.2.6.4.2 为什么这样设计
+.1.6.4.2 为什么这样设计
 
 ​        `payload` 使用 PostgreSQL 的 `JSONB`，因为不同事件的字段不完全一样。
 
 ​        例如 `message_created` 需要 `message_id`，后续 `tool_called` 可能需要工具名、参数、结果摘要。如果每种事件都加很多固定列，表结构会很快变得僵硬。
 
-#### 7.2.6.5 创建迁移文件
+#### 7.1.6.5 创建迁移文件
 
-​        创建 `api/migrations/versions/202606030002_create_session_messages_events.py`。
+​        创建 `backend/api/migrations/versions/202606030002_create_session_messages_events.py`。
 
 ​        核心迁移如下：
 
@@ -434,7 +430,7 @@ def upgrade() -> None:
     )
 ```
 
-##### 7.2.6.5.1 这段代码的业务流程
+.1.6.5.1 这段代码的业务流程
 
 ​        前端进入某个会话时，会按会话 ID 查询：
 
@@ -451,9 +447,9 @@ session_id + created_at
 
 ​        这样数据库可以更快按会话查出时间线。
 
-#### 7.2.6.6 实现消息和事件 Repository
+#### 7.1.6.6 实现消息和事件 Repository
 
-​        打开 `api/app/infrastructure/repositories/session_repository.py`。
+​        打开 `backend/api/app/infrastructure/repositories/session_repository.py`。
 
 ​        新增消息仓库：
 
@@ -501,7 +497,7 @@ class SqlAlchemySessionEventRepository(SessionEventRepository):
         return model.to_entity()
 ```
 
-##### 7.2.6.6.1 这段代码的业务流程
+.1.6.6.1 这段代码的业务流程
 
 ​        发送消息时：
 
@@ -523,22 +519,22 @@ SessionService
   +-- session_events.list_by_session()
 ```
 
-##### 7.2.6.6.2 为什么这样设计
+.1.6.6.2 为什么这样设计
 
 ​        Repository 不提交事务，只负责把模型加入当前数据库会话。
 
 ​        提交事务放在应用服务最后做，是为了保证消息和事件要么一起成功，要么一起失败。
 
-#### 7.2.6.7 扩展 Unit of Work 和应用服务
+#### 7.1.6.7 扩展 Unit of Work 和应用服务
 
-​        打开 `api/app/application/unit_of_work.py`，加入两个仓库：
+​        打开 `backend/api/app/application/unit_of_work.py`，加入两个仓库：
 
 ```Python
 self.session_messages = SqlAlchemySessionMessageRepository(db_session)
 self.session_events = SqlAlchemySessionEventRepository(db_session)
 ```
 
-​        打开 `api/app/application/session_service.py`，新增发送消息逻辑：
+​        打开 `backend/api/app/application/session_service.py`，新增发送消息逻辑：
 
 ```Python
 async def create_user_message(
@@ -573,9 +569,9 @@ async def create_user_message(
     return message, event
 ```
 
-##### 7.2.6.7.1 这段代码的业务流程
+.1.6.7.1 这段代码的业务流程
 
-​        这是本阶段最关键的一段业务代码。
+​        这是本节最关键的一段业务代码。
 
 ```Plain
 POST /api/sessions/{session_id}/messages
@@ -599,17 +595,17 @@ POST /api/sessions/{session_id}/messages
 提交事务
 ```
 
-##### 7.2.6.7.2 为什么这样设计
+.1.6.7.2 为什么这样设计
 
 ​        发送消息不是单表写入。
 
-​        如果只写消息，不写事件，本章第二阶段就没有事件流可以展示。
+​        如果只写消息，不写事件，本章后文就没有事件流可以展示。
 
 ​        如果写了消息和事件但没有统一事务，就可能出现消息成功、事件失败的数据不一致。
 
-#### 7.2.6.8 扩展 API Schema 和路由
+#### 7.1.6.8 扩展 API Schema 和路由
 
-​        打开 `api/app/schemas/session.py`，新增消息和事件响应：
+​        打开 `backend/api/app/schemas/session.py`，新增消息和事件响应：
 
 ```Python
 class MessageCreateRequest(BaseModel):
@@ -630,7 +626,7 @@ class SessionEventResponse(BaseModel):
     created_at: datetime
 ```
 
-​        打开 `api/app/api/routes/sessions.py`，新增发送消息接口：
+​        打开 `backend/api/app/api/routes/sessions.py`，新增发送消息接口：
 
 ```Python
 @router.post(
@@ -654,7 +650,7 @@ async def create_message(
     )
 ```
 
-##### 7.2.6.8.1 这段代码的业务流程
+.1.6.8.1 这段代码的业务流程
 
 ​        前端发送：
 
@@ -678,9 +674,9 @@ async def create_message(
 
 ​        前端收到后会重新加载消息和事件，让页面展示数据库里的最新结果。
 
-#### 7.2.6.9 定义前端类型和 API 函数
+#### 7.1.6.9 定义前端类型和 API 函数
 
-​        打开 `ui/app/types.ts`，新增：
+​        打开 `frontend/web/app/types.ts`，新增：
 
 ```TypeScript
 export type ChatMessage = {
@@ -700,7 +696,7 @@ export type SessionEventItem = {
 };
 ```
 
-​        创建 `ui/app/lib/session-api.ts`，把会话相关请求集中到一个文件：
+​        创建 `frontend/web/app/lib/session-api.ts`，把会话相关请求集中到一个文件：
 
 ```TypeScript
 export function fetchMessages(sessionId: string): Promise<ChatMessage[]> {
@@ -726,7 +722,7 @@ export function sendMessage(
 }
 ```
 
-##### 7.2.6.9.1 为什么这样设计
+.1.6.9.1 为什么这样设计
 
 ​        `requestApi()` 是通用请求工具。
 
@@ -734,9 +730,9 @@ export function sendMessage(
 
 ​        这样组件和 store 不需要记住每个接口路径，也不用知道响应外层是 `ApiResponse`。
 
-#### 7.2.6.10 使用 zustand 管理会话工作台状态
+#### 7.1.6.10 使用 zustand 管理会话工作台状态
 
-​        创建 `ui/app/stores/session-store.ts`。
+​        创建 `frontend/web/app/stores/session-store.ts`。
 
 ​        状态结构如下：
 
@@ -785,7 +781,7 @@ sendMessage: async () => {
 }
 ```
 
-##### 7.2.6.10.1 这段代码的业务流程
+.1.6.10.1 这段代码的业务流程
 
 ​        用户点击发送：
 
@@ -805,15 +801,15 @@ POST /api/sessions/{id}/messages
 清空输入框
 ```
 
-##### 7.2.6.10.2 为什么这样设计
+.1.6.10.2 为什么这样设计
 
 ​        发送消息后不直接把返回值塞进数组，而是重新加载消息和事件。
 
 ​        这样页面展示以数据库为准。后续后端如果同时生成 assistant 消息、计划事件或工具事件，前端刷新后都能拿到完整结果。
 
-#### 7.2.6.11 用 hook 组织页面联动
+#### 7.1.6.11 用 hook 组织页面联动
 
-​        创建 `ui/app/hooks/use-session-workspace.ts`：
+​        创建 `frontend/web/app/hooks/use-session-workspace.ts`：
 
 ```TypeScript
 export function useSessionWorkspace() {
@@ -844,7 +840,7 @@ export function useSessionWorkspace() {
 }
 ```
 
-##### 7.2.6.11.1 这段代码的业务流程
+.1.6.11.1 这段代码的业务流程
 
 ​        页面打开时，hook 自动加载会话列表。
 
@@ -860,21 +856,21 @@ loadSessionDetail()
   +-- GET events
 ```
 
-##### 7.2.6.11.2 为什么这样设计
+.1.6.11.2 为什么这样设计
 
 ​        store 管状态和动作，hook 管页面生命周期。
 
 ​        这样 `page.tsx` 不需要堆很多 `useEffect`，组件也不需要知道什么时候该请求数据。
 
-#### 7.2.6.12 拆分聊天组件
+#### 7.1.6.12 拆分聊天组件
 
-​        本阶段新增这些组件：
+​        本节新增这些组件：
 
 ```Plain
-ui/app/components/chat-input.tsx
-ui/app/components/message-timeline.tsx
-ui/app/components/event-timeline.tsx
-ui/app/components/chat-workspace.tsx
+frontend/web/app/components/chat-input.tsx
+frontend/web/app/components/message-timeline.tsx
+frontend/web/app/components/event-timeline.tsx
+frontend/web/app/components/chat-workspace.tsx
 ```
 
 ​        `ChatInput` 只负责输入和发送：
@@ -911,7 +907,7 @@ export function ChatInput({
 
 ​        `ChatWorkspace` 负责把输入框、消息时间线和事件面板组合起来。
 
-##### 7.2.6.12.1 为什么这样设计
+.1.6.12.1 为什么这样设计
 
 ​        聊天界面很容易变复杂。
 
@@ -926,9 +922,9 @@ EventTimeline    事件展示
 ChatWorkspace    聊天区域组合
 ```
 
-#### 7.2.6.13 让 page.tsx 只做页面编排
+#### 7.1.6.13 让 page.tsx 只做页面编排
 
-​        打开 `ui/app/page.tsx`。
+​        打开 `frontend/web/app/page.tsx`。
 
 ​        现在页面通过 hook 拿到工作台状态：
 
@@ -967,7 +963,7 @@ const workspace = useSessionWorkspace();
 />
 ```
 
-##### 7.2.6.13.1 这段代码的业务流程
+.1.6.13.1 这段代码的业务流程
 
 ​        `page.tsx` 不直接知道如何发送消息。
 
@@ -975,13 +971,13 @@ const workspace = useSessionWorkspace();
 
 ​        真正的业务动作在 store 中完成，页面只负责把区域摆出来。
 
-#### 7.2.6.14 对照前端完整文件
+#### 7.1.6.14 对照前端完整文件
 
 ​        前面步骤为了讲清楚业务流，展示了关键片段。
 
-​        下面给出本阶段前端新增和重点修改文件的完整代码。实际编写时，新增文件应该以这里的完整代码为准；如果你前面已经按片段写过，可以用本节逐个对照。
+​        下面给出本节前端新增和重点修改文件的完整代码。实际编写时，新增文件应该以这里的完整代码为准；如果你前面已经按片段写过，可以用本节逐个对照。
 
-##### 7.2.6.14.1 ui/app/lib/session-api.ts
+.1.6.14.1 frontend/web/app/lib/session-api.ts
 
 ```TypeScript
 import { requestApi } from "./api";
@@ -1037,7 +1033,7 @@ export function sendMessage(
 
 ​        组件和 store 不直接拼接口响应结构，而是调用这里的函数。这样后续接口路径变化时，优先改这个文件。
 
-##### 7.2.6.14.2 ui/app/stores/session-store.ts
+.1.6.14.2 frontend/web/app/stores/session-store.ts
 
 ```TypeScript
 import { create } from "zustand";
@@ -1223,11 +1219,11 @@ export const useSessionStore = create<SessionState & SessionActions>(
 );
 ```
 
-​        这个文件是本阶段前端的业务状态中心。
+​        这个文件是本节前端的业务状态中心。
 
 ​        组件不直接请求接口，`page.tsx` 也不保存聊天业务状态。发送消息、创建会话、删除会话、加载详情都在 store 里完成。
 
-##### 7.2.6.14.3 ui/app/hooks/use-session-workspace.ts
+.1.6.14.3 frontend/web/app/hooks/use-session-workspace.ts
 
 ```TypeScript
 import { useEffect, useMemo } from "react";
@@ -1266,7 +1262,7 @@ export function useSessionWorkspace() {
 
 ​        页面打开时加载会话列表；选中会话变化时加载消息和事件；`selectedSession` 从会话列表中计算出来。
 
-##### 7.2.6.14.4 ui/app/components/chat-input.tsx
+.1.6.14.4 frontend/web/app/components/chat-input.tsx
 
 ```TypeScript
 import { SendHorizontal } from "lucide-react";
@@ -1320,7 +1316,7 @@ export function ChatInput({
 
 ​        它不直接调用接口，而是通过 `onSend` 通知外层。这样它可以被复用，也更容易测试。
 
-##### 7.2.6.14.5 ui/app/components/message-timeline.tsx
+.1.6.14.5 frontend/web/app/components/message-timeline.tsx
 
 ```TypeScript
 import { Bot, UserRound } from "lucide-react";
@@ -1397,7 +1393,7 @@ export function MessageTimeline({
 
 ​        它不维护状态，也不发请求，只根据 `state` 渲染界面。
 
-##### 7.2.6.14.6 ui/app/components/event-timeline.tsx
+.1.6.14.6 frontend/web/app/components/event-timeline.tsx
 
 ```TypeScript
 import { Activity } from "lucide-react";
@@ -1447,7 +1443,7 @@ export function EventTimeline({
 
 ​        事件面板现在只展示事件类型和时间。后续事件 payload 变丰富后，可以继续在这个组件里扩展不同事件的展示方式。
 
-##### 7.2.6.14.7 ui/app/components/chat-workspace.tsx
+.1.6.14.7 frontend/web/app/components/chat-workspace.tsx
 
 ```TypeScript
 import { ChatInput } from "./chat-input";
@@ -1512,9 +1508,9 @@ export function ChatWorkspace({
 
 ​        它不直接管理请求，也不保存草稿，只把 store 传来的状态继续分发给输入框、消息时间线和事件时间线。
 
-##### 7.2.6.14.8 ui/app/components/app-sidebar.tsx
+.1.6.14.8 frontend/web/app/components/app-sidebar.tsx
 
-​        第 6 章已经有侧边栏组件。本阶段需要把创建会话表单的提交方式改成普通回调，不再把表单事件传给页面。
+​        第 6 章已经有侧边栏组件。本节需要把创建会话表单的提交方式改成普通回调，不再把表单事件传给页面。
 
 ​        完整代码如下：
 
@@ -1625,9 +1621,9 @@ export function AppSidebar({
 
 ​        `AppSidebar` 仍然只负责侧边栏展示。
 
-​        创建、删除、刷新这些动作都由外层传入。本阶段这些动作最终来自 zustand store。
+​        创建、删除、刷新这些动作都由外层传入。本节这些动作最终来自 zustand store。
 
-##### 7.2.6.14.9 ui/app/page.tsx
+.1.6.14.9 frontend/web/app/page.tsx
 
 ​        最后对照页面入口文件。
 
@@ -1786,18 +1782,18 @@ function getBadge<T>(
 
 ​        `page.tsx` 现在只做页面编排：查询 API 和数据库状态，调用 `useSessionWorkspace()` 获得会话工作台状态，再把状态和动作分发给侧边栏、状态面板、会话详情和聊天工作区。真正的数据操作已经进入 store，选中会话后的联动加载也进入 hook，页面文件不再承担所有业务状态。
 
-### 7.2.7 关键理解
+### 7.1.7 关键理解
 
-​        本阶段最重要的是理解消息和事件的区别。
+​        本节最重要的是理解消息和事件的区别。
 
 ```Plain
 消息：适合展示给用户看的对话内容
 事件：适合描述系统执行过程
 ```
 
-​        本阶段的 `message_created` 事件看起来很简单，但它建立了后续事件流的基本形状。
+​        本节的 `message_created` 事件看起来很简单，但它建立了后续事件流的基本形状。
 
-​        本章第二阶段接入 SSE 后，事件会从“刷新后展示”变成“服务端边产生、前端边接收”。
+​        本章后文接入 SSE 后，事件会从“刷新后展示”变成“服务端边产生、前端边接收”。
 
 ​        第二个重点是前端状态分层。
 
@@ -1811,30 +1807,30 @@ page     负责页面组合
 
 ​        这套分层能让后续聊天页面继续扩展，而不是把所有逻辑塞进一个页面文件。
 
-### 7.2.8 技术难点与亮点
+### 7.1.8 技术难点与亮点
 
 ​        技术难点：
 
-​        本阶段的技术难点，集中在一致性和前端状态边界上。一次发送消息会写两张表，还会更新会话时间，所以必须放在一个事务里完成。事件 `payload` 使用 JSONB，是因为事件负载会随着类型变化，不适合全都拆成固定字段。前端引入 zustand 后，也要分清 store、hook、component 的职责：store 管状态和动作，hook 管页面联动，component 管展示和用户交互。
+​        本节的技术难点，集中在一致性和前端状态边界上。一次发送消息会写两张表，还会更新会话时间，所以必须放在一个事务里完成。事件 `payload` 使用 JSONB，是因为事件负载会随着类型变化，不适合全都拆成固定字段。前端引入 zustand 后，也要分清 store、hook、component 的职责：store 管状态和动作，hook 管页面联动，component 管展示和用户交互。
 
 ​        项目亮点：
 
-​        本阶段的项目亮点，是 AtlasAgent 从这里开始有了真正的消息时间线。事件表为后续 SSE、Agent 执行过程和工具调用展示打基础，前端也提前完成组件、hooks、store 拆分，后续复杂状态不会继续堆在 `page.tsx` 里。
+​        本节的项目亮点，是 AtlasAgent 从这里开始有了真正的消息时间线。事件表为后续 SSE、Agent 执行过程和工具调用展示打基础，前端也提前完成组件、hooks、store 拆分，后续复杂状态不会继续堆在 `page.tsx` 里。
 
-### 7.2.9 面试考点
+### 7.1.9 面试考点
 
 ​        面试里可以围绕几个问题展开：为什么聊天系统需要事件表，而不是只保存消息表；为什么发送消息要放在一个事务里完成；PostgreSQL `JSONB` 适合存什么数据；zustand store、React hook、组件分别适合放什么逻辑；为什么 `page.tsx` 不应该承载全部业务状态。能把这些讲清楚，说明你理解的是一个可演进的 Agent 工作台，而不是只会写聊天框。
 
-### 7.2.10 运行验证
+### 7.1.10 运行验证
 
 ​        下面命令默认在项目根目录执行。
 
-#### 7.2.10.1 安装前端依赖
+#### 7.1.10.1 安装前端依赖
 
-​        如果还没有安装本阶段依赖，执行：
+​        如果还没有安装本节依赖，执行：
 
 ```Bash
-cd ui
+cd frontend/web
 pnpm install
 ```
 
@@ -1850,7 +1846,7 @@ pnpm list zustand
 zustand 5.0.14
 ```
 
-#### 7.2.10.2 检查前端类型
+#### 7.1.10.2 检查前端类型
 
 ```Bash
 pnpm typecheck
@@ -1858,7 +1854,7 @@ pnpm typecheck
 
 ​        预期没有 TypeScript 报错。
 
-#### 7.2.10.3 启动服务并执行迁移
+#### 7.1.10.3 启动服务并执行迁移
 
 ​        回到项目根目录：
 
@@ -1866,7 +1862,7 @@ pnpm typecheck
 cd /Users/atlas/Desktop/github/atlas-agents
 ```
 
-​        本阶段同时修改了 API 和 UI 代码，所以需要重新构建这两个镜像。
+​        本节同时修改了 API 和 UI 代码，所以需要重新构建这两个镜像。
 
 ​        执行：
 
@@ -1874,7 +1870,7 @@ cd /Users/atlas/Desktop/github/atlas-agents
 docker compose build api ui
 ```
 
-​        这一步会把本阶段新增的后端接口和前端聊天输入框打进 Docker 镜像。
+​        这一步会把本节新增的后端接口和前端聊天输入框打进 Docker 镜像。
 
 ​        如果跳过这一步，只执行 `docker compose up -d nginx`，浏览器可能仍然看到第 6 章的旧页面，也就看不到聊天输入框。
 
@@ -1896,7 +1892,7 @@ docker compose exec api uv run alembic upgrade head
 202606030002
 ```
 
-#### 7.2.10.4 创建会话
+#### 7.1.10.4 创建会话
 
 ​        执行：
 
@@ -1908,7 +1904,7 @@ curl -X POST http://localhost:8088/api/sessions \
 
 ​        返回中会包含会话 `id`。
 
-#### 7.2.10.5 发送消息
+#### 7.1.10.5 发送消息
 
 ​        把上一步返回的 `id` 替换到下面命令中：
 
@@ -1936,7 +1932,7 @@ curl -X POST http://localhost:8088/api/sessions/{session_id}/messages \
 }
 ```
 
-#### 7.2.10.6 查询消息和事件
+#### 7.1.10.6 查询消息和事件
 
 ​        查询消息：
 
@@ -1952,7 +1948,7 @@ curl http://localhost:8088/api/sessions/{session_id}/events
 
 ​        预期消息列表里有刚才发送的用户消息，事件列表里有 `message_created`。
 
-#### 7.2.10.7 验证页面
+#### 7.1.10.7 验证页面
 
 ​        访问：
 
@@ -1975,22 +1971,22 @@ docker compose up -d ui nginx
 
 ​        然后刷新浏览器。
 
-### 7.2.11 阶段小结
+### 7.1.11 小结
 
-​        本阶段完成了基础聊天工作台。后端新增消息和事件领域实体，新增 `session_messages` 和 `session_events` 表，补齐消息和事件 Repository，并在发送消息时同时写入消息和事件。接口层新增消息列表和事件列表，前端则引入 zustand store，新增聊天输入框、消息时间线和事件记录面板，`page.tsx` 进一步收敛为页面编排文件。
+​        本节完成了基础聊天工作台。后端新增消息和事件领域实体，新增 `session_messages` 和 `session_events` 表，补齐消息和事件 Repository，并在发送消息时同时写入消息和事件。接口层新增消息列表和事件列表，前端则引入 zustand store，新增聊天输入框、消息时间线和事件记录面板，`page.tsx` 进一步收敛为页面编排文件。
 
 ​        从这一阶段开始，会话已经可以承载真实输入。下一步会让事件从普通查询升级为流式推送。
 
-## 7.3 第二阶段：SSE 事件如流
+## 7.2 SSE 事件如流
 
-### 7.3.1 本阶段目标
+### 7.2.1 本节目标
 
-​        本章第一阶段已经能保存消息和事件，但前端仍然是“请求发出去，等后端处理完，再一次性刷新”。这种模式适合很短的接口，不适合 Agent。真正的 Agent 执行过程会不断产生中间状态：收到任务、生成计划、执行步骤、调用工具、观察结果、继续推理。用户不应该等到所有事情结束后才看到结果。
-​        本阶段引入 SSE，也就是 Server-Sent Events。读者会编写 `text/event-stream` 响应，通过 Nginx 正确代理流式响应，在前端用 `fetch` 读取 `ReadableStream`，并解析 SSE 中的 `event:` 和 `data:` 数据块。前端的 zustand store 会边读流边更新事件面板，同时保留本章第一阶段的一次性消息接口，新增一个流式消息接口。这样后续 Agent 执行事件就有了实时展示的基础。
+​        前文已经能保存消息和事件，但前端仍然是“请求发出去，等后端处理完，再一次性刷新”。这种模式适合很短的接口，不适合 Agent。真正的 Agent 执行过程会不断产生中间状态：收到任务、生成计划、执行步骤、调用工具、观察结果、继续推理。用户不应该等到所有事情结束后才看到结果。
+​        本节引入 SSE，也就是 Server-Sent Events。读者会编写 `text/event-stream` 响应，通过 Nginx 正确代理流式响应，在前端用 `fetch` 读取 `ReadableStream`，并解析 SSE 中的 `event:` 和 `data:` 数据块。前端的 zustand store 会边读流边更新事件面板，同时保留前文的一次性消息接口，新增一个流式消息接口。这样后续 Agent 执行事件就有了实时展示的基础。
 
-### 7.3.2 最终效果
+### 7.2.2 最终效果
 
-​        本阶段结束后，发送消息不再只是等待接口返回完整 JSON。前端会边读取 SSE 流，边把服务端推送的事件展示到事件面板里。
+​        本节结束后，发送消息不再只是等待接口返回完整 JSON。前端会边读取 SSE 流，边把服务端推送的事件展示到事件面板里。
 
 ​        访问：
 
@@ -2028,9 +2024,9 @@ data: {"session_id":"...","message":{...}}
 流结束后刷新消息时间线
 ```
 
-### 7.3.3 本阶段要解决的问题
+### 7.2.3 本节要解决的问题
 
-​        本章第一阶段已经实现了消息和事件持久化。但本章第一阶段的前端仍然是这种模式：
+​        前文已经实现了消息和事件持久化。但前文的前端仍然是这种模式：
 
 ```Plain
 发送请求
@@ -2053,13 +2049,13 @@ data: {"session_id":"...","message":{...}}
 总结输出
 ```
 
-​        这些过程不应该等全部完成后一次性返回。更好的体验是服务端每产生一个事件，前端就展示一个事件。所以本阶段引入 SSE，让事件从“事后查询”逐步走向“实时推送”。
+​        这些过程不应该等全部完成后一次性返回。更好的体验是服务端每产生一个事件，前端就展示一个事件。所以本节引入 SSE，让事件从“事后查询”逐步走向“实时推送”。
 
-### 7.3.4 本阶段技术方案
+### 7.2.4 本节技术方案
 
-​        本阶段先做一个最小流式闭环。
+​        本节先做一个最小流式闭环。
 
-​        后端保留本章第一阶段的接口：
+​        后端保留前文的接口：
 
 ```Plain
 POST /api/sessions/{session_id}/messages
@@ -2085,42 +2081,42 @@ stream_done
 ​        前端分层如下：
 
 ```Plain
-ui/app/lib/sse.ts
+frontend/web/app/lib/sse.ts
   |
   +-- 解析 text/event-stream
 
-ui/app/lib/session-api.ts
+frontend/web/app/lib/session-api.ts
   |
   +-- 调用 stream 接口
 
-ui/app/stores/session-store.ts
+frontend/web/app/stores/session-store.ts
   |
   +-- 发送消息
   +-- 接收流式事件
   +-- 更新事件面板
 ```
 
-​        本阶段暂时不实现真正的 Agent 执行，不生成 assistant 消息，不做停止任务，也不做断线重连、历史事件增量游标和多事件类型的复杂渲染。现在先让浏览器能稳定读取流，后面再把更多事件类型接进来。
+​        本节暂时不实现真正的 Agent 执行，不生成 assistant 消息，不做停止任务，也不做断线重连、历史事件增量游标和多事件类型的复杂渲染。现在先让浏览器能稳定读取流，后面再把更多事件类型接进来。
 
-### 7.3.5 新增和修改的文件
+### 7.2.5 新增和修改的文件
 
 ```Plain
 README.md
-api/README.md
-ui/README.md
+backend/api/README.md
+frontend/web/README.md
 nginx/README.md
 nginx/default.conf
-api/app/api/sse.py
-api/app/api/routes/sessions.py
-ui/app/types.ts
-ui/app/lib/sse.ts
-ui/app/lib/session-api.ts
-ui/app/stores/session-store.ts
+backend/api/app/api/sse.py
+backend/api/app/api/routes/sessions.py
+frontend/web/app/types.ts
+frontend/web/app/lib/sse.ts
+frontend/web/app/lib/session-api.ts
+frontend/web/app/stores/session-store.ts
 docs/course/chapters/10-sse-events.md
 ```
 
-### 7.3.6 实施步骤
-#### 7.3.6.1 理解 SSE 数据格式
+### 7.2.6 实施步骤
+#### 7.2.6.1 理解 SSE 数据格式
 
 ​        SSE 的响应类型是：
 
@@ -2149,7 +2145,7 @@ event: stream_done
 data: {"ok":true}
 ```
 
-##### 7.3.6.1.1 关键理解
+.2.6.1.1 关键理解
 
 ​        普通 JSON 接口只返回一次：
 
@@ -2170,11 +2166,11 @@ HTTP request
 结束
 ```
 
-​        本阶段先用两条事件演示这个机制。
+​        本节先用两条事件演示这个机制。
 
-#### 7.3.6.2 编写后端 SSE 编码工具
+#### 7.2.6.2 编写后端 SSE 编码工具
 
-​        创建 `api/app/api/sse.py`：
+​        创建 `backend/api/app/api/sse.py`：
 
 ```Python
 from collections.abc import AsyncIterator
@@ -2189,7 +2185,7 @@ async def iter_sse(events: list[tuple[str, dict]]) -> AsyncIterator[str]:
         yield encode_sse(event, data)
 ```
 
-##### 7.3.6.2.1 这段代码的业务流程
+.2.6.2.1 这段代码的业务流程
 
 ​        `encode_sse()` 把 Python 字典转成 SSE 字符串。
 
@@ -2206,7 +2202,7 @@ event: message_created
 data: {"type":"message_created"}
 ```
 
-##### 7.3.6.2.2 为什么这样设计
+.2.6.2.2 为什么这样设计
 
 ​        SSE 格式很简单，但手写时容易漏掉最后的空行。
 
@@ -2214,9 +2210,9 @@ data: {"type":"message_created"}
 
 ​        `default=str` 用来处理 `datetime`、`UUID` 这类 JSON 默认不能直接序列化的对象。
 
-#### 7.3.6.3 新增流式消息接口
+#### 7.2.6.3 新增流式消息接口
 
-​        打开 `api/app/api/routes/sessions.py`，新增这些 import：
+​        打开 `backend/api/app/api/routes/sessions.py`，新增这些 import：
 
 ```Python
 from asyncio import sleep
@@ -2264,7 +2260,7 @@ async def stream_message(
     )
 ```
 
-##### 7.3.6.3.1 这段代码的业务流程
+.2.6.3.1 这段代码的业务流程
 
 ​        请求进入流式接口后：
 
@@ -2284,7 +2280,7 @@ POST /api/sessions/{id}/messages/stream
 推送 stream_done
 ```
 
-##### 7.3.6.3.2 关键代码逐段解释
+.2.6.3.2 关键代码逐段解释
 
 ​        先复用已有应用服务：
 
@@ -2308,13 +2304,13 @@ model_dump(mode="json")
 StreamingResponse(event_stream(), media_type="text/event-stream")
 ```
 
-##### 7.3.6.3.3 为什么这样设计
+.2.6.3.3 为什么这样设计
 
-​        本阶段的流式接口不是为了替代数据库，而是为了把“事件产生过程”推给前端。
+​        本节的流式接口不是为了替代数据库，而是为了把“事件产生过程”推给前端。
 
 ​        数据库仍然是最终状态来源。流结束后，前端会重新加载消息和事件，保证页面和数据库一致。
 
-#### 7.3.6.4 配置 Nginx 支持流式代理
+#### 7.2.6.4 配置 Nginx 支持流式代理
 
 ​        打开 `nginx/default.conf`，修改 `/api/` 代理：
 
@@ -2357,7 +2353,7 @@ server {
 }
 ```
 
-##### 7.3.6.4.1 为什么这样设计
+.2.6.4.1 为什么这样设计
 
 ​        Nginx 默认可能会缓冲后端响应。
 
@@ -2369,9 +2365,9 @@ server {
 proxy_buffering off;
 ```
 
-#### 7.3.6.5 定义前端流式事件类型
+#### 7.2.6.5 定义前端流式事件类型
 
-​        打开 `ui/app/types.ts`，新增：
+​        打开 `frontend/web/app/types.ts`，新增：
 
 ```TypeScript
 export type StreamEvent = {
@@ -2380,7 +2376,7 @@ export type StreamEvent = {
 };
 ```
 
-##### 7.3.6.5.1 这段代码的业务流程
+.2.6.5.1 这段代码的业务流程
 
 ​        后端推送的 SSE 数据会被前端解析成：
 
@@ -2396,9 +2392,9 @@ export type StreamEvent = {
 
 ​        `event` 是事件名称，`data` 是事件内容。
 
-#### 7.3.6.6 编写前端 SSE 解析工具
+#### 7.2.6.6 编写前端 SSE 解析工具
 
-​        创建 `ui/app/lib/sse.ts`：
+​        创建 `frontend/web/app/lib/sse.ts`：
 
 ```TypeScript
 import type { StreamEvent } from "../types";
@@ -2465,7 +2461,7 @@ export async function readSseStream(
 }
 ```
 
-##### 7.3.6.6.1 这段代码的业务流程
+.2.6.6.1 这段代码的业务流程
 
 ​        浏览器收到的流不是一次完整字符串，而是一小块一小块的数据。
 
@@ -2485,15 +2481,15 @@ buffer.split("\n\n")
 
 ​        切出完整事件块。
 
-##### 7.3.6.6.2 常见误区
+.2.6.6.2 常见误区
 
 ​        不要假设一次 `reader.read()` 就能读到完整事件。
 
 ​        网络传输会把数据切成不固定大小的 chunk。必须用 buffer 累积，再按 SSE 的空行分隔解析。
 
-#### 7.3.6.7 封装流式发送 API
+#### 7.2.6.7 封装流式发送 API
 
-​        打开 `ui/app/lib/session-api.ts`，新增 import：
+​        打开 `frontend/web/app/lib/session-api.ts`，新增 import：
 
 ```TypeScript
 import { readSseStream } from "./sse";
@@ -2524,7 +2520,7 @@ export async function streamMessage(
 }
 ```
 
-##### 7.3.6.7.1 这段代码的业务流程
+.2.6.7.1 这段代码的业务流程
 
 ​        `streamMessage()` 负责三件事：
 
@@ -2546,9 +2542,9 @@ onEvent(event)
 
 ​        store 可以在这个回调里更新事件面板。
 
-#### 7.3.6.8 在 store 中消费流式事件
+#### 7.2.6.8 在 store 中消费流式事件
 
-​        打开 `ui/app/stores/session-store.ts`，把 `sendMessage` import 换成：
+​        打开 `frontend/web/app/stores/session-store.ts`，把 `sendMessage` import 换成：
 
 ```TypeScript
 streamMessage,
@@ -2624,7 +2620,7 @@ sendMessage: async () => {
 }
 ```
 
-##### 7.3.6.8.1 这段代码的业务流程
+.2.6.8.1 这段代码的业务流程
 
 ​        用户点击发送后：
 
@@ -2658,11 +2654,11 @@ await Promise.all([
 
 ​        这样既能看到流式事件，又能保证最终页面以数据库为准。
 
-#### 7.3.6.9 对照关键完整文件
+#### 7.2.6.9 对照关键完整文件
 
-​        下面给出本阶段新增和重点修改文件的完整代码。
+​        下面给出本节新增和重点修改文件的完整代码。
 
-##### 7.3.6.9.1 api/app/api/sse.py
+.2.6.9.1 backend/api/app/api/sse.py
 
 ```Python
 from collections.abc import AsyncIterator
@@ -2677,7 +2673,7 @@ async def iter_sse(events: list[tuple[str, dict]]) -> AsyncIterator[str]:
         yield encode_sse(event, data)
 ```
 
-##### 7.3.6.9.2 ui/app/lib/sse.ts
+.2.6.9.2 frontend/web/app/lib/sse.ts
 
 ```TypeScript
 import type { StreamEvent } from "../types";
@@ -2744,7 +2740,7 @@ export async function readSseStream(
 }
 ```
 
-##### 7.3.6.9.3 ui/app/lib/session-api.ts
+.2.6.9.3 frontend/web/app/lib/session-api.ts
 
 ```TypeScript
 import { requestApi } from "./api";
@@ -2819,7 +2815,7 @@ export async function streamMessage(
 }
 ```
 
-##### 7.3.6.9.4 ui/app/stores/session-store.ts
+.2.6.9.4 frontend/web/app/stores/session-store.ts
 
 ```TypeScript
 import { create } from "zustand";
@@ -3041,7 +3037,7 @@ export const useSessionStore = create<SessionState & SessionActions>(
 );
 ```
 
-##### 7.3.6.9.5 nginx/default.conf
+.2.6.9.5 nginx/default.conf
 
 ```Nginx
 server {
@@ -3072,13 +3068,13 @@ server {
 }
 ```
 
-### 7.3.7 关键理解
+### 7.2.7 关键理解
 
 ​        SSE 不是新的数据库模型，也不是 WebSocket。
 
 ​        它是一个普通 HTTP 连接，只是响应不会立刻结束，而是持续写出事件。
 
-​        本阶段的链路是：
+​        本节的链路是：
 
 ```Plain
 前端发送消息
@@ -3096,31 +3092,31 @@ server {
 流结束后刷新数据库状态
 ```
 
-​        这里有一个重要取舍：本阶段仍然在流结束后重新加载消息和事件。
+​        这里有一个重要取舍：本节仍然在流结束后重新加载消息和事件。
 
 ​        原因是流式事件适合展示过程，数据库查询适合确认最终状态。两者结合，页面既能及时反馈，又不容易和后端状态脱节。
 
-### 7.3.8 技术难点与亮点
+### 7.2.8 技术难点与亮点
 
 ​        技术难点：
 
-​        本阶段的技术难点集中在流式数据的边界上。SSE 事件必须用空行分隔，前端不能假设一次读取就是一条完整事件，所以需要维护 buffer。Nginx 代理需要关闭缓冲，避免流式响应被攒起来一次性返回。store 也要边读流边更新事件面板，同时在流结束后刷新最终状态。
+​        本节的技术难点集中在流式数据的边界上。SSE 事件必须用空行分隔，前端不能假设一次读取就是一条完整事件，所以需要维护 buffer。Nginx 代理需要关闭缓冲，避免流式响应被攒起来一次性返回。store 也要边读流边更新事件面板，同时在流结束后刷新最终状态。
 
 ​        项目亮点：
 
-​        本阶段的亮点，是消息接口开始具备流式能力。前端不引入额外依赖，直接使用浏览器原生流读取能力；Nginx 网关开始为后续长任务事件流做准备；第 8 章也可以自然扩展运行状态、停止任务和未读数。
+​        本节的亮点，是消息接口开始具备流式能力。前端不引入额外依赖，直接使用浏览器原生流读取能力；Nginx 网关开始为后续长任务事件流做准备；第 8 章也可以自然扩展运行状态、停止任务和未读数。
 
-### 7.3.9 面试考点
+### 7.2.9 面试考点
 
 ​        面试里可以重点讲清楚：SSE 和普通 JSON 接口有什么区别，SSE 和 WebSocket 的区别是什么，为什么 SSE 响应需要 `text/event-stream`，为什么前端读取 SSE 要维护 buffer，以及为什么 Nginx 代理 SSE 时要关闭缓冲。能回答这些问题，就说明你理解的是流式链路，而不是只复制了一个响应头。
 
-### 7.3.10 运行验证
+### 7.2.10 运行验证
 
 ​        下面命令默认在项目根目录执行。
 
-#### 7.3.10.1 重新构建 API 和 UI
+#### 7.2.10.1 重新构建 API 和 UI
 
-​        本阶段修改了 API、UI 和 Nginx 配置。
+​        本节修改了 API、UI 和 Nginx 配置。
 
 ​        执行：
 
@@ -3135,15 +3131,15 @@ docker compose up -d nginx
 docker compose up -d --force-recreate nginx
 ```
 
-#### 7.3.10.2 执行迁移
+#### 7.2.10.2 执行迁移
 
-​        如果本章第一阶段已经执行过迁移，这一步不会重复创建表。
+​        如果前文已经执行过迁移，这一步不会重复创建表。
 
 ```Bash
 docker compose exec api uv run alembic upgrade head
 ```
 
-#### 7.3.10.3 创建会话
+#### 7.2.10.3 创建会话
 
 ```Bash
 curl -X POST http://localhost:8088/api/sessions \
@@ -3153,7 +3149,7 @@ curl -X POST http://localhost:8088/api/sessions \
 
 ​        记录返回结果里的 `id`。
 
-#### 7.3.10.4 验证 SSE 接口
+#### 7.2.10.4 验证 SSE 接口
 
 ​        把会话 ID 替换到下面命令：
 
@@ -3175,7 +3171,7 @@ data: {...}
 
 ​        `-N` 表示关闭 curl 自己的输出缓冲。验证 SSE 时建议加上。
 
-#### 7.3.10.5 验证页面
+#### 7.2.10.5 验证页面
 
 ​        访问：
 
@@ -3187,13 +3183,13 @@ http://localhost:8088
 
 ​        验证时选择一个会话，输入任务内容并点击发送。正常情况下，事件记录会先出现 `message_created`，流结束后消息时间线出现用户消息。这说明前端已经不是等完整 JSON 返回，而是在读取服务端推送的流式事件。
 
-### 7.3.11 阶段小结
+### 7.2.11 小结
 
-​        本阶段完成了第一个 SSE 流式闭环。后端新增 SSE 编码工具和消息流式接口，Nginx 对 `/api/` 关闭代理缓冲，前端新增 SSE 解析工具，并在发送消息时改为读取流式响应。store 现在可以边读事件边更新事件面板，这为后续长时间 Agent 执行打下了基础。
+​        本节完成了第一个 SSE 流式闭环。后端新增 SSE 编码工具和消息流式接口，Nginx 对 `/api/` 关闭代理缓冲，前端新增 SSE 解析工具，并在发送消息时改为读取流式响应。store 现在可以边读事件边更新事件面板，这为后续长时间 Agent 执行打下了基础。
 
 ​        从这一阶段开始，事件不再只能通过普通查询获取。后续 Agent 执行、工具调用、计划更新都可以沿着这条流式链路继续扩展。
 
-## 7.4 本章小结
+## 7.3 本章小结
 
 ​        完成“对话输入与消息事件”和“SSE 事件如流”两个阶段后，这条能力链已经形成闭环。读者仍然可以在每个阶段结束时单独运行验证，但理解上应把两者视作一个连续决策：先建立可靠边界，再让上层能力真正依赖它。
 

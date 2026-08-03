@@ -71,15 +71,15 @@ AtlasAgent 不再把一段可变文本当作任务的唯一事实。系统保留
 数据库升级：
 
 ```bash
-cd api
+cd backend/api
 uv run alembic upgrade head
 ```
 
 完整后端测试：
 
 ```bash
-cd api
+cd backend/api
 uv run python -m unittest discover -s tests
 ```
 
-升级迁移位于 `api/migrations/versions/202608010001_memory_tool_control_plane.py`。
+升级迁移位于 `backend/api/migrations/versions/202608010001_memory_tool_control_plane.py`。

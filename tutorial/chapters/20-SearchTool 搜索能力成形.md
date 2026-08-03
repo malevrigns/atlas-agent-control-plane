@@ -53,17 +53,17 @@ ToolPreviewPanel 展示搜索关键词、供应商、标题、链接和摘要
 ```Plain
 .env.example
 docker-compose.yml
-api/app/core/config.py
-api/app/domain/search/__init__.py
-api/app/domain/search/entities.py
-api/app/infrastructure/search/__init__.py
-api/app/infrastructure/search/bing.py
-api/app/infrastructure/agent_tools/search.py
-api/app/infrastructure/agent_tools/builtin.py
-api/app/application/react_agent_service.py
-ui/app/components/tool-preview-panel.tsx
+backend/api/app/core/config.py
+backend/api/app/domain/search/__init__.py
+backend/api/app/domain/search/entities.py
+backend/api/app/infrastructure/search/__init__.py
+backend/api/app/infrastructure/search/bing.py
+backend/api/app/infrastructure/agent_tools/search.py
+backend/api/app/infrastructure/agent_tools/builtin.py
+backend/api/app/application/react_agent_service.py
+frontend/web/app/components/tool-preview-panel.tsx
 README.md
-api/README.md
+backend/api/README.md
 docs/course/chapters/30-search-tool.md
 ```
 
@@ -73,7 +73,7 @@ docs/course/chapters/30-search-tool.md
 ​        这一章的实施顺序要从配置开始，而不是从工具函数开始。搜索工具依赖外部供应商，外部供应商又依赖 API Key、endpoint、市场语言和超时时间。配置没有定义清楚，工具函数写得再完整也没有稳定运行环境。因此本章先补充配置，再定义领域模型，然后实现 Bing 适配器，最后把工具接入执行链路和前端展示。
 
 ### 20.6.1 补充搜索配置
-​        `api/app/core/config.py` 是后端应用配置的集中入口。本章在 `Settings` 中新增五个字段，用来描述搜索能力的外部依赖和运行边界。
+​        `backend/api/app/core/config.py` 是后端应用配置的集中入口。本章在 `Settings` 中新增五个字段，用来描述搜索能力的外部依赖和运行边界。
 
 ```Python
 bing_search_api_key: str = ""
@@ -198,7 +198,7 @@ def build_bing_search_client() -> BingSearchClient:
 ​        这个函数很短，但它把“配置如何进入供应商客户端”的路径固定下来。以后如果要在测试里传入假的搜索客户端，可以绕开这个构造函数；如果要在生产里替换 endpoint 或 market，也只需要改环境变量。工具层不需要到处读取配置，这样职责边界更干净。
 
 ### 20.6.6 注册 search_web 工具
-​        搜索客户端准备好以后，下一步是把它注册成 Agent 可以调用的工具。`api/app/infrastructure/agent_tools/search.py` 中的 `register_search_tools()` 接收一个 `ToolRegistry`，再注册名为 `search_web` 的 `AgentTool`。
+​        搜索客户端准备好以后，下一步是把它注册成 Agent 可以调用的工具。`backend/api/app/infrastructure/agent_tools/search.py` 中的 `register_search_tools()` 接收一个 `ToolRegistry`，再注册名为 `search_web` 的 `AgentTool`。
 
 ```Python
 def register_search_tools(
@@ -428,7 +428,7 @@ function SearchResultsPreview({ results }: { results: SearchResultsPayload }) {
 ​        先确认后端配置里已经包含搜索字段：
 
 ```PowerShell
-rg -n "bing_search|search_" api/app/core/config.py
+rg -n "bing_search|search_" backend/api/app/core/config.py
 ```
 
 ​        输出中应该能看到 `bing_search_api_key`、`bing_search_endpoint`、`bing_search_market`、`search_timeout_seconds` 和 `search_max_results`。接着检查 `.env.example` 和 Compose 环境变量，确认容器启动时也能拿到同样的配置名。
@@ -437,7 +437,7 @@ rg -n "bing_search|search_" api/app/core/config.py
 ​        再确认搜索工具已经接入内置注册表：
 
 ```PowerShell
-rg -n "register_search_tools|search_web" api/app/infrastructure/agent_tools api/app/application/react_agent_service.py
+rg -n "register_search_tools|search_web" backend/api/app/infrastructure/agent_tools backend/api/app/application/react_agent_service.py
 ```
 
 ​        这里应该能看到 `register_search_tools(registry)`、`name="search_web"`，以及 `ReActAgentService` 里通过 `self.registry.get("search_web")` 取工具的代码。少了任何一处，搜索工具都可能处在“代码存在但执行链路不通”的状态。
@@ -478,7 +478,7 @@ search_web
 ​        这章的重点不是 Bing 本身，而是搜索能力的工程化边界。供应商响应被限制在基础设施层，工具层返回项目自己的稳定结构，事件层记录可观察输出，前端按 `kind` 渲染不同工具结果。这个模式会在后面的 MCP、A2A、多 Agent 协作和最终引用体系中反复出现。
 
 ## 20.12 代码索引
-​        本章对应源码集中在 `atlas-agents-30` 目录下。阅读时可以先看 `api/app/domain/search/entities.py`，理解搜索结果在项目内部的最小形态；再看 `api/app/infrastructure/search/bing.py`，理解供应商适配层如何把 Bing 响应转换成领域对象；然后看 `api/app/infrastructure/agent_tools/search.py` 和 `api/app/application/react_agent_service.py`，理解搜索能力如何成为 Agent 工具并被执行；最后看 `ui/app/components/tool-preview-panel.tsx`，理解前端如何把搜索输出从普通 JSON 变成可读的搜索结果卡片。
+​        本章对应源码集中在 `atlas-agents-30` 目录下。阅读时可以先看 `backend/api/app/domain/search/entities.py`，理解搜索结果在项目内部的最小形态；再看 `backend/api/app/infrastructure/search/bing.py`，理解供应商适配层如何把 Bing 响应转换成领域对象；然后看 `backend/api/app/infrastructure/agent_tools/search.py` 和 `backend/api/app/application/react_agent_service.py`，理解搜索能力如何成为 Agent 工具并被执行；最后看 `frontend/web/app/components/tool-preview-panel.tsx`，理解前端如何把搜索输出从普通 JSON 变成可读的搜索结果卡片。
 
 ---
 

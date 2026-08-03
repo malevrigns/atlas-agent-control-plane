@@ -36,7 +36,7 @@ atlas-agent/
 └── atlas-agent-standalone/                   # 去课程化的独立产品发行物
 ```
 
-​        快照是“累积式”的，但编号沿用项目最初的 67 个开发里程碑，不再与合并后的 50 章一一对应。合并章会在正文中标明先后阶段，可能连续使用两个里程碑快照。推荐的学习方式：
+​        快照是“累积式”的，编号沿用项目开发过程中的 67 个里程碑，因此不与 50 个教学章节一一对应。一个章节可能连续使用多个里程碑快照，正文会在具体步骤旁标出对应版本。推荐的学习方式：
 
 1. 先读本章正文，理解“要做什么、为什么这么做”；
 2. 跟着代码自己敲一遍；
@@ -57,7 +57,7 @@ atlas-agent/
 - Docker 与 Docker Compose（一键起全套基础设施）
 - Node.js 20+ 与 pnpm（前端）
 - Python 3.11+ 与 uv（后端 / 沙箱）
-- 一个 OpenAI 兼容的大模型 API Key（默认接入 DeepSeek，可在 `api/config/llm.yaml` 中改成任意 OpenAI 兼容服务）
+- 一个 OpenAI 兼容的大模型 API Key（默认接入 DeepSeek，可在 `backend/api/config/llm.yaml` 中改成任意 OpenAI 兼容服务）
 
 ### 快速跑通最终项目
 

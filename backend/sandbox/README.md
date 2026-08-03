@@ -35,7 +35,7 @@
 ## 本地运行
 
 ```bash
-cd sandbox
+cd backend/sandbox
 uv sync
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8100
 ```

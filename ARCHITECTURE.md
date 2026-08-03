@@ -10,27 +10,27 @@
 
 ```text
 atlas-agents/
-├── api/                     # 后端主服务：会话、Agent、工具、外部能力适配
-│   ├── app/
-│   │   ├── main.py          # FastAPI 应用入口
-│   │   ├── core/            # 配置、异常、日志等跨层通用能力
-│   │   ├── presentation/    # 对外入口适配层
-│   │   │   └── http/        # HTTP/FastAPI 路由、SSE 编码
-│   │   ├── schemas/         # 请求和响应 DTO
-│   │   ├── application/     # 应用服务：业务用例编排、事务边界
-│   │   ├── domain/          # 领域实体、协议和核心抽象
-│   │   └── infrastructure/  # 数据库、外部服务、工具适配器
-│   ├── config/              # LLM、MCP 等 YAML 配置
-│   ├── migrations/          # Alembic 数据库迁移
-│   ├── ARCHITECTURE.md      # 后端分层规则
-│   ├── DEPENDENCIES.md      # 后端依赖说明
-│   └── pyproject.toml
-├── ui/                      # Next.js 前端工作台
-├── desktop/                 # Electron Checkpoint 时间线桌面客户端
-├── tui/                     # Textual 键盘优先终端客户端
-├── sandbox/                 # 隔离执行环境：文件、Shell、浏览器、VNC
+├── frontend/
+│   ├── web/                 # Next.js 浏览器工作台
+│   ├── desktop/             # Electron Checkpoint 时间线客户端
+│   └── tui/                 # Textual 键盘优先终端客户端
+├── backend/
+│   ├── api/                 # FastAPI 主服务
+│   │   ├── app/
+│   │   │   ├── main.py      # FastAPI 应用入口
+│   │   │   ├── core/        # 配置、异常、日志等跨层能力
+│   │   │   ├── presentation/# HTTP/FastAPI 路由与 SSE 编码
+│   │   │   ├── schemas/     # 请求和响应 DTO
+│   │   │   ├── application/ # 业务用例编排与事务边界
+│   │   │   ├── domain/      # 领域实体、协议和核心抽象
+│   │   │   └── infrastructure/ # 数据库、外部服务与工具适配器
+│   │   ├── config/          # LLM、MCP、A2A 配置
+│   │   └── migrations/      # Alembic 数据库迁移
+│   └── sandbox/             # 文件、Shell、浏览器与 VNC 隔离环境
 ├── nginx/                   # 统一网关配置
-├── docs/                    # 课程文档
+├── docs/                    # 架构与客户端专题文档
+├── tutorial/                # 0–49 章中文工程教程
+├── scripts/                 # 启停与运行时配置脚本
 ├── docker-compose.yml       # 本地多服务编排
 └── README.md
 ```
@@ -89,7 +89,7 @@ Nginx Gateway / FastAPI
 
 ## 服务职责
 
-### `api`
+### `backend/api`
 
 后端主服务。
 
@@ -103,7 +103,7 @@ Nginx Gateway / FastAPI
 
 API 服务是系统的大脑，但不直接执行高风险命令，也不直接承载前端页面。
 
-### `ui`
+### `frontend/web`
 
 前端工作台。
 
@@ -117,7 +117,7 @@ API 服务是系统的大脑，但不直接执行高风险命令，也不直接�
 
 UI 不直接访问数据库，也不直接访问 Docker 网络里的服务。浏览器统一经过 Nginx 网关访问。
 
-### `sandbox`
+### `backend/sandbox`
 
 隔离执行环境。
 
@@ -182,7 +182,7 @@ Sandbox 是执行工具能力的环境边界。API 通过 HTTP 调用 Sandbox，
 当前后端详细规则见：
 
 ```text
-api/ARCHITECTURE.md
+backend/api/ARCHITECTURE.md
 ```
 
 ## 当前核心领域
@@ -366,15 +366,15 @@ docs/course/outline.md
 涉及后端分层变化时，更新：
 
 ```text
-api/ARCHITECTURE.md
+backend/api/ARCHITECTURE.md
 ```
 
 涉及后端依赖变化时，更新：
 
 ```text
-api/DEPENDENCIES.md
-api/pyproject.toml
-api/uv.lock
+backend/api/DEPENDENCIES.md
+backend/api/pyproject.toml
+backend/api/uv.lock
 ```
 
 涉及前端交互最终形态时，更新：

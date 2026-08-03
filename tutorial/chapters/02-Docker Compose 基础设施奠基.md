@@ -155,7 +155,7 @@ services:
 
 ​        在项目根目录创建 `docker-compose.yml`。
 
-​        项目根目录指包含 `README.md`、`.env.example`、`api/`、`ui/` 的目录。本项目中路径类似：
+​        项目根目录指包含 `README.md`、`.env.example`、`backend/api/`、`frontend/web/` 的目录。本项目中路径类似：
 
 ```Plain
 /Users/atlas/Desktop/github/atlas-agents

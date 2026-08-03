@@ -86,7 +86,7 @@ http://localhost:8000
 UI 本地运行：
 
 ```bash
-cd ui
+cd frontend/web
 pnpm install
 pnpm dev
 ```

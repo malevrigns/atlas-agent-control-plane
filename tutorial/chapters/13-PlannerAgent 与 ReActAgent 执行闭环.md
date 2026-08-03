@@ -1,17 +1,13 @@
 # 第十三章. PlannerAgent 与 ReActAgent 执行闭环
 
-## 13.1 合章说明
+## 13.1 PlannerAgent 任务运筹
 
-​        旧版教程把“PlannerAgent 任务运筹”与“ReActAgent 循步而行”拆成了相邻两章。两者实际上属于同一条能力链：前者把基础结构立住，后者让它进入可用状态。本章将它们合并为前后两个阶段，保留原来的实现、验证与工程判断，同时减少能力尚未闭环时的章节跳转。
-
-## 13.2 第一阶段：PlannerAgent 任务运筹
-
-### 13.2.1 本阶段目标
+### 13.1.1 本节目标
 ​        第 12 章已经让系统具备了 Memory 和工具协议，但 Agent 要真正执行一个复杂任务，还需要先知道“要按什么顺序做”。这正是 PlannerAgent 的位置：它不负责直接完成用户任务，而是把用户输入转换成结构化计划，让后续执行器有明确的目标、步骤和预期输出。
-​        本阶段会把 PlannerAgent 接入真实会话。后端会新增计划步骤领域模型和 `PlannerService`，优先使用 LLM 生成 JSON 计划，解析失败或模型不可用时生成稳定的教学 fallback，再把计划保存成 `plan_created` 会话事件。前端会在聊天工作台右侧加入计划面板，并从事件列表中恢复最新计划。这样计划不再是临时页面状态，而是会话时间线里真实发生过的一次 Agent 动作。
+​        本节会把 PlannerAgent 接入真实会话。后端会新增计划步骤领域模型和 `PlannerService`，优先使用 LLM 生成 JSON 计划，解析失败或模型不可用时生成稳定的教学 fallback，再把计划保存成 `plan_created` 会话事件。前端会在聊天工作台右侧加入计划面板，并从事件列表中恢复最新计划。这样计划不再是临时页面状态，而是会话时间线里真实发生过的一次 Agent 动作。
 
-### 13.2.2 最终效果
-​        本阶段结束后，后端新增接口：
+### 13.1.2 最终效果
+​        本节结束后，后端新增接口：
 
 ```Plain
 POST /api/sessions/{session_id}/plan
@@ -36,9 +32,9 @@ POST /api/sessions/{session_id}/plan
 前端展示计划步骤
 ```
 
-​        本阶段只生成计划，不执行计划。本章第二阶段会实现 ReActAgent，让计划步骤逐步执行并流式展示工具调用。
+​        本节只生成计划，不执行计划。本章后文会实现 ReActAgent，让计划步骤逐步执行并流式展示工具调用。
 
-### 13.2.3 本阶段要解决的问题
+### 13.1.3 本节要解决的问题
 ​        第 12 章已经有了 Memory 和工具协议，但还没有真正的任务规划能力。
 ​        如果用户输入：
 
@@ -62,8 +58,8 @@ POST /api/sessions/{session_id}/plan
 
 ​        这样后续 ReActAgent 才能逐步执行，而不是在一条消息里把所有事情说完。
 
-### 13.2.4 本阶段技术方案
-​        本阶段后端调用链路：
+### 13.1.4 本节技术方案
+​        本节后端调用链路：
 
 ```Plain
 POST /api/sessions/{session_id}/plan
@@ -100,29 +96,29 @@ session-api.createPlan()
 ​        当前阶段更重要的是让会话时间线能看到 Agent 做了什么。计划生成本身就是会话中的一个重要动作，适合先进入 `session_events`。
 ​        后续如果计划需要编辑、版本管理、多人协作，再单独拆出 `plans` 表也不晚。
 
-### 13.2.5 新增和修改的文件
+### 13.1.5 新增和修改的文件
 
 ```Plain
 README.md
-api/README.md
-api/app/api/routes/sessions.py
-api/app/application/planner_service.py
-api/app/domain/agent_core/planner.py
-api/app/domain/sessions/entities.py
-api/app/schemas/session.py
+backend/api/README.md
+backend/api/app/api/routes/sessions.py
+backend/api/app/application/planner_service.py
+backend/api/app/domain/agent_core/planner.py
+backend/api/app/domain/sessions/entities.py
+backend/api/app/schemas/session.py
 docs/course/chapters/18-planner-agent.md
-ui/README.md
-ui/app/components/chat-workspace.tsx
-ui/app/components/plan-panel.tsx
-ui/app/lib/session-api.ts
-ui/app/page.tsx
-ui/app/stores/session-store.ts
-ui/app/types.ts
+frontend/web/README.md
+frontend/web/app/components/chat-workspace.tsx
+frontend/web/app/components/plan-panel.tsx
+frontend/web/app/lib/session-api.ts
+frontend/web/app/page.tsx
+frontend/web/app/stores/session-store.ts
+frontend/web/app/types.ts
 ```
 
-### 13.2.6 实施步骤
-#### 13.2.6.1 扩展会话事件类型
-​        打开 `api/app/domain/sessions/entities.py`，扩展 `SessionEventType`：
+### 13.1.6 实施步骤
+#### 13.1.6.1 扩展会话事件类型
+​        打开 `backend/api/app/domain/sessions/entities.py`，扩展 `SessionEventType`：
 
 ```Python
 class SessionEventType(StrEnum):
@@ -130,9 +126,9 @@ class SessionEventType(StrEnum):
     plan_created = "plan_created"
 ```
 
-##### 13.2.6.1.1 代码讲解
+.1.6.1.1 代码讲解
 ​        第 7 章只有 `message_created`，表示用户消息被创建。
-​        本阶段新增 `plan_created`，表示 PlannerAgent 为当前会话生成了一份计划。
+​        本节新增 `plan_created`，表示 PlannerAgent 为当前会话生成了一份计划。
 ​        事件表已经有：
 
 ```Plain
@@ -143,8 +139,8 @@ created_at
 
 ​        所以不需要新增迁移文件。计划会保存在 `payload` 里。
 
-#### 13.2.6.2 定义计划领域模型
-​        创建 `api/app/domain/agent_core/planner.py`：
+#### 13.1.6.2 定义计划领域模型
+​        创建 `backend/api/app/domain/agent_core/planner.py`：
 
 ```Python
 from dataclasses import dataclass
@@ -217,7 +213,7 @@ def create_plan_step(
     )
 ```
 
-##### 13.2.6.2.1 代码讲解
+.1.6.2.1 代码讲解
 ​        `PlanStepStatus` 先定义四种状态：
 
 ```Plain
@@ -227,7 +223,7 @@ completed
 failed
 ```
 
-​        本阶段只生成计划，所以步骤默认是 `pending`。本章第二阶段执行步骤时，才会让状态进入 `running`、`completed` 或 `failed`。
+​        本节只生成计划，所以步骤默认是 `pending`。本章后文执行步骤时，才会让状态进入 `running`、`completed` 或 `failed`。
 ​        `AgentPlan.source` 用来记录计划来源：
 
 ```Plain
@@ -237,8 +233,8 @@ fallback  来自教学 fallback
 
 ​        这样前端和调试日志可以知道这份计划是不是模型生成的。
 
-#### 13.2.6.3 编写 PlannerService
-​        创建 `api/app/application/planner_service.py`。
+#### 13.1.6.3 编写 PlannerService
+​        创建 `backend/api/app/application/planner_service.py`。
 ​        核心代码如下：
 
 ```Python
@@ -307,7 +303,7 @@ class PlannerService:
         return plan, event
 ```
 
-##### 13.2.6.3.1 代码讲解
+.1.6.3.1 代码讲解
 ​        `create_plan()` 的业务流程是：
 
 ```Plain
@@ -331,7 +327,7 @@ class PlannerService:
 
 ​        生成计划和保存事件放在同一个应用服务里，是因为它们属于同一个业务动作。
 
-#### 13.2.6.4 调用 LLM 并解析计划
+#### 13.1.6.4 调用 LLM 并解析计划
 ​        继续在 `planner_service.py` 中编写：
 
 ```Python
@@ -364,7 +360,7 @@ class PlannerService:
             return self._build_fallback_plan(task)
 ```
 
-##### 13.2.6.4.1 代码讲解
+.1.6.4.1 代码讲解
 ​        这里要求模型只返回 JSON。
 ​        原因是后端要把计划保存成结构化数据。如果模型返回一大段 Markdown，前端很难稳定解析步骤。
 ​        这里捕获 `AppException` 后返回 fallback 计划。这样即使本机没有配置 `LLM_API_KEY`，也能跑通：
@@ -377,7 +373,7 @@ class PlannerService:
 
 ​        如果你已经配置了 DeepSeek 或其他 OpenAI 兼容模型，`source` 会更可能是 `llm`；如果模型不可用，`source` 会是 `fallback`。
 
-#### 13.2.6.5 解析 JSON 和保存事件 payload
+#### 13.1.6.5 解析 JSON 和保存事件 payload
 ​        继续在 `planner_service.py` 中编写：
 
 ```Python
@@ -447,7 +443,7 @@ class PlannerService:
         }
 ```
 
-##### 13.2.6.5.1 代码讲解
+.1.6.5.1 代码讲解
 ​        模型有时会返回带代码块包裹的内容：
 
 ~~~Plain
@@ -459,8 +455,8 @@ class PlannerService:
 ​        所以 `_strip_code_fence()` 会先去掉外层包裹，再把内部字符串交给 `json.loads()`。`_parse_llm_plan()` 也不是直接相信模型输出，而是先处理 JSON 解析失败，再处理没有 `steps` 的情况，最后给单个空字段补默认值。这样即使模型返回格式不够稳定，接口也不会把半成品结构直接交给前端。
 ​        `_plan_to_payload()` 负责把 `AgentPlan` 转成 JSONB 可保存的字典。这里同时保存 `id` 和 `plan_id`：`id` 方便前端按统一计划类型读取，`plan_id` 则保留事件语义，明确这个字段表示计划 ID。
 
-#### 13.2.6.6 扩展会话 Schema
-​        打开 `api/app/schemas/session.py`，新增：
+#### 13.1.6.6 扩展会话 Schema
+​        打开 `backend/api/app/schemas/session.py`，新增：
 
 ```Python
 class PlanCreateRequest(BaseModel):
@@ -489,7 +485,7 @@ class PlanCreateResponse(BaseModel):
     event: SessionEventResponse
 ```
 
-##### 13.2.6.6.1 代码讲解
+.1.6.6.1 代码讲解
 ​        `PlanCreateResponse` 同时返回：
 
 ```Plain
@@ -499,8 +495,8 @@ event  方便前端追加到事件列表
 
 ​        这样前端不需要生成计划后再额外请求一次事件列表。
 
-#### 13.2.6.7 新增会话计划接口
-​        打开 `api/app/api/routes/sessions.py`。
+#### 13.1.6.7 新增会话计划接口
+​        打开 `backend/api/app/api/routes/sessions.py`。
 ​        新增依赖：
 
 ```Python
@@ -556,7 +552,7 @@ async def create_plan(
     )
 ```
 
-##### 13.2.6.7.1 代码讲解
+.1.6.7.1 代码讲解
 ​        接口路径放在会话下面：
 
 ```Plain
@@ -579,8 +575,8 @@ async def create_plan(
 产生工具事件和最终回答
 ```
 
-#### 13.2.6.8 扩展前端类型和 API
-​        打开 `ui/app/types.ts`，新增：
+#### 13.1.6.8 扩展前端类型和 API
+​        打开 `frontend/web/app/types.ts`，新增：
 
 ```TypeScript
 export type PlanStep = {
@@ -605,7 +601,7 @@ export type PlanCreateData = {
 };
 ```
 
-​        打开 `ui/app/lib/session-api.ts`，新增：
+​        打开 `frontend/web/app/lib/session-api.ts`，新增：
 
 ```TypeScript
 export function createPlan(
@@ -619,12 +615,12 @@ export function createPlan(
 }
 ```
 
-##### 13.2.6.8.1 代码讲解
+.1.6.8.1 代码讲解
 ​        前端的 `AgentPlan` 对齐后端 `PlanResponse`。
 ​        `createPlan()` 只负责发送请求，不处理页面状态。页面状态仍然放在 zustand store 中。
 
-#### 13.2.6.9 在 session-store 中加入计划状态
-​        打开 `ui/app/stores/session-store.ts`，新增状态：
+#### 13.1.6.9 在 session-store 中加入计划状态
+​        打开 `frontend/web/app/stores/session-store.ts`，新增状态：
 
 ```TypeScript
 latestPlan: AgentPlan | null;
@@ -674,7 +670,7 @@ createPlan: async () => {
 }
 ```
 
-##### 13.2.6.9.1 代码讲解
+.1.6.9.1 代码讲解
 ​        生成计划时，任务来源有两个优先级：
 
 ```Plain
@@ -690,7 +686,7 @@ createPlan: async () => {
 把 result.plan 保存为 latestPlan
 ```
 
-#### 13.2.6.10 从事件恢复最新计划
+#### 13.1.6.10 从事件恢复最新计划
 ​        继续在 `session-store.ts` 中新增：
 
 ```TypeScript
@@ -725,7 +721,7 @@ function getLatestPlan(events: SessionEventItem[]) {
 }
 ```
 
-##### 13.2.6.10.1 代码讲解
+.1.6.10.1 代码讲解
 ​        这段代码解决的是“刷新页面后计划还在不在”的问题。
 ​        计划已经保存成事件，所以重新加载会话详情时，可以从事件列表中找到最后一个 `plan_created`：
 
@@ -741,8 +737,8 @@ events
 
 ​        这样计划面板不是临时 UI 状态，而是来自后端持久化事件。
 
-#### 13.2.6.11 创建计划面板组件
-​        创建 `ui/app/components/plan-panel.tsx`：
+#### 13.1.6.11 创建计划面板组件
+​        创建 `frontend/web/app/components/plan-panel.tsx`：
 
 ```TypeScript
 import { GitBranch, Loader2, Sparkles } from "lucide-react";
@@ -834,7 +830,7 @@ export function PlanPanel({
 }
 ```
 
-##### 13.2.6.11.1 代码讲解
+.1.6.11.1 代码讲解
 ​        计划面板只负责展示和触发生成，不直接请求后端。
 ​        它接收：
 
@@ -854,8 +850,8 @@ fallback
 
 ​        这样本地开发时可以清楚知道当前计划是否来自真实模型。
 
-#### 13.2.6.12 接入聊天工作台
-​        打开 `ui/app/components/chat-workspace.tsx`，引入计划面板：
+#### 13.1.6.12 接入聊天工作台
+​        打开 `frontend/web/app/components/chat-workspace.tsx`，引入计划面板：
 
 ```TypeScript
 import { PlanPanel } from "./plan-panel";
@@ -872,7 +868,7 @@ import { PlanPanel } from "./plan-panel";
 />
 ```
 
-​        打开 `ui/app/page.tsx`，传入 store 状态：
+​        打开 `frontend/web/app/page.tsx`，传入 store 状态：
 
 ```TypeScript
 <ChatWorkspace
@@ -888,12 +884,12 @@ import { PlanPanel } from "./plan-panel";
 
 ```
 
-##### 13.2.6.12.1 代码讲解
+.1.6.12.1 代码讲解
 ​        计划面板被放在聊天工作台右侧。
 ​        这意味着它不再是独立教学面板，而是开始成为真实 Agent 工作台的一部分。
-​        后续本章第二阶段执行步骤时，计划面板会继续扩展状态展示。
+​        后续本章后文执行步骤时，计划面板会继续扩展状态展示。
 
-### 13.2.7 关键理解
+### 13.1.7 关键理解
 ​        PlannerAgent 的职责不是回答用户，而是生成执行计划。
 ​        它的输出应该结构化：
 
@@ -906,32 +902,32 @@ import { PlanPanel } from "./plan-panel";
 
 ​        计划保存成事件，可以让前端时间线看到 Agent 做了什么，也方便后续 SSE 流式推送。
 
-### 13.2.8 技术难点与亮点
-​        本阶段的技术难点集中在“模型输出不稳定”和“计划状态不能只停留在页面上”这两件事。LLM 可能返回非法 JSON，也可能返回被 Markdown 代码块包裹的 JSON，还可能漏掉字段；服务层必须把这些情况收束成稳定的 `AgentPlan`。同时，计划生成属于会话动作，刷新页面后仍然应该能看到，因此不能只存在 zustand 临时状态里，而要写入 `session_events`。
+### 13.1.8 技术难点与亮点
+​        本节的技术难点集中在“模型输出不稳定”和“计划状态不能只停留在页面上”这两件事。LLM 可能返回非法 JSON，也可能返回被 Markdown 代码块包裹的 JSON，还可能漏掉字段；服务层必须把这些情况收束成稳定的 `AgentPlan`。同时，计划生成属于会话动作，刷新页面后仍然应该能看到，因此不能只存在 zustand 临时状态里，而要写入 `session_events`。
 ​        项目亮点在于 PlannerAgent 已经从概念演示进入真实工作台。它使用会话 ID 定位上下文，把计划保存为 `plan_created` 事件，前端又能从事件恢复最新计划。此时右侧计划面板已经不只是教学组件，而是后续 ReActAgent 执行步骤、更新状态和展示工具结果的入口。
 
-### 13.2.9 面试考点
+### 13.1.9 面试考点
 ​        面试里可以围绕 PlannerAgent 和 ReActAgent 的职责边界展开。PlannerAgent 负责把任务变成结构化计划，ReActAgent 负责拿着计划逐步执行；计划必须结构化，是因为后续步骤状态、工具调用和前端展示都依赖稳定字段。LLM 返回 JSON 不稳定时，后端要处理代码块包裹、解析失败、缺少步骤和字段缺失，而不是把原始字符串交给前端。计划暂时保存成事件，是因为当前阶段更关注会话时间线和可观察动作；如果未来需要编辑、版本管理或多人协作，再单独拆出计划表会更合适。
 
-### 13.2.10 运行验证
+### 13.1.10 运行验证
 ​        下面命令默认在项目根目录执行。
 
-#### 13.2.10.1 检查后端代码
+#### 13.1.10.1 检查后端代码
 
 ```Bash
-cd api
+cd backend/api
 uv run python -m compileall app
 ```
 
-#### 13.2.10.2 检查前端类型
+#### 13.1.10.2 检查前端类型
 
 ```Bash
-cd ../ui
+cd ../../frontend/web
 pnpm typecheck
 ```
 
-#### 13.2.10.3 重新构建并启动服务
-​        本阶段修改了 API 和 UI：
+#### 13.1.10.3 重新构建并启动服务
+​        本节修改了 API 和 UI：
 
 ```Bash
 cd /Users/atlas/Desktop/github/atlas-agents
@@ -951,7 +947,7 @@ docker compose ps
 docker compose restart nginx
 ```
 
-#### 13.2.10.4 创建会话
+#### 13.1.10.4 创建会话
 
 ```Bash
 curl -X POST http://localhost:8088/api/sessions \
@@ -961,7 +957,7 @@ curl -X POST http://localhost:8088/api/sessions \
 
 ​        记录返回的 `id`。
 
-#### 13.2.10.5 生成计划
+#### 13.1.10.5 生成计划
 
 ```Bash
 curl -X POST http://localhost:8088/api/sessions/{session_id}/plan \
@@ -976,7 +972,7 @@ plan.steps 至少有 3 条
 event.type 是 plan_created
 ```
 
-#### 13.2.10.6 查询事件
+#### 13.1.10.6 查询事件
 
 ```Bash
 curl http://localhost:8088/api/sessions/{session_id}/events
@@ -988,7 +984,7 @@ curl http://localhost:8088/api/sessions/{session_id}/events
 plan_created
 ```
 
-#### 13.2.10.7 验证页面
+#### 13.1.10.7 验证页面
 ​        访问：
 
 ```Plain
@@ -998,20 +994,20 @@ http://localhost:8088
 ​        操作步骤：
 ​        验证页面时，先创建或选择一个会话，再在输入框中写入任务，然后点击右侧计划面板里的“生成”。如果接口正常，计划面板会出现计划标题、目标、来源和步骤列表，每个步骤都应当包含标题、说明和预期输出。刷新页面后重新进入同一个会话，最新计划仍然应该从事件列表中恢复出来。
 
-### 13.2.11 阶段小结
-​        本阶段完成了 PlannerAgent 的第一个真实闭环。后端新增计划领域模型和 `PlannerService`，可以调用 LLM 生成结构化计划，也能在模型不可用或 JSON 解析失败时生成 fallback 计划；计划会以 `plan_created` 事件保存到当前会话，并通过新的会话计划接口返回给前端。前端新增计划类型、计划 API、计划状态和计划面板，并能从事件列表中恢复最新计划。
-​        本章第二阶段会实现 ReActAgent 步骤执行，让计划从“生成出来”进入“逐步运行”。到那时，`pending` 状态会开始变化，计划面板也会成为观察执行进度的核心入口。
+### 13.1.11 小结
+​        本节完成了 PlannerAgent 的第一个真实闭环。后端新增计划领域模型和 `PlannerService`，可以调用 LLM 生成结构化计划，也能在模型不可用或 JSON 解析失败时生成 fallback 计划；计划会以 `plan_created` 事件保存到当前会话，并通过新的会话计划接口返回给前端。前端新增计划类型、计划 API、计划状态和计划面板，并能从事件列表中恢复最新计划。
+​        本章后文会实现 ReActAgent 步骤执行，让计划从“生成出来”进入“逐步运行”。到那时，`pending` 状态会开始变化，计划面板也会成为观察执行进度的核心入口。
 
-## 13.3 第二阶段：ReActAgent 循步而行
+## 13.2 ReActAgent 循步而行
 
-### 13.3.1 本阶段目标
-​        本章第一阶段已经让 PlannerAgent 生成了结构化计划，但计划本身还只是静态列表。真正的 Agent 工作台不能停在“我有一个计划”，还要继续把计划步骤变成可观察的执行过程：某个步骤开始了，调用了哪个工具，工具返回了什么结果，这个步骤是否完成，整项任务是否结束。
-​        本阶段会实现 ReActAgent 的第一个同步执行闭环。后端会从会话事件里找到最新的 `plan_created`，逐个读取计划步骤，写入 `step_started`、`tool_called`、`step_completed`、`task_done` 或 `task_error` 事件。前端会在计划面板里加入“执行”按钮，并根据执行事件把步骤状态从 `pending` 更新到 `running` 或 `completed`。这一阶段仍然不引入后台队列和流式推送，目的是先把 Reason、Act、Observe 的最小链路跑通。
+### 13.2.1 本节目标
+​        前文已经让 PlannerAgent 生成了结构化计划，但计划本身还只是静态列表。真正的 Agent 工作台不能停在“我有一个计划”，还要继续把计划步骤变成可观察的执行过程：某个步骤开始了，调用了哪个工具，工具返回了什么结果，这个步骤是否完成，整项任务是否结束。
+​        本节会实现 ReActAgent 的第一个同步执行闭环。后端会从会话事件里找到最新的 `plan_created`，逐个读取计划步骤，写入 `step_started`、`tool_called`、`step_completed`、`task_done` 或 `task_error` 事件。前端会在计划面板里加入“执行”按钮，并根据执行事件把步骤状态从 `pending` 更新到 `running` 或 `completed`。这一阶段仍然不引入后台队列和流式推送，目的是先把 Reason、Act、Observe 的最小链路跑通。
 
 ![ReActAgent 执行闭环示意图](../assets/react-agent-loop.png)
 
-### 13.3.2 最终效果
-​        本阶段结束后，后端新增接口：
+### 13.2.2 最终效果
+​        本节结束后，后端新增接口：
 
 ```Plain
 POST /api/sessions/{session_id}/plan/execute
@@ -1036,10 +1032,10 @@ POST /api/sessions/{session_id}/plan/execute
 前端把步骤状态更新为 completed
 ```
 
-​        本阶段先做同步执行。也就是说，点击执行后，请求会等待所有步骤执行完成再返回。第 14 章会把这个流程改造成后台任务和 Redis Stream。
+​        本节先做同步执行。也就是说，点击执行后，请求会等待所有步骤执行完成再返回。第 14 章会把这个流程改造成后台任务和 Redis Stream。
 
-### 13.3.3 本阶段要解决的问题
-​        本章第一阶段已经能生成计划，但计划还只是静态列表。
+### 13.2.3 本节要解决的问题
+​        前文已经能生成计划，但计划还只是静态列表。
 ​        真实 Agent 需要继续执行计划：
 
 ```Plain
@@ -1067,8 +1063,8 @@ Observe 读取动作结果
 Repeat  继续下一步
 ```
 
-### 13.3.4 本阶段技术方案
-​        本阶段后端调用链路：
+### 13.2.4 本节技术方案
+​        本节后端调用链路：
 
 ```Plain
 POST /api/sessions/{session_id}/plan/execute
@@ -1103,30 +1099,30 @@ session-store.executePlan()
 根据 step_completed 更新计划步骤状态
 ```
 
-​        本阶段暂时不做后台任务，也不模拟真正的长时间执行；步骤事件不会通过 SSE 边执行边推送，工具也先不接真实文件、Shell 或浏览器能力。这些能力会在第 14 章和后续沙箱阶段继续完成。本阶段先把“计划可以被执行，并且执行过程能落成事件”这件事讲清楚。
+​        本节暂时不做后台任务，也不模拟真正的长时间执行；步骤事件不会通过 SSE 边执行边推送，工具也先不接真实文件、Shell 或浏览器能力。这些能力会在第 14 章和后续沙箱阶段继续完成。本节先把“计划可以被执行，并且执行过程能落成事件”这件事讲清楚。
 
-### 13.3.5 新增和修改的文件
+### 13.2.5 新增和修改的文件
 
 ```Plain
 README.md
-api/README.md
-api/app/api/routes/sessions.py
-api/app/application/react_agent_service.py
-api/app/domain/sessions/entities.py
-api/app/schemas/session.py
+backend/api/README.md
+backend/api/app/api/routes/sessions.py
+backend/api/app/application/react_agent_service.py
+backend/api/app/domain/sessions/entities.py
+backend/api/app/schemas/session.py
 docs/course/chapters/19-react-agent.md
-ui/README.md
-ui/app/components/chat-workspace.tsx
-ui/app/components/plan-panel.tsx
-ui/app/lib/session-api.ts
-ui/app/page.tsx
-ui/app/stores/session-store.ts
-ui/app/types.ts
+frontend/web/README.md
+frontend/web/app/components/chat-workspace.tsx
+frontend/web/app/components/plan-panel.tsx
+frontend/web/app/lib/session-api.ts
+frontend/web/app/page.tsx
+frontend/web/app/stores/session-store.ts
+frontend/web/app/types.ts
 ```
 
-### 13.3.6 实施步骤
-#### 13.3.6.1 扩展会话事件类型
-​        打开 `api/app/domain/sessions/entities.py`，扩展 `SessionEventType`：
+### 13.2.6 实施步骤
+#### 13.2.6.1 扩展会话事件类型
+​        打开 `backend/api/app/domain/sessions/entities.py`，扩展 `SessionEventType`：
 
 ```Python
 class SessionEventType(StrEnum):
@@ -1139,12 +1135,12 @@ class SessionEventType(StrEnum):
     task_error = "task_error"
 ```
 
-##### 13.3.6.1.1 代码讲解
-​        本章第一阶段只有 `plan_created`，表示计划已经生成。
-​        本阶段新增的是执行过程事件。`step_started` 表示某个计划步骤开始运行，`tool_called` 表示执行步骤时调用了工具，`step_completed` 表示该步骤完成，`task_done` 表示整份计划已经执行结束，`task_error` 则表示执行过程中出现错误。它们会和 `plan_created` 一起进入 `session_events` 表，前端可以按事件顺序还原一条完整执行轨迹。
+.2.6.1.1 代码讲解
+​        前文只有 `plan_created`，表示计划已经生成。
+​        本节新增的是执行过程事件。`step_started` 表示某个计划步骤开始运行，`tool_called` 表示执行步骤时调用了工具，`step_completed` 表示该步骤完成，`task_done` 表示整份计划已经执行结束，`task_error` 则表示执行过程中出现错误。它们会和 `plan_created` 一起进入 `session_events` 表，前端可以按事件顺序还原一条完整执行轨迹。
 
-#### 13.3.6.2 编写 ReActAgentService
-​        创建 `api/app/application/react_agent_service.py`：
+#### 13.2.6.2 编写 ReActAgentService
+​        创建 `backend/api/app/application/react_agent_service.py`：
 
 ```Python
 from uuid import UUID
@@ -1230,8 +1226,8 @@ class ReActAgentService:
             return [*created_events, error_event]
 ```
 
-##### 13.3.6.2.1 代码讲解
-​        `execute_latest_plan()` 是本阶段核心流程：
+.2.6.2.1 代码讲解
+​        `execute_latest_plan()` 是本节核心流程：
 
 ```Plain
 检查会话
@@ -1258,9 +1254,9 @@ class ReActAgentService:
 把会话状态改回 idle
 ```
 
-​        注意，本阶段把所有事件一次性写完再返回。第 14 章会改成后台任务边执行边推送。
+​        注意，本节把所有事件一次性写完再返回。第 14 章会改成后台任务边执行边推送。
 
-#### 13.3.6.3 执行单个步骤
+#### 13.2.6.3 执行单个步骤
 ​        继续在 `react_agent_service.py` 中编写：
 
 ```Python
@@ -1314,7 +1310,7 @@ class ReActAgentService:
         return [started, tool_called, completed]
 ```
 
-##### 13.3.6.3.1 代码讲解
+.2.6.3.1 代码讲解
 ​        一个步骤会产生三个事件：
 
 ```Plain
@@ -1334,7 +1330,7 @@ output
 
 ​        这会成为后续工具预览面板的数据来源。
 
-#### 13.3.6.4 选择工具并查找计划
+#### 13.2.6.4 选择工具并查找计划
 ​        继续在 `react_agent_service.py` 中编写：
 
 ```Python
@@ -1377,19 +1373,19 @@ output
         )
 ```
 
-##### 13.3.6.4.1 代码讲解
-​        本阶段还没有接真实搜索、文件、Shell 和浏览器工具，所以 `_call_tool_for_step()` 先使用第 12 章的内置教学工具。
+.2.6.4.1 代码讲解
+​        本节还没有接真实搜索、文件、Shell 和浏览器工具，所以 `_call_tool_for_step()` 先使用第 12 章的内置教学工具。
 ​        选择规则很简单：如果步骤标题里包含“拆”“步骤”或“计划”，就调用 `draft_plan`；如果标题里包含“关键”或“重点”，就调用 `extract_keywords`；其他情况则调用 `summarize_text`。这不是最终的智能决策，只是用确定性规则把 ReAct 的执行链路跑通。后续接入真实工具和模型选择时，这里会从规则分支升级为更完整的工具调度逻辑。
 
-#### 13.3.6.5 扩展接口响应
-​        打开 `api/app/schemas/session.py`，新增：
+#### 13.2.6.5 扩展接口响应
+​        打开 `backend/api/app/schemas/session.py`，新增：
 
 ```Python
 class PlanExecuteResponse(BaseModel):
     events: list[SessionEventResponse]
 ```
 
-##### 13.3.6.5.1 代码讲解
+.2.6.5.1 代码讲解
 ​        执行接口返回事件列表。
 ​        前端拿到后可以：
 
@@ -1398,8 +1394,8 @@ class PlanExecuteResponse(BaseModel):
 根据 step_completed 更新步骤状态
 ```
 
-#### 13.3.6.6 新增执行接口
-​        打开 `api/app/api/routes/sessions.py`，新增依赖：
+#### 13.2.6.6 新增执行接口
+​        打开 `backend/api/app/api/routes/sessions.py`，新增依赖：
 
 ```Python
 def build_react_agent_service(
@@ -1427,7 +1423,7 @@ async def execute_plan(
     )
 ```
 
-##### 13.3.6.6.1 代码讲解
+.2.6.6.1 代码讲解
 ​        接口路径放在：
 
 ```Plain
@@ -1437,8 +1433,8 @@ async def execute_plan(
 ​        原因是执行计划仍然属于某个会话。
 ​        第 14 章做后台任务后，这个接口会变成“启动任务”，而不是同步等所有步骤执行完。
 
-#### 13.3.6.7 扩展前端 API 和类型
-​        打开 `ui/app/types.ts`，新增：
+#### 13.2.6.7 扩展前端 API 和类型
+​        打开 `frontend/web/app/types.ts`，新增：
 
 ```TypeScript
 export type PlanExecuteData = {
@@ -1446,7 +1442,7 @@ export type PlanExecuteData = {
 };
 ```
 
-​        打开 `ui/app/lib/session-api.ts`，新增：
+​        打开 `frontend/web/app/lib/session-api.ts`，新增：
 
 ```TypeScript
 export function executePlan(sessionId: string): Promise<PlanExecuteData> {
@@ -1459,7 +1455,7 @@ export function executePlan(sessionId: string): Promise<PlanExecuteData> {
 }
 ```
 
-##### 13.3.6.7.1 代码讲解
+.2.6.7.1 代码讲解
 ​        执行计划不需要请求体，因为后端会从会话事件里找到最新的 `plan_created`。
 ​        如果会话里没有计划，后端会返回：
 
@@ -1467,8 +1463,8 @@ export function executePlan(sessionId: string): Promise<PlanExecuteData> {
 plan not found
 ```
 
-#### 13.3.6.8 在 store 中加入执行计划逻辑
-​        打开 `ui/app/stores/session-store.ts`，新增状态：
+#### 13.2.6.8 在 store 中加入执行计划逻辑
+​        打开 `frontend/web/app/stores/session-store.ts`，新增状态：
 
 ```TypeScript
 executingPlan: boolean;
@@ -1546,7 +1542,7 @@ executePlan: async () => {
 }
 ```
 
-##### 13.3.6.8.1 代码讲解
+.2.6.8.1 代码讲解
 ​        前端拿到执行事件后，会做两件事：
 
 ```Plain
@@ -1556,8 +1552,8 @@ executePlan: async () => {
 
 ​        `applyExecutionEvents()` 负责把执行事件转换成 UI 状态。收到 `step_started` 时，对应步骤变成 `running`；收到 `step_completed` 时，对应步骤变成 `completed`；如果出现 `task_error`，相关步骤会被标记为 `failed`。这样计划面板看到的状态不是前端凭空猜出来的，而是从后端执行事件推导出来的。
 
-#### 13.3.6.9 更新计划面板
-​        打开 `ui/app/components/plan-panel.tsx`，新增执行按钮：
+#### 13.2.6.9 更新计划面板
+​        打开 `frontend/web/app/components/plan-panel.tsx`，新增执行按钮：
 
 ```TypeScript
 <button
@@ -1583,7 +1579,7 @@ executePlan: async () => {
 </span>
 ```
 
-##### 13.3.6.9.1 代码讲解
+.2.6.9.1 代码讲解
 ​        生成和执行是两个动作：
 
 ```Plain
@@ -1594,8 +1590,8 @@ executePlan: async () => {
 ​        计划还不存在时，执行按钮禁用。
 ​        执行中，生成和执行按钮都禁用，避免重复提交。
 
-#### 13.3.6.10 接入聊天工作台
-​        打开 `ui/app/components/chat-workspace.tsx`，把执行参数传给 `PlanPanel`：
+#### 13.2.6.10 接入聊天工作台
+​        打开 `frontend/web/app/components/chat-workspace.tsx`，把执行参数传给 `PlanPanel`：
 
 ```TypeScript
 <PlanPanel
@@ -1608,7 +1604,7 @@ executePlan: async () => {
 />
 ```
 
-​        打开 `ui/app/page.tsx`，传入 store action：
+​        打开 `frontend/web/app/page.tsx`，传入 store action：
 
 ```TypeScript
 <ChatWorkspace
@@ -1618,11 +1614,11 @@ executePlan: async () => {
 />
 ```
 
-##### 13.3.6.10.1 代码讲解
+.2.6.10.1 代码讲解
 ​        `page.tsx` 仍然只做页面编排。
 ​        真正的业务动作在 `session-store.ts`，接口请求在 `session-api.ts`，展示在 `plan-panel.tsx`。
 
-### 13.3.7 关键理解
+### 13.2.7 关键理解
 ​        ReActAgent 不只是“生成一段回复”。
 ​        它会围绕步骤执行：
 
@@ -1633,38 +1629,38 @@ executePlan: async () => {
 完成步骤
 ```
 
-​        本阶段用同步接口把这个过程跑通。它的缺点是：如果步骤执行很久，请求会一直等待。
+​        本节用同步接口把这个过程跑通。它的缺点是：如果步骤执行很久，请求会一直等待。
 ​        第 14 章会把它改成后台任务：
 
 ```Plain
 点击执行 -> 立即返回 task_id -> 后台执行 -> Redis Stream 推送事件
 ```
 
-### 13.3.8 技术难点与亮点
-​        本阶段的技术难点在于把“执行”拆成可追踪事件。服务层必须先从事件列表里找到最新计划，再把每个步骤拆成开始、工具调用和完成三个阶段；工具调用结果不能只留在内存里，而要进入事件 payload，方便前端后续展示工具详情。前端也不能只在点击按钮后把所有步骤直接标成完成，而要根据后端返回的事件逐步推导状态。
-​        项目亮点在于计划已经真正进入执行流程。第 12 章的工具协议不再只是演示面板里的 schema，而是开始被 ReActAgentService 调用；本章第一阶段的计划面板也不再只展示静态步骤，而是能展示执行后的状态变化。这为第 14 章的后台任务、Redis Stream 和流式事件打好了接口和状态基础。
+### 13.2.8 技术难点与亮点
+​        本节的技术难点在于把“执行”拆成可追踪事件。服务层必须先从事件列表里找到最新计划，再把每个步骤拆成开始、工具调用和完成三个阶段；工具调用结果不能只留在内存里，而要进入事件 payload，方便前端后续展示工具详情。前端也不能只在点击按钮后把所有步骤直接标成完成，而要根据后端返回的事件逐步推导状态。
+​        项目亮点在于计划已经真正进入执行流程。第 12 章的工具协议不再只是演示面板里的 schema，而是开始被 ReActAgentService 调用；前文的计划面板也不再只展示静态步骤，而是能展示执行后的状态变化。这为第 14 章的后台任务、Redis Stream 和流式事件打好了接口和状态基础。
 
-### 13.3.9 面试考点
+### 13.2.9 面试考点
 ​        面试里可以把 ReAct 拆成 Reason、Act 和 Observe 来讲。Reason 对应选择当前步骤和判断要调用什么工具，Act 对应实际工具调用，Observe 对应读取工具结果并把结果写回事件流。步骤执行要拆成多个事件，是为了让前端和后续任务系统都能观察中间过程，而不是只拿到一个最终完成状态。同步执行适合教学闭环，后台执行适合长任务；工具结果进入 payload，是为了让事件本身具备可回放和可展示的信息。
 
-### 13.3.10 运行验证
+### 13.2.10 运行验证
 ​        下面命令默认在项目根目录执行。
 
-#### 13.3.10.1 检查后端代码
+#### 13.2.10.1 检查后端代码
 
 ```Bash
-cd api
+cd backend/api
 uv run python -m compileall app
 ```
 
-#### 13.3.10.2 检查前端类型
+#### 13.2.10.2 检查前端类型
 
 ```Bash
-cd ../ui
+cd ../../frontend/web
 pnpm typecheck
 ```
 
-#### 13.3.10.3 重新构建并启动服务
+#### 13.2.10.3 重新构建并启动服务
 
 ```Bash
 cd /Users/atlas/Desktop/github/atlas-agents
@@ -1679,7 +1675,7 @@ docker compose ps
 docker compose restart nginx
 ```
 
-#### 13.3.10.4 创建会话
+#### 13.2.10.4 创建会话
 
 ```Bash
 curl -X POST http://localhost:8088/api/sessions \
@@ -1689,7 +1685,7 @@ curl -X POST http://localhost:8088/api/sessions \
 
 ​        记录返回的 `id`。
 
-#### 13.3.10.5 生成计划
+#### 13.2.10.5 生成计划
 
 ```Bash
 curl -X POST http://localhost:8088/api/sessions/{session_id}/plan \
@@ -1697,7 +1693,7 @@ curl -X POST http://localhost:8088/api/sessions/{session_id}/plan \
   -d '{"task":"帮我规划一个 AI Agent 项目"}'
 ```
 
-#### 13.3.10.6 执行计划
+#### 13.2.10.6 执行计划
 
 ```Bash
 curl -X POST http://localhost:8088/api/sessions/{session_id}/plan/execute
@@ -1712,7 +1708,7 @@ step_completed
 task_done
 ```
 
-#### 13.3.10.7 验证页面
+#### 13.2.10.7 验证页面
 ​        访问：
 
 ```Plain
@@ -1722,11 +1718,11 @@ http://localhost:8088
 ​        操作步骤：
 ​        验证页面时，先创建或选择一个会话，输入任务并生成计划，再点击计划面板中的“执行”。执行完成后，步骤状态应该从 `pending` 变为 `completed`，事件列表里也应该出现 `step_started`、`tool_called`、`step_completed` 和 `task_done`。这个结果说明计划、工具协议、后端事件和前端状态已经串成了一个最小 ReAct 执行闭环。
 
-### 13.3.11 阶段小结
-​        本阶段完成了 ReActAgent 的第一个执行闭环。后端新增步骤和任务执行事件，实现了 `ReActAgentService`，可以从当前会话的最新计划中读取步骤，并为每个步骤写入 started、tool、completed 三类事件，最后用 `task_done` 或 `task_error` 收尾。前端计划面板新增执行按钮，执行结果返回后会追加事件，并根据事件更新步骤状态。
+### 13.2.11 小结
+​        本节完成了 ReActAgent 的第一个执行闭环。后端新增步骤和任务执行事件，实现了 `ReActAgentService`，可以从当前会话的最新计划中读取步骤，并为每个步骤写入 started、tool、completed 三类事件，最后用 `task_done` 或 `task_error` 收尾。前端计划面板新增执行按钮，执行结果返回后会追加事件，并根据事件更新步骤状态。
 ​        第 14 章会进入 AgentTaskRunner 与 Redis Stream，把同步执行升级为后台任务和流式事件。到那时，执行接口会从“等待所有步骤完成”变成“启动任务并持续观察任务状态”。
 
-## 13.4 本章小结
+## 13.3 本章小结
 
 ​        完成“PlannerAgent 任务运筹”和“ReActAgent 循步而行”两个阶段后，这条能力链已经形成闭环。读者仍然可以在每个阶段结束时单独运行验证，但理解上应把两者视作一个连续决策：先建立可靠边界，再让上层能力真正依赖它。
 

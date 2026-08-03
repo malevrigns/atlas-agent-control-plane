@@ -217,32 +217,35 @@ docker compose up -d postgres redis
 
 | 模块 | 启动命令 | 默认地址 / 行为 |
 | --- | --- | --- |
-| API | `cd api && uv sync && uv run uvicorn app.main:app --reload` | `http://localhost:8000` |
-| Web | `cd ui && pnpm install && pnpm dev` | `http://localhost:3000` |
-| Desktop | `cd desktop && npm install && npm run electron:dev` | Electron 桌面窗口 |
-| TUI | `cd tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` | 后端不可达时自动进入演示模式 |
+| API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` | `http://localhost:8000` |
+| Web | `cd frontend/web && pnpm install && pnpm dev` | `http://localhost:3000` |
+| Desktop | `cd frontend/desktop && npm install && npm run electron:dev` | Electron 桌面窗口 |
+| TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` | 后端不可达时自动进入演示模式 |
 
 ## 项目结构
 
 ```text
 atlas-agent-control-plane/
-├── api/          FastAPI 后端、迁移、Control Plane 与测试
-├── ui/           Next.js Web 客户端
-├── desktop/      Electron 桌面客户端
-├── tui/          Textual 终端客户端
-├── sandbox/      文件、Shell、浏览器与 VNC 沙箱服务
-├── nginx/        统一网关配置
-├── docs/         Control Plane 与客户端专题文档
-├── tutorial/     0–49 章中文教程与配套图片
-├── scripts/      一键启动和停止脚本
+├── frontend/
+│   ├── web/       Next.js Web 客户端
+│   ├── desktop/   Electron 桌面客户端
+│   └── tui/       Textual 终端客户端
+├── backend/
+│   ├── api/       FastAPI、数据库迁移、Control Plane 与测试
+│   └── sandbox/   文件、Shell、浏览器与 VNC 隔离执行环境
+├── nginx/         统一网关配置
+├── docs/          Control Plane 与客户端专题文档
+├── tutorial/      0–49 章中文工程教程
+├── scripts/       启停与运行时配置脚本
+├── tests/         根级生产配置测试
 └── docker-compose.yml
 ```
 
 进一步阅读：
 
 - [整体架构](ARCHITECTURE.md)
-- [API 架构](api/ARCHITECTURE.md)
-- [API 依赖说明](api/DEPENDENCIES.md)
+- [API 架构](backend/api/ARCHITECTURE.md)
+- [API 依赖说明](backend/api/DEPENDENCIES.md)
 - [Memory / Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md)
 - [Web、Desktop 与 TUI 客户端](docs/CLIENTS.md)
 - [完整课程目录](tutorial/README.md)
@@ -251,11 +254,11 @@ atlas-agent-control-plane/
 
 ```bash
 # 后端测试
-cd api
+cd backend/api
 uv run python -m unittest discover -s tests
 
 # TUI 测试
-cd ../tui
+cd ../../frontend/tui
 uv run python -m unittest discover -s tests
 
 # Desktop 构建与打包适配测试

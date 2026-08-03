@@ -319,7 +319,7 @@ class ReActAgentService:
             ):
                 continue
 
-            # 3. 第 61 章先同步文本类文件；读取上限和文件预览保持一致，
+            # 3. 第 38 章先同步文本类文件；读取上限和文件预览保持一致，
             #    避免把大文件一次性写进 Sandbox。
             raw_content = storage.read_bytes(
                 file_object.storage_path,

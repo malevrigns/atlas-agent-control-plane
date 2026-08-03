@@ -29,11 +29,11 @@ pnpm-debug.log*
 
 # Local uploads and generated files
 uploads/
-api/uploads/
-sandbox/uploads/
-sandbox/workspace/
+backend/api/uploads/
+backend/sandbox/uploads/
+backend/sandbox/workspace/
 runtime-config/
-api/runtime-config/
+backend/api/runtime-config/
 
 # OS and editor files
 .DS_Store

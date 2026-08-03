@@ -79,16 +79,16 @@ YAML 配置解析。
 新增运行时依赖后，需要同步更新：
 
 ```text
-api/pyproject.toml
-api/uv.lock
-api/DEPENDENCIES.md
+backend/api/pyproject.toml
+backend/api/uv.lock
+backend/api/DEPENDENCIES.md
 相关章节教程
 ```
 
 ## 不应放进后端依赖的内容
 
-前端依赖不要放进 `api/pyproject.toml`。
+前端依赖不要放进 `backend/api/pyproject.toml`。
 
-Sandbox 专用依赖不要放进 `api/pyproject.toml`。
+Sandbox 专用依赖不要放进 `backend/api/pyproject.toml`。
 
 仅用于本地临时调试的工具不要默认加入运行时依赖。

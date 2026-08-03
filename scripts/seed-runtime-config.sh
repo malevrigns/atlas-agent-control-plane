@@ -9,8 +9,8 @@ cd "${ROOT_DIR}"
 # ===================== 第2步：确认默认配置文件存在 =====================
 # 这些文件是运行时配置卷的种子文件。页面保存配置后，会写入 runtime-config 卷。
 for file in llm.yaml mcp.yaml a2a.yaml; do
-  if [[ ! -f "api/config/${file}" ]]; then
-    echo "Missing seed config: api/config/${file}" >&2
+  if [[ ! -f "backend/api/config/${file}" ]]; then
+    echo "Missing seed config: backend/api/config/${file}" >&2
     exit 1
   fi
 done
@@ -24,7 +24,7 @@ RUNTIME_CONFIG_VOLUME="${RUNTIME_CONFIG_VOLUME:-${COMPOSE_PROJECT_NAME}_api_runt
 
 docker run --rm \
   -v "${RUNTIME_CONFIG_VOLUME}:/runtime-config" \
-  -v "${ROOT_DIR}/api/config:/seed:ro" \
+  -v "${ROOT_DIR}/backend/api/config:/seed:ro" \
   alpine:3.20 \
   sh -eu -c '
     for file in llm.yaml mcp.yaml a2a.yaml; do

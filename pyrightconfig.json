@@ -1,7 +1,7 @@
 {
-  "include": ["api/app"],
-  "exclude": ["**/__pycache__", "api/.venv"],
-  "venvPath": "api",
+  "include": ["backend/api/app"],
+  "exclude": ["**/__pycache__", "backend/api/.venv"],
+  "venvPath": "backend/api",
   "venv": ".venv",
   "pythonVersion": "3.11",
   "typeCheckingMode": "basic"
