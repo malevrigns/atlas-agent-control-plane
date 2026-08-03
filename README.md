@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero-editorial.webp" width="100%" alt="AtlasAgent — an auditable agent control plane for traceable memory, governed tools, and verified recovery">
+  <img src="./assets/readme/hero-editorial-50.webp" width="100%" alt="AtlasAgent — an auditable agent control plane for traceable memory, governed tools, and verified recovery">
 </p>
 
 <div align="center">
@@ -12,10 +12,10 @@
 
 AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。它把原始事件、长期记忆、工具调用、Artifact 和 Checkpoint 放进同一条可追溯链路，集中处理五个生产边界：**事实从哪里来、记忆为什么可信、工具何时允许执行、任务如何恢复，以及每一步如何审计。**
 
-它不是只有一张聊天界面：同一套 FastAPI 控制平面同时服务 Next.js Web、Electron 时间线工作台与 Textual TUI，并配有从基础服务到 Memory / Tool Control Plane 的 **0–73 章教程**。
+它不是只有一张聊天界面：同一套 FastAPI 控制平面同时服务 Next.js Web、Electron 时间线工作台与 Textual TUI，并配有从基础服务到 Memory / Tool Control Plane 的 **0–49 章教程**。
 
 > [!NOTE]
-> 当前版本是在课程 0–68 章基础上的 Control Plane 升级版。旧版 API 与 Web 工作流继续可用，新能力对应教程第 69–73 章。
+> 当前版本先在教程第 0–44 章完成核心工作台，再由第 45–49 章收束 Control Plane、多客户端与交付验收。既有 API 与 Web 工作流继续可用。
 
 ## 已验证的交付基线
 
@@ -233,7 +233,7 @@ atlas-agent-control-plane/
 ├── sandbox/      文件、Shell、浏览器与 VNC 沙箱服务
 ├── nginx/        统一网关配置
 ├── docs/         Control Plane 与客户端专题文档
-├── tutorial/     0–73 章中文教程与配套图片
+├── tutorial/     0–49 章中文教程与配套图片
 ├── scripts/      一键启动和停止脚本
 └── docker-compose.yml
 ```

@@ -1,6 +1,6 @@
 # 第二章. Docker Compose 基础设施奠基
 
- **本章目标**
+**本章目标**
 
 ​        学完本章后，你将能够：
 
@@ -52,7 +52,7 @@ atlas-redis
 
 ​        展开来看，第一，使用 `services` 定义 `postgres` 和 `redis` 两个服务；第二，使用 `volumes` 保存数据库和 Redis 数据；第三，使用 `networks` 创建统一的容器网络；第四，使用 `healthcheck` 判断服务是否真正可用。这些点放在一起看，构成了本章叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        第 03 章会在这个基础上加入 FastAPI 服务，并让 API 容器和数据库、Redis 处在同一个网络里。
+​        第 3 章会在这个基础上加入 FastAPI 服务，并让 API 容器和数据库、Redis 处在同一个网络里。
 
 ## 2.4 新增和修改的文件
 
@@ -721,38 +721,12 @@ docker compose down -v
 
 ​        注意：`-v` 会删除数据库和 Redis 的持久化数据。平时不要随手使用。
 
-## 2.9 常见问题
-
-- 问题：`docker compose config` 报 YAML 错误怎么办？
-
-​        解释：优先检查缩进。`services`、`volumes`、`networks` 是顶层；`postgres` 和 `redis` 在 `services` 下；`image`、`environment`、`volumes` 等字段在具体服务下。
-
-- 问题：`docker compose up -d` 卡在拉取镜像怎么办？
-
-​        解释：这通常是网络问题。可以先确认 Docker Desktop 已启动，再检查网络是否能访问 Docker 镜像仓库。
-
-- 问题：`docker compose ps` 一直显示 `starting` 怎么办？
-
-​        解释：健康检查还没通过。先执行 `docker compose logs postgres` 或 `docker compose logs redis` 查看具体错误。
-
-- 问题：为什么容器里不能用 `localhost` 连接 PostgreSQL？
-
-​        解释：容器里的 `localhost` 指向当前容器自己。后续 API 容器连接数据库时，需要使用 Compose 服务名 `postgres`。
-
-- 问题：为什么需要数据卷？
-
-​        解释：没有数据卷时，容器删除后数据容易丢失。数据库这类服务必须把数据保存到容器生命周期之外。
-
-- 问题：为什么 Redis 也要开启持久化？
-
-​        解释：后续 Redis 不只用于普通缓存，还会承担任务消息流的基础能力。开启 AOF 可以让开发环境更接近真实运行方式。
-
-## 2.10 本章小结
+## 2.9 本章小结
 
 ​        本章完成了 AtlasAgent 的第一层运行基础：
 
 ​        展开来看，第一，添加了 `docker-compose.yml`；第二，配置了 PostgreSQL 和 Redis；第三，配置了 Docker 数据卷和网络；第四，学会了 Compose 文件的基本 YAML 层级；第五，使用命令验证了 Redis 和 PostgreSQL 的可用性；第六，为后续 API 服务连接数据库和 Redis 做好了准备。这些点放在一起看，构成了本章叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-## 2.11 下一章预告
+---
 
-​        第 03 章会创建后端 API 最小服务，使用 FastAPI 实现 `/api/status` 状态检查接口，并把 API 服务接入当前 Docker Compose 环境。
+[← 第一章. 项目伊始](01-项目伊始.md) · [返回目录](../README.md) · [第三章. 后端 API 与通用模块奠基 →](03-后端%20API%20与通用模块奠基.md)
