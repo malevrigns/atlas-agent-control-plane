@@ -5,7 +5,8 @@ import re
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from app.application.control_plane_service import ControlPlaneService
@@ -155,10 +156,20 @@ class ToolRuntime:
         started_clock = perf_counter()
         timeout_seconds = max(0.1, definition.timeout_seconds or settings.tool_default_timeout_seconds)
         try:
-            raw = await asyncio.wait_for(
-                asyncio.to_thread(tool.handler, **checked_arguments),
-                timeout=timeout_seconds,
-            )
+            # 同步 handler 走线程池；异步 handler（如 RAG 检索）直接 await，
+            # 避免在工作线程里再开事件循环。
+            if tool.is_async:
+                async_handler = cast(Callable[..., Awaitable[str]], tool.handler)
+                raw = await asyncio.wait_for(
+                    async_handler(**checked_arguments),
+                    timeout=timeout_seconds,
+                )
+            else:
+                sync_handler = cast(Callable[..., str], tool.handler)
+                raw = await asyncio.wait_for(
+                    asyncio.to_thread(sync_handler, **checked_arguments),
+                    timeout=timeout_seconds,
+                )
             raw_output = str(raw)
             status = ToolInvocationStatus.succeeded
             error = None

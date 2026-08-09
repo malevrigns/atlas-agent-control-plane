@@ -82,12 +82,15 @@ jobs:
       - name: Build
         working-directory: frontend/desktop
         run: npm run build
-      - name: Sites packaging tests
+      - name: Desktop tests
         working-directory: frontend/desktop
-        run: npm run test:sites
+        run: npm test
       - name: Electron syntax
         working-directory: frontend/desktop
-        run: node --check electron/main.cjs && node --check electron/preload.cjs
+        run: |
+          node --check electron/main.cjs
+          node --check electron/preload.cjs
+          node --check electron/request-guard.cjs
 
   compose:
     runs-on: ubuntu-latest
@@ -97,6 +100,7 @@ jobs:
         run: |
           cp .env.example .env
           docker compose config --quiet
+          docker compose --profile qdrant config --quiet
           sed -e 's/http:\/\/api:8000/http:\/\/127.0.0.1:8000/g' \
               -e 's/http:\/\/sandbox:8100/http:\/\/127.0.0.1:8100/g' \
               -e 's/http:\/\/sandbox:6080/http:\/\/127.0.0.1:6080/g' \

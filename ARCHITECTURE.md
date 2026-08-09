@@ -24,12 +24,12 @@ atlas-agents/
 │   │   │   ├── application/ # 业务用例编排与事务边界
 │   │   │   ├── domain/      # 领域实体、协议和核心抽象
 │   │   │   └── infrastructure/ # 数据库、外部服务与工具适配器
-│   │   ├── config/          # LLM、MCP、A2A 配置
+│   │   ├── config/          # LLM、Embedding、MCP、A2A 配置
 │   │   └── migrations/      # Alembic 数据库迁移
 │   └── sandbox/             # 文件、Shell、浏览器与 VNC 隔离环境
 ├── nginx/                   # 统一网关配置
 ├── docs/                    # 架构与客户端专题文档
-├── tutorial/                # 0–49 章中文工程教程
+├── tutorial/                # 0–52 章中文工程教程
 ├── scripts/                 # 启停与运行时配置脚本
 ├── docker-compose.yml       # 本地多服务编排
 └── README.md
@@ -47,10 +47,12 @@ Nginx Gateway / FastAPI
   |
   +-- API Service
   |     |
-  |     +-- PostgreSQL
+  |     +-- PostgreSQL (+ pgvector)
   |     +-- Redis
+  |     +-- Qdrant (可选向量后端)
   |     +-- Sandbox Service
   |     +-- LLM Provider
+  |     +-- Embedding Provider
   |     +-- Search Provider
   |     +-- MCP Server
   |     +-- A2A Remote Agent
@@ -87,6 +89,34 @@ Nginx Gateway / FastAPI
 
 详细契约见 `docs/MEMORY_TOOL_CONTROL_PLANE.md`。
 
+## 知识库与技能注册中心
+
+除记忆之外，还有两类需要治理的上下文注入物：
+
+```text
+KnowledgeBase (冻结 embedding 配置)
+      |
+      +-- KnowledgeDocument (原文 + 摄取状态 + 内容指纹)
+              |
+              +-- KnowledgeChunk (检索正文事实源，带字符区间)
+                      |
+                      +-- Vector (VectorStore 协议：pgvector / Qdrant)
+
+Skill (skill_key + semver)
+      |
+      +-- draft -> published(冻结) -> deprecated
+              |
+              +-- enabled 开关（与 status 正交，用于线上止血）
+```
+
+- 知识库在建库时冻结 embedding 模型与切分参数；换模型必须建新库重灌。
+- 向量存储只保存 embedding 与回链 id，正文永远以 `knowledge_chunks` 为准。
+- 检索只命中 `ready` 文档，命中结果带编号引用，可回溯到原文字符位置。
+- 技能 `published` 后内容冻结，改内容必须派生新版本，保证行为可回溯到确定版本。
+- 两者的检索/选择都写入可解释评分，RAG 检索复用 `retrieval_traces` 审计表。
+
+详细契约见 `docs/RAG_AND_SKILLS.md`。
+
 ## 服务职责
 
 ### `backend/api`
@@ -98,7 +128,9 @@ Nginx Gateway / FastAPI
 - 会话、消息、事件、文件等业务数据。
 - Agent 规划、执行、任务状态和事件流。
 - 工具注册和工具调用编排。
-- LLM、Search、MCP、A2A 等外部能力适配。
+- 知识库摄取、切分、向量化与带引用检索。
+- 技能注册中心的版本治理与上下文注入。
+- LLM、Embedding、Search、MCP、A2A 等外部能力适配。
 - Sandbox 创建、等待、代理和清理。
 
 API 服务是系统的大脑，但不直接执行高风险命令，也不直接承载前端页面。

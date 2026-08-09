@@ -12,7 +12,8 @@
     "desktop:pack": "npm run build && electron-builder --dir",
     "desktop:dist": "npm run build && electron-builder",
     "preview": "vite preview",
-    "test:sites": "node --test tests/sites-worker.test.mjs"
+    "test:sites": "node --test tests/sites-worker.test.mjs",
+    "test": "node --test \"tests/*.test.mjs\""
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -27,11 +28,11 @@
     "@types/react-dom": "^19.2.4",
     "electron": "^43.2.0",
     "electron-builder": "^26.15.3",
-    "postcss": "8.5.18",
+    "postcss": "8.5.23",
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "postcss": "8.5.18"
+    "postcss": "8.5.23"
   },
   "build": {
     "appId": "dev.atlasagent.desktop",

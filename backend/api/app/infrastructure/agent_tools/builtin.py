@@ -2,6 +2,7 @@ from app.domain.agent_core.tools import ToolRegistry, agent_tool
 from app.infrastructure.agent_tools.a2a import register_a2a_tools
 from app.infrastructure.agent_tools.mcp import register_mcp_tools
 from app.infrastructure.agent_tools.multi_agent import register_multi_agent_tools
+from app.infrastructure.agent_tools.rag import register_rag_tools
 from app.infrastructure.agent_tools.search import register_search_tools
 from app.infrastructure.agent_tools.sandbox_browser import register_sandbox_browser_tools
 from app.infrastructure.agent_tools.sandbox_file import register_sandbox_file_tools
@@ -82,6 +83,7 @@ def build_builtin_tool_registry() -> ToolRegistry:
     register_sandbox_shell_tools(registry)
     register_sandbox_browser_tools(registry)
     register_search_tools(registry)
+    register_rag_tools(registry)
     register_mcp_tools(registry)
     register_a2a_tools(registry)
     register_multi_agent_tools(registry)

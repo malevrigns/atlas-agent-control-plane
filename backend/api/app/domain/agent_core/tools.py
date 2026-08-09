@@ -1,8 +1,8 @@
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from inspect import signature
-from typing import Any, get_type_hints
+from inspect import iscoroutinefunction, signature
+from typing import Any, cast, get_type_hints
 
 from app.core.exceptions import AppException
 
@@ -78,16 +78,41 @@ class AgentTool:
     """工具对象。
 
     definition 给前端和模型看，handler 是后端真正执行的 Python 函数。
+
+    handler 允许是同步函数，也允许是协程函数（例如需要访问数据库和
+    向量存储的知识库检索）。ToolRuntime 会分别处理这两种情况：
+    同步 handler 丢进线程池，异步 handler 直接 await。
     """
 
     definition: ToolDefinition
-    handler: Callable[..., str]
+    handler: Callable[..., str] | Callable[..., Awaitable[str]]
+
+    @property
+    def is_async(self) -> bool:
+        """handler 是否为协程函数。"""
+
+        return iscoroutinefunction(self.handler)
 
     def call(self, arguments: dict[str, Any]) -> ToolCallResult:
-        """执行工具函数，并包装成统一结果。"""
+        """同步执行工具函数，并包装成统一结果。
 
+        这是不经过控制面的直接调用路径，只保留给同步 handler。
+        异步 handler 必须通过 ToolRuntime.execute() 执行，否则会绕过
+        权限、幂等、超时与审计。
+        """
+
+        if self.is_async:
+            raise AppException(
+                message=(
+                    f"tool {self.definition.name} has an async handler; "
+                    "execute it through ToolRuntime.execute()"
+                ),
+                code=500,
+                status_code=500,
+            )
         checked_arguments = self._validate_arguments(arguments)
-        output = self.handler(**checked_arguments)
+        handler = cast(Callable[..., str], self.handler)
+        output = handler(**checked_arguments)
         return ToolCallResult(
             tool_name=self.definition.name,
             arguments=checked_arguments,
@@ -196,7 +221,7 @@ def agent_tool(
     required_permissions: tuple[str, ...] = (),
     idempotent: bool = True,
     timeout_seconds: float = 30.0,
-) -> Callable[[Callable[..., str]], AgentTool]:
+) -> Callable[[Callable[..., str] | Callable[..., Awaitable[str]]], AgentTool]:
     """工具装饰器。
 
     使用方式：
@@ -208,7 +233,7 @@ def agent_tool(
     装饰器会读取函数签名，生成 ToolDefinition。
     """
 
-    def decorator(func: Callable[..., str]) -> AgentTool:
+    def decorator(func: Callable[..., str] | Callable[..., Awaitable[str]]) -> AgentTool:
         parameters = _build_parameters(func, parameter_descriptions)
         return AgentTool(
             definition=ToolDefinition(
@@ -228,7 +253,7 @@ def agent_tool(
 
 
 def _build_parameters(
-    func: Callable[..., str],
+    func: Callable[..., Any],
     parameter_descriptions: dict[str, str],
 ) -> list[ToolParameter]:
     """从函数签名中提取工具参数。"""

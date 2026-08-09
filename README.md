@@ -10,23 +10,23 @@
 
 ## 把 Agent 从会话应用升级为可控系统
 
-AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。它把原始事件、长期记忆、工具调用、Artifact 和 Checkpoint 放进同一条可追溯链路，集中处理五个生产边界：**事实从哪里来、记忆为什么可信、工具何时允许执行、任务如何恢复，以及每一步如何审计。**
+AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。它把原始事件、长期记忆、知识库检索、技能指引、工具调用、Artifact 和 Checkpoint 放进同一条可追溯链路，集中处理六个生产边界：**事实从哪里来、记忆为什么可信、资料引用能否追溯、工具何时允许执行、任务如何恢复，以及每一步如何审计。**
 
-它不是只有一张聊天界面：同一套 FastAPI 控制平面同时服务 Next.js Web、Electron 时间线工作台与 Textual TUI，并配有从基础服务到 Memory / Tool Control Plane 的 **0–49 章教程**。
+它不是只有一张聊天界面：同一套 FastAPI 控制平面同时服务 Next.js Web、Electron 时间线工作台与 Textual TUI，并配有从基础服务到 Memory / RAG / Skill / Tool Control Plane 的 **0–52 章教程**。
 
 > [!NOTE]
-> 当前版本先在教程第 0–44 章完成核心工作台，再由第 45–49 章收束 Control Plane、多客户端与交付验收。既有 API 与 Web 工作流继续可用。
+> 当前版本先在教程第 0–44 章完成核心工作台，再由第 45–49 章收束 Control Plane、多客户端与交付验收，最后由第 50–52 章加上 RAG 知识库、Skill 注册中心与桌面管理工作台。既有 API 与 Web 工作流继续可用。
 
 ## 已验证的交付基线
 
 | 范围 | 结果 | 验证内容 |
 | --- | ---: | --- |
-| FastAPI 后端 | **50 项测试** | 认证、队列恢复、Checkpoint、Tool Runtime、兼容接口与边界条件 |
+| FastAPI 后端 | **83 项测试** | 认证、队列恢复、Checkpoint、Tool Runtime、RAG 摄取与检索、Skill 生命周期、兼容接口与边界条件 |
 | Sandbox | **1 项安全测试** | 健康端点公开、Shell 等状态接口必须认证 |
 | Textual TUI | **3 项测试** | 启动、布局、审计视图与演示模式 |
-| Electron 桌面端 | **构建 + 4 项测试** | 渲染器构建、打包适配与安全壳配置 |
-| OpenAPI | **75 条路径** | 应用完整加载并成功生成接口规范 |
-| Alembic | **完整迁移链** | 可生成离线 SQL，Control Plane 表结构可追踪 |
+| Electron 桌面端 | **构建 + 10 项测试** | 渲染器构建与类型检查、IPC 请求安全边界、打包适配 |
+| OpenAPI | **91 条路径** | 应用完整加载并成功生成接口规范 |
+| Alembic | **完整迁移链** | 可生成离线 SQL，Control Plane 与 RAG 表结构可追踪 |
 
 测试数量是当前仓库的交付快照，不是性能基准。复现命令见 [开发与验证](#开发与验证)。
 
@@ -39,6 +39,8 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 | 控制边界 | AtlasAgent 如何处理 | 关键机制 |
 | --- | --- | --- |
 | **Evidence-backed Memory** | 只把仍然有效、来源明确且通过门禁的事实注入上下文 | 类型化记忆、Write Gate、证据链、作用域、有效期、替代关系、可解释检索 |
+| **RAG Knowledge Base** | 让团队文档成为可检索、可引用、可验证的证据来源 | 段落切分与重叠、可替换向量后端（pgvector / Qdrant）、向量+词法混合重排、编号引用、检索审计 |
+| **Skill Registry** | 把团队沉淀的操作指引变成受治理、可回溯的 Agent 行为规范 | draft/published/deprecated 生命周期、published 内容冻结、semver 版本、启停分离、相关度注入 |
 | **Checkpoint DAG** | 为长任务提供可验证的暂停、恢复与回溯点 | 父子 Checkpoint、事件区间、状态哈希、环境指纹、校验报告 |
 | **Unified Tool Runtime** | 在 handler 之前统一约束权限与副作用 | 风险分级、审批、幂等、超时、脱敏、大输出制品化、全程审计 |
 | **Artifact Store** | 让日志、补丁、截图和报告成为稳定事实源 | SHA-256 内容寻址、来源引用、任务与 Checkpoint 关联 |
@@ -162,7 +164,7 @@ CLEAN_VOLUMES=true ./scripts/stop.sh
 | 客户端 | 最适合 | 特色 |
 | --- | --- | --- |
 | **Web** | 浏览器协作与完整功能体验 | 会话、文件、Sandbox、设置、MCP、A2A 与 Agent 工作流 |
-| **Desktop** | 长时间驻留与多面板观察 | Checkpoint 时间线、工具审计、暂停/恢复、Ink / Dawn / Contrast 三主题 |
+| **Desktop** | 长时间驻留、治理与多面板观察 | Checkpoint 时间线、技能注册中心管理、知识库摄取与检索验证台、暂停/恢复、Ink / Dawn / Contrast 三主题 |
 | **TUI** | SSH、低带宽与键盘工作流 | 任务 / Checkpoint / 审计三栏、快捷键、三套终端主题、离线演示数据 |
 
 桌面端默认启用 `contextIsolation` 并关闭 `nodeIntegration`；主题选择会在本地持久化。TUI 的快捷键与客户端配置见 [客户端指南](docs/CLIENTS.md)。
@@ -205,7 +207,16 @@ curl -H "X-Atlas-API-Key: ${ATLAS_KEY}" \
   "http://localhost:8088/api/control-plane/tool-invocations?project_id=atlas"
 ```
 
-完整数据模型、生命周期和接口说明见 [Memory 与 Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md)。
+### 4. 检索知识库并拿到带引用的证据
+
+```bash
+curl -X POST http://localhost:8088/api/rag/knowledge-bases/${KB_ID}/query \
+  -H "X-Atlas-API-Key: ${ATLAS_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "数据库迁移怎么回滚", "top_k": 3}'
+```
+
+完整数据模型、生命周期和接口说明见 [Memory 与 Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md) 与 [RAG 与 Skill 注册中心](docs/RAG_AND_SKILLS.md)。
 
 ## 本地开发
 
@@ -235,7 +246,7 @@ atlas-agent-control-plane/
 │   └── sandbox/   文件、Shell、浏览器与 VNC 隔离执行环境
 ├── nginx/         统一网关配置
 ├── docs/          Control Plane 与客户端专题文档
-├── tutorial/      0–49 章中文工程教程
+├── tutorial/      0–52 章中文工程教程
 ├── scripts/       启停与运行时配置脚本
 ├── tests/         根级生产配置测试
 └── docker-compose.yml
@@ -247,6 +258,7 @@ atlas-agent-control-plane/
 - [API 架构](backend/api/ARCHITECTURE.md)
 - [API 依赖说明](backend/api/DEPENDENCIES.md)
 - [Memory / Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md)
+- [RAG 知识库与 Skill 注册中心](docs/RAG_AND_SKILLS.md)
 - [Web、Desktop 与 TUI 客户端](docs/CLIENTS.md)
 - [完整课程目录](tutorial/README.md)
 
@@ -261,10 +273,10 @@ uv run python -m unittest discover -s tests
 cd ../../frontend/tui
 uv run python -m unittest discover -s tests
 
-# Desktop 构建与打包适配测试
+# Desktop 构建、类型检查与测试
 cd ../desktop
 npm run build
-npm run test:sites
+npm test
 ```
 
 ## 配置与安全
@@ -278,6 +290,9 @@ npm run test:sites
 - `TOOL_AUTO_APPROVE_RISK`：工具自动批准的最高风险等级
 - `TOOL_DEFAULT_TIMEOUT_SECONDS`：工具默认超时
 - `TOOL_OUTPUT_INLINE_LIMIT`：大输出转为 Artifact 的阈值
+- `RAG_VECTOR_BACKEND`：RAG 向量后端，`pgvector`（默认）或 `qdrant`
+- `RAG_EMBEDDING_PROVIDER`：`auto` 按 `llm.yaml` 与密钥自动选择，`local_hash` 强制离线哈希向量
+- `EMBEDDING_API_KEY`：OpenAI 兼容 embedding 服务密钥；留空时自动降级为本地向量
 
 客户端地址分别通过 `ATLAS_API_BASE_URL`（Electron）和 `ATLAS_API_URL`（TUI）设置；两者都从 `ATLAS_API_KEY` 读取凭据。
 
@@ -293,6 +308,7 @@ npm run test:sites
 3. Agent 规划执行、工具、MCP、A2A 与多 Agent 协作
 4. Sandbox、浏览器自动化、可观测性、安全与 Harness
 5. 类型化 Memory、Checkpoint DAG、Tool Runtime、Electron 与 TUI
+6. RAG 知识库、Skill 注册中心与桌面管理工作台
 
 从 [教程首页](tutorial/README.md) 开始，或直接阅读 [Control Plane 升级说明](docs/MEMORY_TOOL_CONTROL_PLANE.md)。
 

@@ -14,6 +14,7 @@ DEFAULT_MODULES = {
     "a2a": True,
     "multi_agent": True,
     "sandbox": True,
+    "rag": True,
 }
 
 TOOL_MODULES = {
@@ -21,6 +22,7 @@ TOOL_MODULES = {
     "mcp_call": "mcp",
     "a2a_call": "a2a",
     "multi_agent_collaborate": "multi_agent",
+    "knowledge_search": "rag",
 }
 
 

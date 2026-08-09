@@ -1,25 +1,19 @@
 const { app, BrowserWindow, ipcMain, net, shell } = require("electron");
 const path = require("node:path");
+const { normalizeApiRequest } = require("./request-guard.cjs");
 
 const API_BASE = process.env.ATLAS_API_BASE_URL || "http://127.0.0.1:8088";
 const API_KEY = process.env.ATLAS_API_KEY || "";
 
 ipcMain.handle("atlas:api-request", async (_event, request) => {
-  const requestPath = String(request?.path || "");
-  const method = String(request?.method || "GET").toUpperCase();
-  if (!requestPath.startsWith("/api/") || requestPath.includes("..")) {
-    throw new Error("invalid Atlas API path");
-  }
-  if (!new Set(["GET", "POST", "PATCH", "DELETE"]).has(method)) {
-    throw new Error("unsupported Atlas API method");
-  }
+  const { path: requestPath, method, body } = normalizeApiRequest(request);
   const headers = { Accept: "application/json" };
   if (API_KEY) headers["X-Atlas-API-Key"] = API_KEY;
-  if (request?.body !== undefined) headers["Content-Type"] = "application/json";
+  if (body !== undefined) headers["Content-Type"] = "application/json";
   const response = await net.fetch(new URL(requestPath, API_BASE).toString(), {
     method,
     headers,
-    body: request?.body === undefined ? undefined : JSON.stringify(request.body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   const payload = await response.json();
   if (!response.ok || Number(payload?.code || response.status) >= 400) {

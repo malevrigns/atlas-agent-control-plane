@@ -181,7 +181,9 @@ services:
       start_period: 30s
 
   postgres:
-    image: postgres:16-alpine
+    # pgvector 官方镜像基于 postgres:16，数据目录与原 postgres:16 兼容。
+    # RAG 迁移会在扩展可用时自动启用原生向量检索。
+    image: pgvector/pgvector:pg16
     container_name: atlas-postgres
     restart: unless-stopped
     environment:
@@ -194,6 +196,26 @@ services:
       - atlas-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-atlas_agents}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    # 可选的独立向量库后端。默认不启动：
+    # docker compose --profile qdrant up -d && RAG_VECTOR_BACKEND=qdrant
+    image: qdrant/qdrant:v1.15.1
+    container_name: atlas-qdrant
+    restart: unless-stopped
+    profiles:
+      - qdrant
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - atlas-network
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -223,6 +245,7 @@ volumes:
   api_runtime_config:
   sandbox_workspace:
   postgres_data:
+  qdrant_data:
   redis_data:
 
 networks:

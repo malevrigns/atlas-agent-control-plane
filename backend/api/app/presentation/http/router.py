@@ -15,9 +15,11 @@ from app.presentation.http.routes import (
     memories,
     multi_agent,
     observability,
+    rag,
     sandboxes,
     security,
     sessions,
+    skills,
     status,
 )
 
@@ -37,6 +39,8 @@ api_router.include_router(memories.router)
 api_router.include_router(multi_agent.router)
 api_router.include_router(agent_thinking.router)
 api_router.include_router(agent_core.router)
+api_router.include_router(rag.router)
+api_router.include_router(skills.router)
 api_router.include_router(sandboxes.router)
 api_router.include_router(observability.router)
 api_router.include_router(security.router)

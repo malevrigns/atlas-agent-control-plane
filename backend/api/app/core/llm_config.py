@@ -24,10 +24,26 @@ class LLMProviderConfig(BaseModel):
     timeout_seconds: float = Field(gt=0)
 
 
+# ===================== 第2.5步：定义 embedding 模型配置 =====================
+class EmbeddingConfig(BaseModel):
+    """RAG 使用的向量化模型配置。
+
+    provider 指向 providers 中的某个服务商；base_url 留空时复用
+    该服务商的聊天地址。dim 填 0 表示由首次真实响应自动学习维度。
+    """
+
+    provider: str
+    model: str
+    dim: int = Field(default=0, ge=0)
+    base_url: str = ""
+    batch_size: int = Field(default=16, gt=0)
+
+
 # ===================== 第3步：定义完整 LLM 配置文件结构 =====================
 class LLMConfig(BaseModel):
     llm: LLMDefaults
     providers: dict[str, LLMProviderConfig]
+    embedding: EmbeddingConfig | None = None
 
 
 # ===================== 第4步：读取、解析并校验 YAML 配置 =====================
@@ -49,6 +65,12 @@ def load_llm_config() -> LLMConfig:
     if config.llm.default_provider not in config.providers:
         raise AppException(
             message="default LLM provider is not defined",
+            code=500,
+            status_code=500,
+        )
+    if config.embedding is not None and config.embedding.provider not in config.providers:
+        raise AppException(
+            message="embedding provider is not defined",
             code=500,
             status_code=500,
         )
