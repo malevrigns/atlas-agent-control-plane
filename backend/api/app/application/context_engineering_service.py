@@ -67,6 +67,18 @@ class ContextEngineeringService:
             project_id="default",
         )
 
+        # 4.5 用同一份检索查询挑选可注入的已发布技能。
+        #     技能来自注册中心（published + enabled），失败时不阻塞会话上下文。
+        skill_context = None
+        try:
+            from app.application.skill_service import SkillService
+
+            skill_context = await SkillService(self.uow).build_skill_context(
+                query=memory_query,
+            )
+        except Exception:  # noqa: BLE001 - 技能注入是增强项，不能拖垮上下文构建
+            skill_context = None
+
         # 5. 汇总短期上下文和长期记忆的独立预算。
         budget = self._build_budget(
             all_messages=messages,
@@ -89,6 +101,7 @@ class ContextEngineeringService:
             files=file_references,
             memory_context=memory_context,
             budget=budget,
+            skill_context=skill_context,
         )
 
     # ===================== 第3步：裁剪消息上下文 =====================
@@ -212,6 +225,13 @@ class ContextEngineeringService:
         """生成 Planner 和 ReAct 可以直接使用的紧凑上下文文本。"""
 
         sections: list[str] = []
+
+        if snapshot.skill_context is not None and snapshot.skill_context.items:
+            from app.application.skill_service import SkillService
+
+            rendered_skills = SkillService.render_skill_context(snapshot.skill_context)
+            if rendered_skills:
+                sections.append(rendered_skills)
 
         if snapshot.memory_context.items:
             memory_lines = [

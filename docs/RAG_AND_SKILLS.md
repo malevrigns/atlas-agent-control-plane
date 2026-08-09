@@ -1,0 +1,208 @@
+# RAG 知识库与 Skill 注册中心
+
+本文说明 AtlasAgent 中两类"可治理注入物"的数据模型、生命周期与接口。配套教程为
+[第五十章](../tutorial/chapters/50-RAG%20检索增强生成与知识库.md)、
+[第五十一章](../tutorial/chapters/51-Skill%20注册中心与上下文注入.md)。
+
+## 四类注入物的边界
+
+Agent 上下文里可能出现四类外部内容，它们的存储与治理路径必须分开。
+
+| 注入物 | 回答什么 | 谁产生 | 治理重点 |
+| --- | --- | --- | --- |
+| Tool | 我能做什么 | 开发者写代码 | 权限、风险、幂等、审计 |
+| Memory | 我以前知道什么 | Agent 执行中产生 | 写入门禁、有效期、supersede |
+| RAG | 资料里怎么说 | 团队批量摄取文档 | 索引一致性、引用可追溯 |
+| Skill | 这类任务该怎么做 | 团队人工沉淀 | 版本冻结、发布审批、启停 |
+
+渲染进入提示词时的顺序是**先技能、再记忆、最后对话历史**：操作指引应该在模型读到具体内容之前建立行为框架。
+
+## RAG 数据模型
+
+```text
+knowledge_bases          租户与配置边界（embedding 模型与切分参数在建库时冻结）
+  └─ knowledge_documents 原文 + 摄取状态 + 内容指纹（同库 sha256 唯一）
+       └─ knowledge_chunks  检索正文的事实源，带 char_start / char_end
+            └─ 向量           由 VectorStore 独立管理，只存 embedding + 回链 id
+```
+
+三条不变量：
+
+1. **embedding 配置冻结在知识库上。** 换模型必须建新库重灌——不同维度的向量不在同一空间。
+2. **向量库只存回链，正文永远以 `knowledge_chunks` 为准。** 两份正文早晚漂移。
+3. **检索只命中 `status = ready` 的文档。** 摄取中或失败的内容绝不进入模型上下文。
+
+### 文档状态机
+
+```text
+pending → processing → ready
+                    ↘ failed（error 字段记录原因，可 reingest 重建）
+```
+
+摄取管线中任何一步失败都会 rollback 并把文档标记为 `failed`，不会留下半成品索引。
+
+### 向量后端
+
+`VectorStore` 是协议，所有实现把相似度统一归一化到 `[0, 1]`（越大越相似），因此
+`RAG_MIN_SCORE` 阈值可以跨后端复用。
+
+| 后端 | 配置 | 适用场景 |
+| --- | --- | --- |
+| pgvector（默认） | `RAG_VECTOR_BACKEND=pgvector` | 与业务同库，复用现有备份与迁移体系 |
+| Qdrant | `RAG_VECTOR_BACKEND=qdrant` + `docker compose --profile qdrant up -d` | 向量独立扩缩容，过滤能力更强 |
+
+pgvector 实现会在运行时探测扩展是否可用：可用时使用原生 `vector` 列与 HNSW 索引，
+不可用时 embedding 列为 JSONB，检索退回应用层余弦计算（正确性一致，性能降级）。
+迁移脚本据此在建表时选择列类型，因此**任何 PostgreSQL 实例都能完成迁移**。
+
+### Embedding
+
+配置在 `backend/api/config/llm.yaml` 的 `embedding` 节点，指向 `providers` 中任一
+OpenAI 兼容服务。密钥缺失时自动降级为确定性本地哈希向量（`local_hash`），保证离线可运行——
+该实现没有语义理解能力，仅供教学与联调，不要用于生产。
+
+### 检索评分
+
+```text
+final_score = vector_score * 0.7 + lexical_score * 0.3
+```
+
+词法分用中英文混合分词计算查询与 chunk 的加权重叠，用于缓解纯向量召回对精确技术名词的"高分幻觉"。
+命中结果带编号引用 `[1] 文档标题 · chunk#3`，与 `context_text` 中的编号一一对应，
+chunk 的 `char_start`/`char_end` 可回溯到原文字符位置。
+
+每次检索写入一条 `retrieval_traces`（与记忆检索共用同一张表），记录检索计划、候选与最终选中项。
+
+### RAG 接口
+
+```http
+GET    /api/rag/knowledge-bases                    列出知识库
+POST   /api/rag/knowledge-bases                    创建知识库
+GET    /api/rag/knowledge-bases/{id}               详情
+PATCH  /api/rag/knowledge-bases/{id}               更新名称与描述
+DELETE /api/rag/knowledge-bases/{id}               删除（连同 chunk 与向量）
+GET    /api/rag/knowledge-bases/{id}/documents     列出文档（可按状态过滤）
+POST   /api/rag/knowledge-bases/{id}/documents     摄取文档
+POST   /api/rag/knowledge-bases/{id}/query         检索
+POST   /api/rag/documents/{id}/reingest            重建单文档索引
+DELETE /api/rag/documents/{id}                     删除文档
+GET    /api/rag/health                             向量后端与 embedding 运行状态
+```
+
+### Agent 工具
+
+`knowledge_search` 注册在内置工具表里，风险等级 low，无需额外权限，超时 20 秒。
+它是项目中第一个异步 handler——ToolRuntime 会直接 `await` 协程函数，
+不再经过线程池，避免在工作线程中再开事件循环。
+
+模块开关：`rag`（`runtime-config/modules.yaml`），关闭后 `knowledge_search` 调用会被 Runtime 拒绝。
+
+## Skill 数据模型
+
+`skills` 表由第 45 章预留、第 51 章激活。核心字段：
+
+```text
+skill_key + version   联合唯一，semver 版本
+name / description    展示与检索用
+instructions          注入模型上下文的操作指引正文
+risk_level            复用 ToolRiskLevel 四级
+status                draft / published / deprecated / archived
+enabled               与 status 正交的运行开关
+tags                  参与相关度匹配
+test_record           评测结果
+```
+
+### 生命周期
+
+```text
+draft ──publish──> published ──deprecate──> deprecated
+  ↑                    │
+  └──create_version────┘
+```
+
+三条规则：
+
+1. **published 内容冻结。** 编辑已发布技能返回 409，要改内容必须派生新版本。这样审计记录里的
+   `deploy-check@1.2.0` 才是一个不可变引用，事后能复现"当时 Agent 看到的指引"。
+2. **发布与启用分离。** `status=published` 表示内容定稿，`enabled=true` 表示现在要用它。
+   线上出问题时 `enabled=false` 可以一秒止血，同时保留完整历史。
+3. **注入需要同时满足** `enabled` + `status=published` + 未删除。
+
+派生新版本会复制内容、递增 patch 版本、状态回到 draft。**发布新版本不会自动停用旧版本**——
+灰度和回滚需要这个自由度，但意味着运维要手动关闭旧版，否则两个版本会同时注入。
+
+删除是软删除，且已启用的已发布技能必须先停用才能删除。
+
+### 上下文注入
+
+按词法相关度打分，双预算裁剪（默认 `CONTEXT_SKILL_LIMIT=3`、`CONTEXT_SKILL_MAX_CHARS=2000`）。
+匹配范围是名称、描述、标签全量 + instructions 前 400 字——指引正文全文参与会让"内容多"的技能天然占优。
+
+选择结果可解释：每条命中带 `relevance_score` 与 `matched_terms`。
+`GET /api/skills/context?query=...` 可以在不跑真实任务的前提下预览注入结果，
+返回里的 `rendered` 字段就是模型会看到的原始文本。
+
+技能注入失败不会阻塞会话上下文构建——它是增强项，异常时降级为不注入。
+
+### Skill 接口
+
+```http
+GET    /api/skills                          列表（status / enabled_only / search）
+GET    /api/skills/context?query=...        注入命中调试
+GET    /api/skills/{skill_id}               详情
+GET    /api/skills/{skill_key}/versions     某个 key 的全部版本
+POST   /api/skills                          创建草稿
+PATCH  /api/skills/{skill_id}               编辑草稿（published 返回 409）
+POST   /api/skills/{skill_id}/versions      派生下一个草稿版本
+POST   /api/skills/{skill_id}/publish       发布
+POST   /api/skills/{skill_id}/enabled       启用 / 停用
+POST   /api/skills/{skill_id}/deprecate     废弃（同时自动停用）
+POST   /api/skills/{skill_id}/test-record   记录评测结果
+DELETE /api/skills/{skill_id}               软删除
+```
+
+## 配置速查
+
+```bash
+# 向量后端与 embedding
+RAG_VECTOR_BACKEND=pgvector        # pgvector | qdrant
+RAG_EMBEDDING_PROVIDER=auto        # auto | local_hash
+RAG_EMBEDDING_DIM=256              # 仅本地哈希实现使用
+EMBEDDING_API_KEY=                 # 留空则降级为本地向量
+
+# 切分与检索预算
+RAG_CHUNK_SIZE=800
+RAG_CHUNK_OVERLAP=120
+RAG_TOP_K=5
+RAG_CANDIDATE_LIMIT=24
+RAG_MIN_SCORE=0.15
+RAG_MAX_CONTEXT_CHARS=3600
+RAG_MAX_DOCUMENT_CHARS=200000
+
+# Qdrant（仅 RAG_VECTOR_BACKEND=qdrant 时使用）
+QDRANT_URL=http://qdrant:6333
+QDRANT_API_KEY=
+QDRANT_TIMEOUT_SECONDS=10
+
+# 技能注入预算
+CONTEXT_SKILL_LIMIT=3
+CONTEXT_SKILL_MAX_CHARS=2000
+CONTEXT_SKILL_MIN_SCORE=0.1
+```
+
+三种典型部署组合：
+
+| 场景 | 组合 |
+| --- | --- |
+| 教学 / 离线演示 | `pgvector` + `local_hash`，零外部依赖 |
+| 内网生产（推荐） | `pgvector` + OpenAI 兼容 embedding |
+| 大规模检索 | `qdrant` + OpenAI 兼容 embedding |
+
+## 桌面端管理
+
+Electron 客户端左侧导航提供「技能」与「知识库」两个管理视图：
+
+- **技能**：列表与搜索、草稿编辑、发布、启停、版本历史（标出所有启用中的版本）、注入命中调试；
+- **知识库**：建库、文档摄取与状态（含失败原因）、重建索引、检索验证台（分别显示综合/向量/词法三个分数）。
+
+详见 [客户端指南](CLIENTS.md) 与[第五十二章](../tutorial/chapters/52-桌面客户端重构与管理工作台.md)。

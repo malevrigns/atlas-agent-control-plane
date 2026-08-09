@@ -3,6 +3,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.domain.memories.entities import MemoryKind
+from app.domain.skills.entities import SkillContext
 
 
 @dataclass(slots=True)
@@ -91,3 +92,6 @@ class SessionContextSnapshot:
     files: list[ContextFileReference]
     memory_context: MemoryContext
     budget: ContextBudget
+    # 命中的技能注册中心条目（published + enabled），
+    # 渲染成 Agent 提示词时会作为独立段落注入。
+    skill_context: SkillContext | None = None

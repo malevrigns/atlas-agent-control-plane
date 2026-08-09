@@ -9,3 +9,16 @@ providers:
     base_url: https://api.deepseek.com/v1
     api_key_env: LLM_API_KEY
     timeout_seconds: 60
+  embedding_compatible:
+    # 任何 OpenAI 兼容的 embedding 服务地址（OpenAI、通义、智谱、硅基流动等）。
+    base_url: https://api.siliconflow.cn/v1
+    api_key_env: EMBEDDING_API_KEY
+    timeout_seconds: 30
+
+# RAG 向量化模型。密钥缺失时自动降级为本地哈希向量（离线可运行）。
+embedding:
+  provider: embedding_compatible
+  model: BAAI/bge-m3
+  # dim 填 0 表示由首次真实响应自动学习维度。
+  dim: 1024
+  batch_size: 16
