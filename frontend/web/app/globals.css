@@ -120,24 +120,222 @@ body {
     );
 }
 
+/* ===== 动效组件层 =====
+   入场（Ghosty reveal）、微光文字（Shimmer）、流动光边（Glow border）、
+   极光底晕（Aurora veil）、数字滚动（Number ticker）、按钮光泽（Sheen）。
+   全部纯 CSS：颜色走主题变量，reduced-motion 统一降级。 */
+
+/* 云雾入场：大羽化 mask 自下而上扫过 + 轻微模糊退散。 */
 @keyframes stream-in {
   from {
     opacity: 0;
     transform: translateY(10px);
+    filter: blur(5px);
+    mask-position: 0 100%;
+    -webkit-mask-position: 0 100%;
   }
   to {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
+    mask-position: 0 0;
+    -webkit-mask-position: 0 0;
   }
 }
 
 .stream-in {
-  animation: stream-in 260ms ease-out both;
+  mask-image: linear-gradient(180deg, #000 55%, transparent 85%);
+  mask-size: 100% 300%;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 85%);
+  -webkit-mask-size: 100% 300%;
+  animation: stream-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 微光文字：以 currentColor 为基调的高光带循环扫过，
+   用于"正在思考…/正在执行"这类进行时状态。 */
+@keyframes shimmer-sweep {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+.shimmer-text {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in oklab, currentColor 45%, transparent) 38%,
+    currentColor 50%,
+    color-mix(in oklab, currentColor 45%, transparent) 62%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-sweep 1.9s linear infinite;
+}
+
+/* 流动光边：蓝紫双色弧沿卡片边缘巡游，外圈拖出柔光。
+   挂在包裹层上，卡片本体的背景负责遮住中心。 */
+@property --glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes glow-rotate {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+
+.glow-wrap {
+  position: relative;
+  border-radius: 16px;
+}
+
+.glow-wrap::before,
+.glow-wrap::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--glow-angle),
+    transparent 0%,
+    var(--accent) 14%,
+    #a78bfa 24%,
+    transparent 36%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.glow-wrap::after {
+  inset: -2px;
+  filter: blur(12px);
+}
+
+.glow-wrap.glow-active::before,
+.glow-wrap.glow-active::after {
+  opacity: 1;
+  animation: glow-rotate 3.2s linear infinite;
+}
+
+.glow-wrap.glow-active::after {
+  opacity: 0.35;
+}
+
+.glow-wrap > * {
+  position: relative;
+}
+
+/* 极光底晕：输入框聚焦时，底部浮起一条彩色模糊光带。 */
+.aurora-shell {
+  position: relative;
+}
+
+.aurora-veil {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -7px;
+  height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #2563eb,
+    #7c3aed 32%,
+    #db2777 55%,
+    #f59e0b 78%,
+    #2563eb
+  );
+  filter: blur(16px);
+  opacity: 0;
+  transform: scaleY(0.15);
+  transform-origin: bottom;
+  transition:
+    opacity 0.5s ease,
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.aurora-shell:focus-within .aurora-veil,
+.aurora-shell.aurora-active .aurora-veil {
+  opacity: var(--aurora-strength, 0.5);
+  transform: scaleY(1);
+}
+
+:root[data-theme="light"] .aurora-shell {
+  --aurora-strength: 0.32;
+}
+
+/* 数字滚动：key 变化时新值自下而上顶入。 */
+@keyframes ticker-in {
+  from {
+    transform: translateY(0.9em);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.ticker {
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.ticker-value {
+  display: inline-block;
+  animation: ticker-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 按钮光泽：悬停时一道斜向高光扫过。 */
+.sheen-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheen-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 32%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 68%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+
+.sheen-btn:hover:not(:disabled)::after {
+  transform: translateX(130%);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stream-in {
+  .stream-in,
+  .shimmer-text,
+  .ticker-value,
+  .glow-wrap.glow-active::before,
+  .glow-wrap.glow-active::after {
     animation: none;
+  }
+
+  .stream-in {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+
+  .aurora-veil,
+  .sheen-btn::after {
+    transition: none;
   }
 }
 

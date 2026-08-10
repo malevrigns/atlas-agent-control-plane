@@ -43,8 +43,10 @@ export function ChatInput({
       }}
     >
       <div
-        className={`flex items-end gap-2 rounded-3xl p-2 pl-5 ring-1 ring-(--accent)/15 max-sm:pl-4 ${workspaceSurface.panelStrong}`}
+        className={`aurora-shell ${sending ? "aurora-active" : ""} flex items-end gap-2 rounded-3xl p-2 pl-5 ring-1 ring-(--accent)/15 max-sm:pl-4 ${workspaceSurface.panelStrong}`}
       >
+        {/* 聚焦或发送中时，底部浮起的极光光带。 */}
+        <span aria-hidden="true" className="aurora-veil" />
         <textarea
           aria-label="任务输入框"
           className="w-full flex-1 resize-none border-0 bg-transparent py-2.5 text-base font-medium leading-6 text-(--text-1) outline-none placeholder:text-(--text-5) disabled:bg-transparent max-sm:py-2 max-sm:text-sm"
@@ -70,7 +72,7 @@ export function ChatInput({
         />
         <button
           aria-label={sending ? "任务执行中" : "发送任务"}
-          className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--line) bg-(--fill-2) text-(--text-1) shadow-lg shadow-black/30 transition hover:border-(--accent)/40 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-(--fill-1) disabled:text-(--text-5) disabled:shadow-none max-sm:h-9 max-sm:w-9"
+          className="sheen-btn mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--line) bg-(--fill-2) text-(--text-1) shadow-lg shadow-black/30 transition hover:border-(--accent)/40 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-(--fill-1) disabled:text-(--text-5) disabled:shadow-none max-sm:h-9 max-sm:w-9"
           disabled={disabled || sending || !draft.trim()}
           title={sending ? "任务执行中" : "发送并开始执行（Enter）"}
           type="submit"
