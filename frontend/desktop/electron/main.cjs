@@ -84,6 +84,7 @@ function createWindow() {
     minHeight: 720,
     backgroundColor: "#050506",
     title: "AtlasAgent",
+    icon: path.join(__dirname, "..", "assets", "icon.ico"),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
