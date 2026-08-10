@@ -29,7 +29,7 @@ atlas-agents/
 │   └── sandbox/             # 文件、Shell、浏览器与 VNC 隔离环境
 ├── nginx/                   # 统一网关配置
 ├── docs/                    # 架构与客户端专题文档
-├── tutorial/                # 0–52 章中文工程教程
+├── tutorial/                # 0–56 章中文工程教程
 ├── scripts/                 # 启停与运行时配置脚本
 ├── docker-compose.yml       # 本地多服务编排
 └── README.md
