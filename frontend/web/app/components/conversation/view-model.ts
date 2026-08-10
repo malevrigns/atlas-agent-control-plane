@@ -2,7 +2,6 @@ import type { AgentPlan, ChatMessage, SessionEventItem } from "../../types";
 import type {
   AgentRunViewModel,
   MultiAgentInlineResult,
-  PlanProgressView,
   StepView,
   TimelineItem,
   ToolObservation,
@@ -93,39 +92,6 @@ export function buildStepViews(
       toolEvent,
     };
   });
-}
-
-// ===================== 第3步：把计划步骤压缩成底部进度条模型 =====================
-export function buildPlanProgressView(
-  plan: AgentPlan | null,
-  events: SessionEventItem[],
-  planning: boolean,
-  executing: boolean,
-): PlanProgressView | null {
-  if (!plan) {
-    return null;
-  }
-
-  const steps = buildStepViews(plan, events);
-  const completedCount = steps.filter((step) => step.status === "completed").length;
-  const failed = Boolean(
-    events.find((event) => event.type === "task_error"),
-  );
-  const runningStep = steps.find((step) => step.status === "running") ?? null;
-  const pendingStep = steps.find((step) => step.status === "pending") ?? null;
-  const activeStep = failed ? null : runningStep ?? pendingStep;
-  const running = planning || executing || Boolean(runningStep);
-
-  return {
-    activeStep,
-    completedCount,
-    expandedByDefault: running,
-    failed,
-    running,
-    steps,
-    title: plan.title || "任务执行计划",
-    totalCount: steps.length,
-  };
 }
 
 // ===================== 第1.5步：把思考过程映射到对应的回答消息 =====================

@@ -97,6 +97,30 @@ GET    /api/rag/health                             向量后端与 embedding 运
 
 模块开关：`rag`（`runtime-config/modules.yaml`），关闭后 `knowledge_search` 调用会被 Runtime 拒绝。
 
+### 对话自动召回
+
+`knowledge_search` 要求模型自己知道知识库 ID，普通问答很难触发。
+因此直答路径（`AgentRunnerService._load_rag_context`）在每次回答前会自动召回一次：
+遍历全部非空知识库、逐库检索、跨库按 `final_score` 排序，
+过 `CHAT_RAG_MIN_SCORE` 阈值后取前 `CHAT_RAG_TOP_K` 条注入 system 上下文。
+
+注入片段带编号、文档标题、所属知识库与相关度，并要求模型
+"优先依据片段作答、句末标注（来源：《文档标题》）、片段无关则忽略、不得编造"。
+本轮命中的文档标题会写进 `task_done` 事件的 `rag_sources` 字段，供客户端展示引用来源。
+
+三个设计约束：
+
+- 自动召回使用**独立数据库会话**，不与当前请求事务纠缠；
+- `record_trace=False`，自动召回不写入检索审计，避免污染人工检索记录；
+- 整段捕获异常并静默降级——无知识库、向量服务异常或测试环境无数据库时，
+  问答退回纯模型回答，绝不因为检索失败而中断对话。
+
+把 `CHAT_RAG_TOP_K` 设为 `0` 即可整体关闭自动召回，只保留工具式检索。
+
+> 检索命中提示：混合检索里的词法通道按字面匹配，机构或产品的**简称、别名、缩写
+> 要显式写进文档正文**（例如"星海人工智能研究院（内部也常简称星智院）"），
+> 否则用户用简称提问时召回分会明显偏低。
+
 ## Skill 数据模型
 
 `skills` 表由第 45 章预留、第 51 章激活。核心字段：
@@ -188,6 +212,11 @@ QDRANT_TIMEOUT_SECONDS=10
 CONTEXT_SKILL_LIMIT=3
 CONTEXT_SKILL_MAX_CHARS=2000
 CONTEXT_SKILL_MIN_SCORE=0.1
+
+# 对话自动召回（直答路径）
+CHAT_RAG_TOP_K=4                   # 设为 0 关闭自动召回
+CHAT_RAG_MIN_SCORE=0.42            # 底噪约 0.35，阈值必须明显高于它
+CHAT_RAG_CONTEXT_CHARS=6000
 ```
 
 三种典型部署组合：

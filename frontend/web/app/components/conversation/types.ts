@@ -1,9 +1,4 @@
-import type {
-  AgentPlan,
-  ChatMessage,
-  PlanStep,
-  SessionEventItem,
-} from "../../types";
+import type { ChatMessage, PlanStep, SessionEventItem } from "../../types";
 
 export type TimelineItem =
   | { kind: "message"; id: string; created_at: string; message: ChatMessage }
@@ -44,13 +39,3 @@ export type AgentRunViewModel = {
   timelineItems: TimelineItem[];
 };
 
-export type PlanProgressView = {
-  activeStep: StepView | null;
-  completedCount: number;
-  expandedByDefault: boolean;
-  failed: boolean;
-  running: boolean;
-  steps: StepView[];
-  title: string;
-  totalCount: number;
-};

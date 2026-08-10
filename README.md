@@ -12,19 +12,19 @@
 
 AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。它把原始事件、长期记忆、知识库检索、技能指引、工具调用、Artifact 和 Checkpoint 放进同一条可追溯链路，集中处理六个生产边界：**事实从哪里来、记忆为什么可信、资料引用能否追溯、工具何时允许执行、任务如何恢复，以及每一步如何审计。**
 
-它不是只有一张聊天界面：同一套 FastAPI 控制平面同时服务 Next.js Web、Electron 时间线工作台与 Textual TUI，并配有从基础服务到 Memory / RAG / Skill / Tool Control Plane 的 **0–52 章教程**。
+它不是只有一张聊天界面：同一套 FastAPI 控制平面同时服务 Next.js Web、Electron 时间线工作台与 Textual TUI，并配有从基础服务到 Memory / RAG / Skill / Tool Control Plane 的 **0–56 章教程**。
 
 > [!NOTE]
-> 当前版本先在教程第 0–44 章完成核心工作台，再由第 45–49 章收束 Control Plane、多客户端与交付验收，最后由第 50–52 章加上 RAG 知识库、Skill 注册中心与桌面管理工作台。既有 API 与 Web 工作流继续可用。
+> 当前版本先在教程第 0–44 章完成核心工作台，再由第 45–49 章收束 Control Plane、多客户端与交付验收，再由第 50–52 章加上 RAG 知识库、Skill 注册中心与桌面管理工作台，最后由第 53–56 章补完直答分流、推理直播、知识库自动召回、网页正文作答与对话体验重塑。既有 API 与 Web 工作流继续可用。
 
 ## 已验证的交付基线
 
 | 范围 | 结果 | 验证内容 |
 | --- | ---: | --- |
-| FastAPI 后端 | **83 项测试** | 认证、队列恢复、Checkpoint、Tool Runtime、RAG 摄取与检索、Skill 生命周期、兼容接口与边界条件 |
+| FastAPI 后端 | **97 项测试** | 认证、队列恢复、Checkpoint、Tool Runtime、RAG 摄取与检索、Skill 生命周期、直答分流与附件抽取、兼容接口与边界条件 |
 | Sandbox | **1 项安全测试** | 健康端点公开、Shell 等状态接口必须认证 |
 | Textual TUI | **3 项测试** | 启动、布局、审计视图与演示模式 |
-| Electron 桌面端 | **构建 + 10 项测试** | 渲染器构建与类型检查、IPC 请求安全边界、打包适配 |
+| Electron 桌面端 | **构建 + 12 项测试** | 渲染器构建与类型检查、IPC 请求与流式通道安全边界、打包适配 |
 | OpenAPI | **91 条路径** | 应用完整加载并成功生成接口规范 |
 | Alembic | **完整迁移链** | 可生成离线 SQL，Control Plane 与 RAG 表结构可追踪 |
 
@@ -39,13 +39,14 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 | 控制边界 | AtlasAgent 如何处理 | 关键机制 |
 | --- | --- | --- |
 | **Evidence-backed Memory** | 只把仍然有效、来源明确且通过门禁的事实注入上下文 | 类型化记忆、Write Gate、证据链、作用域、有效期、替代关系、可解释检索 |
-| **RAG Knowledge Base** | 让团队文档成为可检索、可引用、可验证的证据来源 | 段落切分与重叠、可替换向量后端（pgvector / Qdrant）、向量+词法混合重排、编号引用、检索审计、多模态摄取（图片经视觉模型解析入库） |
+| **RAG Knowledge Base** | 让团队文档成为可检索、可引用、可验证的证据来源 | 段落切分与重叠、可替换向量后端（pgvector / Qdrant）、向量+词法混合重排、编号引用、检索审计、多模态摄取（图片经视觉模型解析入库）、每轮对话自动召回并标注来源 |
+| **Transparent Reasoning** | 把模型的思考与作答过程实时暴露给使用者，而不是只给一个结果 | 直答与流水线分流、规划/执行/直答三阶段 thinking 增量事件、推理落库可回看、打字机节流展示 |
 | **Skill Registry** | 把团队沉淀的操作指引变成受治理、可回溯的 Agent 行为规范 | draft/published/deprecated 生命周期、published 内容冻结、semver 版本、启停分离、相关度注入 |
 | **Checkpoint DAG** | 为长任务提供可验证的暂停、恢复与回溯点 | 父子 Checkpoint、事件区间、状态哈希、环境指纹、校验报告 |
 | **Unified Tool Runtime** | 在 handler 之前统一约束权限与副作用 | 风险分级、审批、幂等、超时、脱敏、大输出制品化、全程审计 |
 | **Artifact Store** | 让日志、补丁、截图和报告成为稳定事实源 | SHA-256 内容寻址、来源引用、任务与 Checkpoint 关联 |
 | **Multi-client Workspace** | 在浏览器、桌面驻留和 SSH 场景中观察同一运行状态 | Next.js Web、Electron、Textual TUI，共用 FastAPI 接口 |
-| **Isolated Sandbox** | 把文件、Shell 与浏览器自动化限制在独立运行边界 | 工作区限制、输出限制、VNC / noVNC、统一网关 |
+| **Isolated Sandbox** | 把文件、Shell 与浏览器自动化限制在独立运行边界 | 工作区限制、输出限制、网页正文读取、VNC / noVNC、统一网关 |
 
 ## 运行机制
 
@@ -247,7 +248,7 @@ atlas-agent-control-plane/
 │   └── sandbox/   文件、Shell、浏览器与 VNC 隔离执行环境
 ├── nginx/         统一网关配置
 ├── docs/          Control Plane 与客户端专题文档
-├── tutorial/      0–52 章中文工程教程
+├── tutorial/      0–56 章中文工程教程
 ├── scripts/       启停与运行时配置脚本
 ├── tests/         根级生产配置测试
 └── docker-compose.yml
@@ -319,6 +320,7 @@ npm test
 4. Sandbox、浏览器自动化、可观测性、安全与 Harness
 5. 类型化 Memory、Checkpoint DAG、Tool Runtime、Electron 与 TUI
 6. RAG 知识库、Skill 注册中心与桌面管理工作台
+7. 直答分流与推理直播、知识库自动召回、网页正文作答与对话体验重塑
 
 从 [教程首页](tutorial/README.md) 开始，或直接阅读 [Control Plane 升级说明](docs/MEMORY_TOOL_CONTROL_PLANE.md)。
 
