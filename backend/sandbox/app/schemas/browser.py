@@ -31,6 +31,18 @@ class BrowserScreenshotRequest(BaseModel):
     full_page: bool | None = None  # 是否截取完整页面；为空时使用配置默认值。
 
 
+class BrowserTextRequest(BaseModel):
+    max_chars: int = Field(default=8000, ge=200, le=60000)  # 返回正文的最大字符数。
+
+
+class BrowserTextResponse(BaseModel):
+    url: str  # 读取正文时的页面地址。
+    title: str  # 页面标题。
+    text: str  # 页面可见正文（body.innerText，截断到 max_chars）。
+    total_chars: int  # 截断前的正文总字符数。
+    truncated: bool  # 是否发生截断。
+
+
 class BrowserScreenshotResponse(BaseModel):
     mime_type: str  # 截图 MIME 类型，前端用它拼接 data URL。
     base64_data: str  # PNG 截图的 base64 内容，本章先直接返回，后续可改成文件存储。

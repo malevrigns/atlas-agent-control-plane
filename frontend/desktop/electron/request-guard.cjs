@@ -48,4 +48,27 @@ function normalizeApiRequest(request) {
   };
 }
 
-module.exports = { ALLOWED_METHODS, normalizeApiRequest };
+/**
+ * 校验并归一化一次 SSE 流式请求。
+ *
+ * 流式通道只用于 /api/ 下的 POST 端点（当前是会话消息流）。
+ * 路径规则与普通请求完全一致；方法固定为 POST，不接受调用方指定。
+ *
+ * @param {unknown} request 渲染进程传来的原始请求对象。
+ * @returns {{path: string, method: "POST", body: unknown}} 归一化后的请求。
+ * @throws {Error} 路径不合法时抛出。
+ */
+function normalizeStreamRequest(request) {
+  const { path } = normalizeApiRequest({
+    path: request && request.path,
+    method: "POST",
+    body: request ? request.body : undefined,
+  });
+  return {
+    path,
+    method: "POST",
+    body: request ? request.body : undefined,
+  };
+}
+
+module.exports = { ALLOWED_METHODS, normalizeApiRequest, normalizeStreamRequest };

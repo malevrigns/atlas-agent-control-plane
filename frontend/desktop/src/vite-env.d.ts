@@ -2,6 +2,12 @@
 
 import type { AtlasRequestOptions } from "./types";
 
+interface AtlasStreamHandlers {
+  onChunk?: (text: string) => void;
+  onEnd?: () => void;
+  onError?: (message: string) => void;
+}
+
 interface AtlasDesktopBridge {
   readonly platform: string;
   readonly versions: {
@@ -9,6 +15,7 @@ interface AtlasDesktopBridge {
     readonly electron: string;
   };
   request<T>(path: string, options?: AtlasRequestOptions): Promise<T>;
+  stream(path: string, body: unknown, handlers?: AtlasStreamHandlers): () => void;
 }
 
 declare global {

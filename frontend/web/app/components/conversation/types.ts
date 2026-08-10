@@ -41,8 +41,6 @@ export type ToolObservation = {
 };
 
 export type AgentRunViewModel = {
-  finalEvent: SessionEventItem | null;
-  latestPlan: AgentPlan | null;
   timelineItems: TimelineItem[];
 };
 

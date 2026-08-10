@@ -104,9 +104,22 @@ class SqlAlchemySessionMessageRepository(SessionMessageRepository):
         self.db_session = db_session
 
     async def add_user_message(self, session_id: UUID, content: str) -> SessionMessage:
+        return await self._add_message(session_id, MessageRole.user, content)
+
+    async def add_assistant_message(
+        self, session_id: UUID, content: str
+    ) -> SessionMessage:
+        return await self._add_message(session_id, MessageRole.assistant, content)
+
+    async def _add_message(
+        self,
+        session_id: UUID,
+        role: MessageRole,
+        content: str,
+    ) -> SessionMessage:
         model = SessionMessageModel(
             session_id=session_id,
-            role=MessageRole.user.value,
+            role=role.value,
             content=content,
         )
         self.db_session.add(model)

@@ -1,9 +1,74 @@
 @import "tailwindcss";
 
-:root {
+/* ===================== 主题令牌 =====================
+ * 组件通过 Tailwind 4 的 `bg-(--token)` 语法消费这些变量，
+ * 切换 <html data-theme> 即可全局换肤。dark 是默认主题。 */
+
+:root,
+:root[data-theme="dark"] {
   color-scheme: dark;
   --background: #050506;
   --foreground: #f7f7fb;
+  /* 页面与分层表面：从页面底色到卡片逐级抬升 */
+  --page: #05060a;
+  --surface: #08090d;
+  --surface-2: #0b0d14;
+  --surface-3: #111421;
+  --surface-4: #151722;
+  /* 输入框、代码块等凹陷区域 */
+  --field: rgba(0, 0, 0, 0.35);
+  /* 分隔线与填充 */
+  --line: rgba(255, 255, 255, 0.1);
+  --line-soft: rgba(255, 255, 255, 0.05);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --fill-1: rgba(255, 255, 255, 0.04);
+  --fill-2: rgba(255, 255, 255, 0.09);
+  --fill-3: rgba(255, 255, 255, 0.15);
+  /* 文字层级：1 最亮，5 最弱 */
+  --text-1: #fafafa;
+  --text-2: #d4d4d8;
+  --text-3: #a1a1aa;
+  --text-4: #71717a;
+  --text-5: #52525b;
+  /* 品牌强调色 */
+  --accent: #60a5fa;
+  --accent-strong: #3b82f6;
+  /* 背景网格与滚动条 */
+  --grid-line: rgba(80, 96, 130, 0.13);
+  --grid-line-soft: rgba(255, 255, 255, 0.035);
+  --scrollbar: rgba(122, 135, 162, 0.38);
+  --scrollbar-hover: rgba(150, 162, 190, 0.55);
+  --scrollbar-active: rgba(165, 178, 208, 0.72);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --background: #f3f4f7;
+  --foreground: #14171f;
+  --page: #f5f6fa;
+  --surface: #ffffff;
+  --surface-2: #f7f8fb;
+  --surface-3: #ffffff;
+  --surface-4: #eef1f6;
+  --field: #ffffff;
+  --line: rgba(15, 23, 42, 0.12);
+  --line-soft: rgba(15, 23, 42, 0.06);
+  --line-strong: rgba(15, 23, 42, 0.24);
+  --fill-1: rgba(15, 23, 42, 0.045);
+  --fill-2: rgba(15, 23, 42, 0.08);
+  --fill-3: rgba(15, 23, 42, 0.13);
+  --text-1: #111827;
+  --text-2: #1f2937;
+  --text-3: #4b5563;
+  --text-4: #6b7280;
+  --text-5: #9aa2af;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --grid-line: rgba(30, 41, 59, 0.07);
+  --grid-line-soft: rgba(15, 23, 42, 0.045);
+  --scrollbar: rgba(71, 85, 105, 0.35);
+  --scrollbar-hover: rgba(71, 85, 105, 0.55);
+  --scrollbar-active: rgba(51, 65, 85, 0.7);
 }
 
 * {
@@ -25,11 +90,34 @@ body {
 }
 
 .agent-grid-bg {
-  background-color: #050506;
+  background-color: var(--page);
   background-image:
-    linear-gradient(rgba(80, 96, 130, 0.13) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(80, 96, 130, 0.13) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 72px 72px;
+}
+
+/* 对话区的细网格覆盖层。 */
+.chat-grid-overlay {
+  background-image:
+    linear-gradient(var(--grid-line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-soft) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* 对话区顶部的柔光背景，随主题调整基色。 */
+.chat-backdrop {
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--accent-strong) 12%, transparent),
+      transparent 34%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--page) 25%, transparent),
+      var(--page) 78%
+    );
 }
 
 @keyframes stream-in {
@@ -63,4 +151,54 @@ select {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* ===================== 滚动条 ===================== */
+
+/* Chromium：细圆角滑块悬浮在透明轨道上，隐藏两端箭头按钮。 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  background: var(--scrollbar);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+  background-clip: padding-box;
+  border-width: 2px;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-active);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox 没有 ::-webkit-scrollbar，用标准属性给出等效的细滚动条。
+   注意不能对 Chromium 应用这两个标准属性——它们会禁用上面的自定义样式。 */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar) transparent;
+  }
 }

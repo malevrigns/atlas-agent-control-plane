@@ -16,6 +16,17 @@ class LLMChatRequest:
     provider: str
     temperature: float
     max_tokens: int
+    # 附加到请求体的服务商专有字段（如 DashScope 的 enable_thinking）。
+    extra_body: dict | None = None
+
+
+# ===================== 第2.5步：定义流式输出的一段增量 =====================
+@dataclass(slots=True)
+class LLMStreamDelta:
+    """一段流式增量。kind 为 content（正文）或 reasoning（思考过程）。"""
+
+    kind: str
+    text: str
 
 
 # ===================== 第3步：定义模型调用完成后的统一结果 =====================

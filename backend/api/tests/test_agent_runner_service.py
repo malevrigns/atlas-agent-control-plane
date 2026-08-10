@@ -78,11 +78,7 @@ class FakeSessionService:
 
 
 class FakePlannerService:
-    async def create_plan(
-        self,
-        session_id: UUID,
-        task: str,
-    ):
+    def _build(self, session_id: UUID, task: str):
         plan = create_agent_plan(
             title="测试计划",
             goal=task,
@@ -101,6 +97,12 @@ class FakePlannerService:
             {"id": str(plan.id), "goal": task},
         )
         return plan, event
+
+    async def create_plan(self, session_id: UUID, task: str):
+        return self._build(session_id, task)
+
+    async def stream_plan(self, session_id: UUID, task: str):
+        yield ("result", self._build(session_id, task))
 
 
 class FakeReactService:

@@ -53,19 +53,19 @@ export function SettingsWorkspace({
   settings,
 }: SettingsWorkspaceProps) {
   return (
-    <section className="mx-auto flex h-full min-h-[640px] w-full max-w-[1080px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#090a0f]/95 shadow-2xl shadow-black/40">
-      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
+    <section className="mx-auto flex h-full min-h-[640px] w-full max-w-[1080px] flex-col overflow-hidden rounded-[28px] border border-(--line) bg-(--surface)/95 shadow-2xl shadow-black/40">
+      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-(--line) px-6 py-5">
         <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-50">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-(--text-1)">
             <Settings size={19} aria-hidden="true" />
             AtlasAgent 设置
           </h2>
-          <p className="mt-1 text-sm leading-6 text-zinc-500">
+          <p className="mt-1 text-sm leading-6 text-(--text-4)">
             管理模型、搜索、MCP、A2A、多 Agent 和 Sandbox 集成
           </p>
         </div>
         <button
-          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] text-zinc-400 hover:bg-white/[0.1] hover:text-zinc-50"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-(--line) bg-(--fill-2) text-(--text-3) hover:bg-(--fill-2) hover:text-(--text-1)"
           onClick={onRefresh}
           title="刷新设置"
           type="button"
@@ -75,7 +75,7 @@ export function SettingsWorkspace({
       </div>
 
       {settings.type === "loading" ? (
-        <div className="m-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-zinc-500">
+        <div className="m-6 rounded-3xl border border-(--line) bg-(--fill-1) p-5 text-sm text-(--text-4)">
           正在读取设置...
         </div>
       ) : null}
@@ -131,7 +131,7 @@ function SettingsReadyView({
   return (
     <>
       <div className="grid min-h-0 flex-1 grid-cols-[220px_1fr] max-lg:grid-cols-1">
-        <aside className="min-h-0 border-r border-white/10 p-4 max-lg:border-b max-lg:border-r-0">
+        <aside className="min-h-0 border-r border-(--line) p-4 max-lg:border-b max-lg:border-r-0">
           <SettingsOverview modules={data.modules} />
           <nav className="mt-4 grid gap-1">
             {data.modules.map((module) => (
@@ -139,7 +139,7 @@ function SettingsReadyView({
                 className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition ${
                   activeKey === module.key
                     ? "bg-blue-500 text-white"
-                    : "text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-100"
+                    : "text-(--text-4) hover:bg-(--fill-2) hover:text-(--text-1)"
                 }`}
                 key={module.key}
                 onClick={() => setActiveKey(module.key)}
@@ -208,14 +208,14 @@ function SettingsOverview({ modules }: { modules: SettingsModule[] }) {
   const readyCount = modules.filter((module) => module.status === "ready").length;
 
   return (
-    <div className="rounded-3xl border border-blue-500/25 bg-blue-500/10 p-4">
-      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-300">
+    <div className="rounded-3xl border border-(--accent)/25 bg-(--accent)/10 p-4">
+      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-(--accent)">
         Readiness
       </div>
-      <div className="mt-3 text-2xl font-semibold text-zinc-50">
+      <div className="mt-3 text-2xl font-semibold text-(--text-1)">
         {readyCount}/{modules.length}
       </div>
-      <p className="mt-2 text-xs leading-5 text-zinc-400">
+      <p className="mt-2 text-xs leading-5 text-(--text-3)">
         配置是否具备真实任务执行条件
       </p>
     </div>
@@ -240,30 +240,30 @@ function SettingsModuleCard({
   onToggleModule: SettingsWorkspaceProps["onToggleModule"];
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
+    <div className="rounded-3xl border border-(--line) bg-(--fill-1) p-5 shadow-2xl shadow-black/20">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-zinc-50">
+            <h3 className="text-base font-semibold text-(--text-1)">
               {module.name}
             </h3>
             <StatusPill enabled={module.status === "ready"} />
           </div>
-          <p className="mt-1 text-sm leading-6 text-zinc-500">
+          <p className="mt-1 text-sm leading-6 text-(--text-4)">
             {module.description}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {canConfigure ? (
             <button
-              className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-blue-500/40 hover:text-white"
+              className="rounded-xl border border-(--line) bg-(--fill-2) px-3 py-2 text-sm font-medium text-(--text-2) transition hover:border-(--accent)/40 hover:text-(--text-1)"
               onClick={onConfigure}
               type="button"
             >
               配置
             </button>
           ) : null}
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-500">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-(--text-4)">
             <input
               checked={module.enabled}
               className="h-4 w-4 accent-blue-500"
@@ -277,7 +277,7 @@ function SettingsModuleCard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-sm">
+      <div className="mt-4 grid gap-3 rounded-2xl border border-(--line) bg-(--field) p-3 text-sm">
         <StatusField label="当前状态" value={module.status_message || "暂无状态说明"} />
         <StatusField label="默认项" value={module.default_item ?? "未设置"} />
         <StatusField label="配置来源" value={module.source || "未声明"} />
@@ -287,15 +287,15 @@ function SettingsModuleCard({
       <div className="mt-4 grid gap-2">
         {module.items.map((item) => (
           <div
-            className="rounded-2xl border border-white/10 bg-black/30 px-3 py-3"
+            className="rounded-2xl border border-(--line) bg-(--field) px-3 py-3"
             key={`${module.key}-${item.name}`}
           >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-zinc-100">
+                <div className="truncate text-sm font-semibold text-(--text-1)">
                   {item.name}
                 </div>
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500">
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-(--text-4)">
                   {item.description || "暂无说明"}
                 </p>
               </div>
@@ -307,7 +307,7 @@ function SettingsModuleCard({
             {module.key === "mcp" || module.key === "a2a" ? (
               <div className="mt-3 flex justify-end gap-2">
                 <button
-                  className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:text-white"
+                  className="rounded-xl border border-(--line) bg-(--fill-1) px-3 py-1.5 text-xs font-medium text-(--text-3) transition hover:text-(--text-1)"
                   onClick={() => onToggleItem(module.key, item.name, !item.enabled)}
                   type="button"
                 >
@@ -366,21 +366,21 @@ function ModuleConfigDialog({
       role="dialog"
       aria-modal="true"
     >
-      <div className="flex max-h-[86dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#090a0f] shadow-2xl shadow-black">
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
+      <div className="flex max-h-[86dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[28px] border border-(--line) bg-(--surface) shadow-2xl shadow-black">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-(--line) px-6 py-5">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-300">
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-(--accent)">
               Configure
             </div>
-            <h3 className="mt-2 text-xl font-semibold text-zinc-50">
+            <h3 className="mt-2 text-xl font-semibold text-(--text-1)">
               {module.name}
             </h3>
-            <p className="mt-1 text-sm leading-6 text-zinc-500">
+            <p className="mt-1 text-sm leading-6 text-(--text-4)">
               {module.description}
             </p>
           </div>
           <button
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-zinc-500 transition hover:bg-white/[0.1] hover:text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-(--line) bg-(--fill-1) text-(--text-4) transition hover:bg-(--fill-2) hover:text-(--text-1)"
             onClick={onClose}
             title="关闭"
             type="button"
@@ -391,7 +391,7 @@ function ModuleConfigDialog({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <div className="grid gap-4">
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+            <div className="rounded-2xl border border-(--line) bg-(--field) p-4">
               <StatusField label="当前状态" value={module.status_message} />
               <div className="mt-3">
                 <StatusField label="配置来源" value={module.source || "未声明"} />
@@ -439,22 +439,22 @@ function ModuleConfigDialog({
               />
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-sm font-semibold text-zinc-100">
+            <div className="rounded-2xl border border-(--line) bg-(--fill-1) p-4">
+              <div className="text-sm font-semibold text-(--text-1)">
                 已加载配置项
               </div>
               <div className="mt-3 grid gap-2">
                 {module.items.map((item) => (
                   <div
-                    className="rounded-xl border border-white/10 bg-black/30 p-3"
+                    className="rounded-xl border border-(--line) bg-(--field) p-3"
                     key={`${module.key}-dialog-${item.name}`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-zinc-100">
+                        <div className="truncate text-sm font-medium text-(--text-1)">
                           {item.name}
                         </div>
-                        <p className="mt-1 text-xs leading-5 text-zinc-500">
+                        <p className="mt-1 text-xs leading-5 text-(--text-4)">
                           {item.description || "暂无说明"}
                         </p>
                       </div>
@@ -466,7 +466,7 @@ function ModuleConfigDialog({
                     {module.key === "mcp" || module.key === "a2a" ? (
                       <div className="mt-3 flex justify-end gap-2">
                         <button
-                          className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:text-white"
+                          className="rounded-xl border border-(--line) bg-(--fill-1) px-3 py-1.5 text-xs font-medium text-(--text-3) transition hover:text-(--text-1)"
                           onClick={() => {
                             onToggleItem(module.key, item.name, !item.enabled);
                             onClose();
@@ -494,9 +494,9 @@ function ModuleConfigDialog({
           </div>
         </div>
 
-        <div className="flex shrink-0 justify-end gap-3 border-t border-white/10 px-6 py-4">
+        <div className="flex shrink-0 justify-end gap-3 border-t border-(--line) px-6 py-4">
           <button
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-zinc-400 transition hover:bg-white/[0.08] hover:text-white"
+            className="rounded-xl border border-(--line) bg-(--fill-1) px-4 py-2 text-sm font-medium text-(--text-3) transition hover:bg-(--fill-2) hover:text-(--text-1)"
             onClick={onClose}
             type="button"
           >
@@ -524,7 +524,7 @@ function ConfigField({
   label: string;
 }) {
   return (
-    <label className="block text-xs font-medium text-zinc-500">
+    <label className="block text-xs font-medium text-(--text-4)">
       {label}
       {children}
     </label>
@@ -545,7 +545,7 @@ function ConfigInput({
 }) {
   return (
     <input
-      className="mt-1 h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-700 focus:border-blue-500/60"
+      className="mt-1 h-11 w-full rounded-xl border border-(--line) bg-(--field) px-3 text-sm text-(--text-1) outline-none placeholder:text-(--text-5) focus:border-(--accent)/60"
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       type={type}
@@ -566,7 +566,7 @@ function ConfigTextarea({
 }) {
   return (
     <textarea
-      className="mt-1 min-h-32 w-full resize-none rounded-xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-xs leading-5 text-zinc-100 outline-none placeholder:text-zinc-700 focus:border-blue-500/60"
+      className="mt-1 min-h-32 w-full resize-none rounded-xl border border-(--line) bg-(--field) px-3 py-2 font-mono text-xs leading-5 text-(--text-1) outline-none placeholder:text-(--text-5) focus:border-(--accent)/60"
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       value={value}
@@ -594,7 +594,7 @@ function LlmConfigForm({
   onNameChange,
 }: ModuleFormProps) {
   return (
-    <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <div className="grid gap-3 rounded-2xl border border-(--line) bg-(--fill-1) p-4">
       <ConfigField label="模型提供商">
         <ConfigInput onChange={onNameChange} placeholder="openai_compatible" value={name} />
       </ConfigField>
@@ -613,7 +613,7 @@ function LlmConfigForm({
           value={description}
         />
       </ConfigField>
-      <p className="text-xs leading-5 text-zinc-600">
+      <p className="text-xs leading-5 text-(--text-5)">
         这里只保存环境变量名，真实密钥必须通过容器 Secret、KMS 或 Vault 注入，API 不会保存或回显密钥。
       </p>
     </div>
@@ -630,7 +630,7 @@ function McpConfigForm({
   onNameChange,
 }: ModuleFormProps) {
   return (
-    <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <div className="grid gap-3 rounded-2xl border border-(--line) bg-(--fill-1) p-4">
       <ConfigField label="MCP Server 名称">
         <ConfigInput onChange={onNameChange} placeholder="qiniu" value={name} />
       </ConfigField>
@@ -672,7 +672,7 @@ function A2aConfigForm({
   onNameChange,
 }: ModuleFormProps) {
   return (
-    <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <div className="grid gap-3 rounded-2xl border border-(--line) bg-(--fill-1) p-4">
       <ConfigField label="远程 Agent 名称">
         <ConfigInput onChange={onNameChange} placeholder="researcher" value={name} />
       </ConfigField>
@@ -705,7 +705,7 @@ function GenericConfigForm({
   onNameChange,
 }: ModuleFormProps) {
   return (
-    <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <div className="grid gap-3 rounded-2xl border border-(--line) bg-(--fill-1) p-4">
       <ConfigField label="配置名称">
         <ConfigInput onChange={onNameChange} placeholder="配置名称" value={name} />
       </ConfigField>
@@ -727,8 +727,8 @@ function GenericConfigForm({
 function StatusField({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[72px_1fr] gap-3 text-xs">
-      <span className="text-zinc-600">{label}</span>
-      <span className="min-w-0 break-words font-medium text-zinc-300">
+      <span className="text-(--text-5)">{label}</span>
+      <span className="min-w-0 break-words font-medium text-(--text-2)">
         {value}
       </span>
     </div>
@@ -743,9 +743,9 @@ function VerifyCommand({ command }: { command: string }) {
 
   return (
     <div className="grid grid-cols-[72px_1fr] gap-3 text-xs">
-      <span className="text-zinc-600">验证命令</span>
+      <span className="text-(--text-5)">验证命令</span>
       <button
-        className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left font-mono text-[11px] text-zinc-300 transition hover:border-blue-500/40 hover:text-zinc-50"
+        className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-(--line) bg-(--fill-1) px-3 py-2 text-left font-mono text-[11px] text-(--text-2) transition hover:border-(--accent)/40 hover:text-(--text-1)"
         onClick={() => navigator.clipboard?.writeText(command)}
         title="复制验证命令"
         type="button"
@@ -760,13 +760,13 @@ function VerifyCommand({ command }: { command: string }) {
 
 function MetadataGrid({ metadata }: { metadata: Record<string, unknown> }) {
   return (
-    <dl className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+    <dl className="mt-3 grid gap-2 rounded-xl border border-(--line) bg-(--fill-1) p-3">
       {Object.entries(metadata).map(([key, value]) => (
         <div className="grid grid-cols-[112px_1fr] gap-3 text-xs" key={key}>
-          <dt className="truncate uppercase tracking-[0.14em] text-zinc-600">
+          <dt className="truncate uppercase tracking-[0.14em] text-(--text-5)">
             {key}
           </dt>
-          <dd className="min-w-0 break-words font-medium text-zinc-300">
+          <dd className="min-w-0 break-words font-medium text-(--text-2)">
             {formatMetadataValue(value)}
           </dd>
         </div>
@@ -817,44 +817,44 @@ function IntegrationList({
   title?: string;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-      <h3 className="text-base font-semibold text-zinc-50">{title}</h3>
-      <p className="mt-1 text-sm leading-6 text-zinc-500">
+    <div className="rounded-3xl border border-(--line) bg-(--fill-1) p-5">
+      <h3 className="text-base font-semibold text-(--text-1)">{title}</h3>
+      <p className="mt-1 text-sm leading-6 text-(--text-4)">
         记录来自持久化运行时配置；删除会同步更新 YAML，重启后不会恢复
       </p>
 
       <div className="mt-4 grid gap-2">
         {integrations.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-zinc-500">
+          <div className="rounded-2xl border border-(--line) bg-(--field) px-3 py-3 text-sm text-(--text-4)">
             还没有新增运行时集成
           </div>
         ) : null}
 
         {integrations.map((integration) => (
           <div
-            className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 px-3 py-3"
+            className="flex items-start justify-between gap-3 rounded-2xl border border-(--line) bg-(--field) px-3 py-3"
             key={integration.id}
           >
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-xs font-medium text-zinc-500">
+                <span className="rounded-full border border-(--line) bg-(--fill-2) px-2 py-1 text-xs font-medium text-(--text-4)">
                   {integration.kind}
                 </span>
-                <span className="truncate text-sm font-semibold text-zinc-100">
+                <span className="truncate text-sm font-semibold text-(--text-1)">
                   {integration.name}
                 </span>
               </div>
-              <p className="mt-2 text-xs leading-5 text-zinc-500">
+              <p className="mt-2 text-xs leading-5 text-(--text-4)">
                 {integration.description || "暂无说明"}
               </p>
               {integration.endpoint ? (
-                <p className="mt-1 truncate text-xs text-blue-300">
+                <p className="mt-1 truncate text-xs text-(--accent)">
                   {integration.endpoint}
                 </p>
               ) : null}
             </div>
             <button
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-white/10 hover:text-rose-300"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-(--text-4) hover:bg-(--fill-2) hover:text-rose-300"
               onClick={() => onDeleteIntegration(integration.id)}
               title="删除集成"
               type="button"
@@ -886,22 +886,22 @@ function IntegrationForm({
 
   return (
     <form
-      className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
+      className="rounded-3xl border border-(--line) bg-(--fill-1) p-5"
       onSubmit={(event) => {
         event.preventDefault();
         onCreateIntegration(draft);
         setDraft({ kind: defaultKind, name: "", description: "", endpoint: "" });
       }}
     >
-      <h3 className="text-base font-semibold text-zinc-50">新增集成</h3>
-      <p className="mt-1 text-sm leading-6 text-zinc-500">
+      <h3 className="text-base font-semibold text-(--text-1)">新增集成</h3>
+      <p className="mt-1 text-sm leading-6 text-(--text-4)">
         保存后会写入持久化运行时配置，并受运维 allowlist 约束
       </p>
 
-      <label className="mt-4 block text-xs font-medium text-zinc-500">
+      <label className="mt-4 block text-xs font-medium text-(--text-4)">
         类型
         <select
-          className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-zinc-100 outline-none focus:border-blue-500/60"
+          className="mt-1 h-10 w-full rounded-xl border border-(--line) bg-(--field) px-3 text-sm text-(--text-1) outline-none focus:border-(--accent)/60"
           onChange={(event) =>
             setDraft((current) => ({
               ...current,
@@ -916,10 +916,10 @@ function IntegrationForm({
         </select>
       </label>
 
-      <label className="mt-3 block text-xs font-medium text-zinc-500">
+      <label className="mt-3 block text-xs font-medium text-(--text-4)">
         名称
         <input
-          className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-700 focus:border-blue-500/60"
+          className="mt-1 h-10 w-full rounded-xl border border-(--line) bg-(--field) px-3 text-sm text-(--text-1) outline-none placeholder:text-(--text-5) focus:border-(--accent)/60"
           maxLength={120}
           onChange={(event) =>
             setDraft((current) => ({ ...current, name: event.target.value }))
@@ -929,10 +929,10 @@ function IntegrationForm({
         />
       </label>
 
-      <label className="mt-3 block text-xs font-medium text-zinc-500">
+      <label className="mt-3 block text-xs font-medium text-(--text-4)">
         地址
         <input
-          className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-700 focus:border-blue-500/60"
+          className="mt-1 h-10 w-full rounded-xl border border-(--line) bg-(--field) px-3 text-sm text-(--text-1) outline-none placeholder:text-(--text-5) focus:border-(--accent)/60"
           maxLength={500}
           onChange={(event) =>
             setDraft((current) => ({ ...current, endpoint: event.target.value }))
@@ -942,10 +942,10 @@ function IntegrationForm({
         />
       </label>
 
-      <label className="mt-3 block text-xs font-medium text-zinc-500">
+      <label className="mt-3 block text-xs font-medium text-(--text-4)">
         说明
         <textarea
-          className="mt-1 min-h-24 w-full resize-none rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-700 focus:border-blue-500/60"
+          className="mt-1 min-h-24 w-full resize-none rounded-xl border border-(--line) bg-(--field) px-3 py-2 text-sm text-(--text-1) outline-none placeholder:text-(--text-5) focus:border-(--accent)/60"
           maxLength={500}
           onChange={(event) =>
             setDraft((current) => ({
@@ -959,7 +959,7 @@ function IntegrationForm({
       </label>
 
       <button
-        className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-600"
+        className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-(--fill-3) disabled:text-(--text-5)"
         disabled={!draft.name.trim()}
         type="submit"
       >

@@ -1,76 +1,102 @@
-import { AlertCircle, Check, ClipboardCheck, Loader2 } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import { useMemo } from "react";
 
 import type { AgentPlan, SessionEventItem } from "../../types";
 import { MarkdownContent } from "../markdown-content";
 import { AgentAvatar } from "./agent-avatar";
-import { StepCard } from "./step-card";
+import { ReasoningBlock } from "./reasoning-block";
+import { TaskRunCard } from "./task-run-card";
 import type { StepView } from "./types";
 import {
-  buildToolObservation,
   buildStepViews,
+  buildToolObservation,
   getString,
+  parsePlanPayload,
   parseToolOutput,
 } from "./view-model";
 
 type AgentRunBlockProps = {
   events: SessionEventItem[];
-  finalEvent: SessionEventItem | null;
+  /** 仅最新一张卡在会话执行中时为 true——历史卡片永远是 false。 */
+  executing: boolean;
+  /** store 里实时更新的计划（执行中步骤状态来自 SSE），仅当 id 匹配时覆盖事件快照。 */
+  livePlan: AgentPlan | null;
   onSelectToolEvent: (eventId: string) => void;
-  onOpenStep: (step: StepView) => void;
-  plan: AgentPlan;
+  /** 本卡片对应的 plan_created 事件——一张卡只负责一次任务运行。 */
+  planEvent: SessionEventItem;
   planning: boolean;
   selectedToolEventId: string | null;
 };
 
 export function AgentRunBlock({
   events,
-  finalEvent,
+  executing,
+  livePlan,
   onSelectToolEvent,
-  onOpenStep,
-  plan,
+  planEvent,
   planning,
   selectedToolEventId,
 }: AgentRunBlockProps) {
+  const plan = useMemo(() => {
+    const parsed = parsePlanPayload(planEvent.payload);
+    return livePlan && livePlan.id === parsed.id ? livePlan : parsed;
+  }, [livePlan, planEvent]);
+  // 只认属于本次运行的终结事件：优先按 plan_id 匹配；
+  // 旧数据没有 plan_id 时退回时间窗（本计划之后、下一个计划之前），
+  // 并排除直答路径的 task_done（mode=chat），避免旧任务卡吞掉新对话的结果。
+  const finalEvent = useMemo(() => {
+    const terminals = events.filter(
+      (event) => event.type === "task_done" || event.type === "task_error",
+    );
+    if (plan.id) {
+      const byPlanId = terminals.find(
+        (event) => getString(event.payload.plan_id) === plan.id,
+      );
+      if (byPlanId) {
+        return byPlanId;
+      }
+    }
+    const nextPlanAt = events.find(
+      (event) =>
+        event.type === "plan_created" && event.created_at > planEvent.created_at,
+    )?.created_at;
+    return (
+      terminals.find(
+        (event) =>
+          event.created_at > planEvent.created_at &&
+          (!nextPlanAt || event.created_at < nextPlanAt) &&
+          getString(event.payload.mode) !== "chat",
+      ) ?? null
+    );
+  }, [events, plan.id, planEvent]);
   const steps = useMemo(() => buildStepViews(plan, events), [events, plan]);
   const runningStep = steps.find((step) => step.status === "running") ?? null;
-  const activeStep = finalEvent
-    ? null
-    : runningStep ?? steps.find((step) => step.status === "pending") ?? null;
   const failed = finalEvent?.type === "task_error";
+  // 不用 steps.some(pending) 推断运行中——被中断的历史任务没有终结事件，
+  // 会导致旧卡片永远转圈；执行态只信当前会话的 planning/executing。
+  const running = !finalEvent && (planning || executing || Boolean(runningStep));
+  // 规划阶段的模型思考已随 plan_created 落库，这里提供事后回看。
+  const planReasoning = getString(planEvent.payload.reasoning);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-4 [&>*]:min-w-0">
+      {planReasoning ? (
+        <div className="ml-11 max-w-4xl">
+          <ReasoningBlock reasoning={planReasoning} />
+        </div>
+      ) : null}
+
       <div className="flex gap-3">
         <AgentAvatar />
-        <div className="max-w-5xl pt-1">
-          <div className="text-base font-semibold text-blue-400">AtlasAgent</div>
-          <p className="mt-3 text-base leading-8 text-zinc-400">
-            我会按“{plan.title}”推进任务。执行过程中会持续展示步骤进度、
-            工具调用和最终结果，点击工具节点可以查看右侧详情。
-          </p>
-        </div>
-      </div>
-
-      <div className="ml-4 border-l border-dashed border-zinc-800/90 pl-7">
-        <div className="mb-2 flex items-center gap-3 px-2 py-1">
-          <StepBadge failed={failed} running={planning || Boolean(runningStep)} />
-          <p className="truncate text-sm font-medium text-zinc-500">
-            {plan.goal || "正在按计划执行任务"}
-          </p>
-        </div>
-        <div className="grid gap-3 py-3">
-          {steps.map((step, index) => (
-            <StepCard
-              highlighted={activeStep?.id === step.id}
-              index={index}
-              key={step.id}
-              onOpenStep={onOpenStep}
-              onSelectToolEvent={onSelectToolEvent}
-              selectedToolEventId={selectedToolEventId}
-              step={step}
-            />
-          ))}
+        <div className="min-w-0 flex-1 pt-1">
+          <TaskRunCard
+            failed={failed}
+            onSelectToolEvent={onSelectToolEvent}
+            running={running}
+            selectedToolEventId={selectedToolEventId}
+            steps={steps}
+            title={plan.title || plan.goal || "任务执行计划"}
+          />
         </div>
       </div>
 
@@ -88,6 +114,7 @@ function FinalAnswer({
 }) {
   const failed = event.type === "task_error";
   const eventAnswer = getString(event.payload.final_answer);
+  const answerReasoning = getString(event.payload.reasoning);
   const userMessage = getString(event.payload.user_message);
   const suggestion = getString(event.payload.suggestion);
   const requestId = getString(event.payload.request_id);
@@ -100,13 +127,18 @@ function FinalAnswer({
   return (
     <div className="flex gap-4">
       <AgentAvatar />
-      <div className="max-w-5xl pt-1">
-        <div className="text-sm font-semibold text-blue-400">AtlasAgent</div>
-        <div className="mt-3 rounded-[26px] border border-white/10 bg-white/[0.035] px-5 py-4 text-zinc-300 shadow-xl shadow-black/20">
-          <div className="mb-4 flex items-center gap-2 border-b border-white/10 pb-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-            <ClipboardCheck className="text-blue-400" size={15} aria-hidden="true" />
+      <div className="min-w-0 flex-1 pt-1">
+        <div className="text-sm font-semibold text-(--accent)">AtlasAgent</div>
+        <div className="mt-3 rounded-[26px] border border-(--line) bg-(--fill-1) px-5 py-4 text-(--text-2) shadow-xl shadow-black/20">
+          <div className="mb-4 flex items-center gap-2 border-b border-(--line) pb-3 text-xs font-semibold uppercase tracking-[0.18em] text-(--text-4)">
+            <ClipboardCheck className="text-(--accent)" size={15} aria-hidden="true" />
             {failed ? "Task Error" : "Final Answer"}
           </div>
+          {!failed && answerReasoning ? (
+            <div className="mb-4">
+              <ReasoningBlock reasoning={answerReasoning} />
+            </div>
+          ) : null}
           {failed ? (
             <div className="grid gap-3">
               <p className="font-semibold text-rose-100">
@@ -118,7 +150,7 @@ function FinalAnswer({
                 </p>
               ) : null}
               {requestId || taskId ? (
-                <p className="text-sm leading-6 text-zinc-500">
+                <p className="text-sm leading-6 text-(--text-4)">
                   {requestId ? `request_id：${requestId}` : ""}
                   {requestId && taskId ? " / " : ""}
                   {taskId ? `task_id：${taskId}` : ""}
@@ -168,24 +200,3 @@ function buildFallbackFinalAnswer(steps: StepView[]) {
   ].join("\n");
 }
 
-function StepBadge({ failed, running }: { failed: boolean; running: boolean }) {
-  if (failed) {
-    return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-500 text-white">
-        <AlertCircle size={18} aria-hidden="true" />
-      </span>
-    );
-  }
-  if (running) {
-    return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white">
-        <Loader2 className="animate-spin" size={18} aria-hidden="true" />
-      </span>
-    );
-  }
-  return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white">
-      <Check size={18} aria-hidden="true" />
-    </span>
-  );
-}

@@ -14,6 +14,11 @@ class LLMDefaults(BaseModel):
     default_model: str
     temperature: float = Field(ge=0, le=2)
     max_tokens: int = Field(gt=0)
+    # 流式对话时是否请求模型输出思考过程（DashScope/Qwen 的 enable_thinking）。
+    # 模型不支持时后端会自动降级为普通流式回答。
+    thinking: bool = False
+    # 多模态解析使用的视觉模型（如 qwen-vl-plus）。留空表示未启用图片解析。
+    vision_model: str = ""
 
 
 # ===================== 第2步：定义每个模型服务商的连接配置 =====================

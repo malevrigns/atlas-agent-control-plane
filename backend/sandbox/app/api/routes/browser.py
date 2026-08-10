@@ -8,6 +8,8 @@ from app.schemas.browser import (
     BrowserScreenshotResponse,
     BrowserSessionResponse,
     BrowserStatusResponse,
+    BrowserTextRequest,
+    BrowserTextResponse,
 )
 from app.schemas.common import ApiResponse
 from app.services.browser_service import SandboxBrowserService
@@ -61,6 +63,15 @@ async def get_page_info(
 ) -> ApiResponse[BrowserPageResponse]:
     # 读取当前页面 URL 和标题，用来验证 CDP 控制链路已经打通。
     return ApiResponse(data=await service.page_info())
+
+
+@router.post("/page/text", response_model=ApiResponse[BrowserTextResponse])
+async def read_page_text(
+    payload: BrowserTextRequest,
+    service: SandboxBrowserService = Depends(get_browser_service),
+) -> ApiResponse[BrowserTextResponse]:
+    # 返回当前页面可见正文，Agent 依据它回答与网页内容相关的问题。
+    return ApiResponse(data=await service.page_text(payload.max_chars))
 
 
 @router.post("/page/screenshot", response_model=ApiResponse[BrowserScreenshotResponse])

@@ -26,10 +26,10 @@ export function SessionControlBar({
   return (
     <div className="flex h-16 shrink-0 items-center justify-between bg-transparent px-8 backdrop-blur-2xl max-sm:h-auto max-sm:items-start max-sm:gap-3 max-sm:px-5 max-sm:py-3">
       <div className="min-w-0">
-        <div className="truncate text-xl font-semibold text-zinc-50">
+        <div className="truncate text-xl font-semibold text-(--text-1)">
           {selectedSession ? selectedSession.title : "新任务"}
         </div>
-        <p className="mt-1 text-sm text-zinc-600">
+        <p className="mt-1 text-sm text-(--text-5)">
           {isRunning ? "正在执行任务" : "描述任务后，Agent 会自动规划并执行"}
         </p>
       </div>
@@ -57,7 +57,7 @@ export function SessionControlBar({
         </button>
         <button
           aria-label="停止当前任务"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-rose-500/30 bg-rose-500/5 text-rose-300 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-zinc-800"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-rose-500/30 bg-rose-500/5 text-rose-300 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:border-(--line) disabled:bg-(--fill-1) disabled:text-(--text-5)"
           disabled={!selectedSession || !isRunning || stopping}
           onClick={onStop}
           title="停止任务"

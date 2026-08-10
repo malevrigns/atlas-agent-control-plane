@@ -1,4 +1,5 @@
-import { Loader2, Pause, SendHorizontal } from "lucide-react";
+import { Loader2, SendHorizontal } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { workspaceSurface } from "../lib/design-tokens";
 
@@ -10,6 +11,8 @@ type ChatInputProps = {
   sending: boolean;
 };
 
+const MAX_INPUT_HEIGHT = 176;
+
 export function ChatInput({
   disabled,
   draft,
@@ -17,6 +20,20 @@ export function ChatInput({
   onSend,
   sending,
 }: ChatInputProps) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // 随内容自动伸缩：先归零再按内容高度设置，超过上限后内部滚动。
+  useEffect(() => {
+    const element = textareaRef.current;
+    if (!element) {
+      return;
+    }
+    element.style.height = "auto";
+    element.style.height = `${Math.min(element.scrollHeight, MAX_INPUT_HEIGHT)}px`;
+    element.style.overflowY =
+      element.scrollHeight > MAX_INPUT_HEIGHT ? "auto" : "hidden";
+  }, [draft]);
+
   return (
     <form
       className="mx-auto max-w-5xl"
@@ -26,33 +43,44 @@ export function ChatInput({
       }}
     >
       <div
-        className={`rounded-[28px] p-4 ring-1 ring-blue-500/15 max-sm:p-3 ${workspaceSurface.panelStrong}`}
+        className={`flex items-end gap-2 rounded-3xl p-2 pl-5 ring-1 ring-(--accent)/15 max-sm:pl-4 ${workspaceSurface.panelStrong}`}
       >
         <textarea
           aria-label="任务输入框"
-          className="max-h-40 min-h-24 w-full resize-none border-0 bg-transparent px-2 py-2 text-lg font-medium leading-8 text-zinc-100 outline-none placeholder:text-zinc-600 disabled:bg-transparent max-sm:min-h-16 max-sm:text-base max-sm:leading-6"
+          className="w-full flex-1 resize-none border-0 bg-transparent py-2.5 text-base font-medium leading-6 text-(--text-1) outline-none placeholder:text-(--text-5) disabled:bg-transparent max-sm:py-2 max-sm:text-sm"
           disabled={disabled || sending}
           onChange={(event) => onDraftChange(event.target.value)}
+          onKeyDown={(event) => {
+            // Enter 直接发送，Shift+Enter 换行；输入法候选确认的 Enter 不触发。
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !event.nativeEvent.isComposing
+            ) {
+              event.preventDefault();
+              if (!disabled && !sending && draft.trim()) {
+                onSend();
+              }
+            }
+          }}
           placeholder={disabled ? "先创建或选择一个会话" : "分配一个任务或提问任何问题..."}
+          ref={textareaRef}
+          rows={1}
           value={draft}
         />
-        <div className="mt-2 flex items-center justify-end max-sm:mt-1">
-          <button
-            aria-label={sending ? "任务发送中" : "发送任务"}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] text-zinc-100 shadow-lg shadow-black/30 transition hover:border-blue-500/40 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-white/[0.04] disabled:text-zinc-700 disabled:shadow-none max-sm:h-10 max-sm:w-10"
-            disabled={disabled || sending}
-            title="发送并开始执行"
-            type="submit"
-          >
-            {sending ? (
-              <Loader2 className="animate-spin" size={21} aria-hidden="true" />
-            ) : draft.trim() ? (
-              <SendHorizontal size={21} aria-hidden="true" />
-            ) : (
-              <Pause size={21} aria-hidden="true" />
-            )}
-          </button>
-        </div>
+        <button
+          aria-label={sending ? "任务执行中" : "发送任务"}
+          className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--line) bg-(--fill-2) text-(--text-1) shadow-lg shadow-black/30 transition hover:border-(--accent)/40 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-(--fill-1) disabled:text-(--text-5) disabled:shadow-none max-sm:h-9 max-sm:w-9"
+          disabled={disabled || sending || !draft.trim()}
+          title={sending ? "任务执行中" : "发送并开始执行（Enter）"}
+          type="submit"
+        >
+          {sending ? (
+            <Loader2 className="animate-spin" size={19} aria-hidden="true" />
+          ) : (
+            <SendHorizontal size={19} aria-hidden="true" />
+          )}
+        </button>
       </div>
     </form>
   );

@@ -18,7 +18,7 @@ export function AttachmentList({ files, onSelectFile }: AttachmentListProps) {
     <div className="space-y-2">
       {files.map((file) => (
         <div
-          className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm transition hover:border-blue-500/40"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-(--line) bg-(--fill-1) px-3 py-2 text-sm transition hover:border-(--accent)/40"
           key={file.id}
         >
           <button
@@ -26,15 +26,15 @@ export function AttachmentList({ files, onSelectFile }: AttachmentListProps) {
             onClick={() => onSelectFile?.(file)}
             type="button"
           >
-            <span className="block truncate font-medium text-zinc-200">
+            <span className="block truncate font-medium text-(--text-2)">
               {file.file.original_name}
             </span>
-            <span className="mt-1 block text-xs text-zinc-600">
+            <span className="mt-1 block text-xs text-(--text-5)">
               {formatBytes(file.file.size)} · {formatDateTime(file.created_at)}
             </span>
           </button>
           <a
-            className="shrink-0 rounded-md p-1 text-zinc-500 hover:bg-white/10 hover:text-zinc-100"
+            className="shrink-0 rounded-md p-1 text-(--text-4) hover:bg-(--fill-2) hover:text-(--text-1)"
             href={getDownloadUrl(file.file)}
             title="下载文件"
           >

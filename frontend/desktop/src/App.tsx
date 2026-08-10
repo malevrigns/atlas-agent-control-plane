@@ -1,6 +1,7 @@
 import "@fontsource-variable/inter";
 import {
   Books,
+  ChatCircleDots,
   Cube,
   Gear,
   GitBranch,
@@ -13,6 +14,8 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { atlasRequest } from "./api";
+import { ChatView } from "./views/ChatView";
 import { KnowledgeView } from "./views/KnowledgeView";
 import { SkillsView } from "./views/SkillsView";
 import { TasksView } from "./views/TasksView";
@@ -42,12 +45,30 @@ interface IconRailProps {
 
 export function App() {
   const [theme, setTheme] = useTheme();
-  const [view, setView] = useState<WorkspaceView>("tasks");
+  const [view, setView] = useState<WorkspaceView>("chat");
   const [apiState, setApiState] = useState<ApiState>("checking");
+
+  // 应用启动即探测 /api/status（免认证），指示灯不依赖任何具体视图。
+  useEffect(() => {
+    let disposed = false;
+    atlasRequest("/api/status")
+      .then(() => {
+        if (!disposed) setApiState("connected");
+      })
+      .catch(() => {
+        if (!disposed) setApiState("offline");
+      });
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   return (
     <main className="atlas-shell">
       <IconRail apiState={apiState} view={view} onNavigate={setView} />
+      {view === "chat" ? (
+        <ChatView theme={theme} setTheme={setTheme} onApiState={setApiState} />
+      ) : null}
       {view === "tasks" ? (
         <TasksView theme={theme} setTheme={setTheme} onApiState={setApiState} />
       ) : null}
@@ -59,6 +80,7 @@ export function App() {
 
 function IconRail({ apiState, view, onNavigate }: IconRailProps) {
   const navigable: Array<{ icon: Icon; label: string; target: WorkspaceView }> = [
+    { icon: ChatCircleDots, label: "对话", target: "chat" },
     { icon: Play, label: "任务", target: "tasks" },
     { icon: PuzzlePiece, label: "技能", target: "skills" },
     { icon: Books, label: "知识库", target: "knowledge" },
@@ -72,7 +94,7 @@ function IconRail({ apiState, view, onNavigate }: IconRailProps) {
   ];
   return (
     <nav className="icon-rail" aria-label="主导航">
-      <button className="brand-mark" type="button" aria-label="AtlasAgent 首页" onClick={() => onNavigate("tasks")}>
+      <button className="brand-mark" type="button" aria-label="AtlasAgent 首页" onClick={() => onNavigate("chat")}>
         <RocketLaunch size={27} weight="fill" />
       </button>
       <div className="rail-divider" />
@@ -92,14 +114,21 @@ function IconRail({ apiState, view, onNavigate }: IconRailProps) {
         ))}
         <div className="rail-divider" />
         {placeholders.map(([ItemIcon, label]) => (
-          <button key={label} className="rail-button" type="button" aria-label={label} title={`${label}（Web 端可用）`}>
+          <button
+            key={label}
+            className="rail-button placeholder"
+            type="button"
+            disabled
+            aria-label={`${label}（暂未开放，请使用 Web 端）`}
+            title={`${label}（暂未开放，请使用 Web 端）`}
+          >
             <ItemIcon size={22} weight="regular" />
           </button>
         ))}
       </div>
       <div
         className={`api-indicator ${apiState}`}
-        title={apiState === "connected" ? "API 已连接" : apiState === "offline" ? "演示数据模式" : "正在检测 API"}
+        title={apiState === "connected" ? "API 已连接" : apiState === "offline" ? "API 未连接" : "正在检测 API"}
       >
         <span />
       </div>

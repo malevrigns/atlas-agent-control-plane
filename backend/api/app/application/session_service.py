@@ -81,6 +81,43 @@ class SessionService:
         await self.uow.commit()
         return message, event
 
+    async def create_assistant_message(
+        self,
+        session_id: UUID,
+        content: str,
+    ) -> tuple[SessionMessage, SessionEvent]:
+        """把 Agent 的最终回答落库成 assistant 消息。
+
+        没有这一步，消息列表里永远只有用户消息，
+        客户端刷新后只能看到“半边对话”。
+        """
+
+        await self.get_session(session_id)
+        clean_content = content.strip()
+        if not clean_content:
+            raise AppException(
+                message="assistant message content is required",
+                code=400,
+                status_code=400,
+            )
+
+        message = await self.uow.session_messages.add_assistant_message(
+            session_id=session_id,
+            content=clean_content,
+        )
+        event = await self.uow.session_events.add(
+            session_id=session_id,
+            event_type=SessionEventType.message_created,
+            payload={
+                "message_id": str(message.id),
+                "role": message.role.value,
+                "content": message.content,
+            },
+        )
+        await self.uow.sessions.touch(session_id)
+        await self.uow.commit()
+        return message, event
+
     async def mark_running(self, session_id: UUID) -> Session:
         await self.get_session(session_id)
         session = await self.uow.sessions.update_status(

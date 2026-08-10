@@ -127,27 +127,27 @@ export function ToolPreviewPanel({
     : "Tool";
 
   return (
-    <section className="flex h-full flex-col overflow-hidden border border-white/10 bg-[#08090d] shadow-2xl shadow-black/60">
-      <div className="border-b border-white/10 bg-[#0b0d14]/95 p-5">
+    <section className="flex h-full flex-col overflow-hidden border border-(--line) bg-(--surface) shadow-2xl shadow-black/25">
+      <div className="border-b border-(--line) bg-(--surface-2)/95 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-blue-400/70">
+            <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-(--accent)/70">
               AtlasAgent Computer
             </div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-50">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-(--text-1)">
               <Monitor size={18} aria-hidden="true" />
               {activeToolName || "当前工具详情"}
             </h2>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <ToolKindBadge kind={activeToolKind} />
-              <p className="text-sm leading-5 text-zinc-500">
+              <p className="text-sm leading-5 text-(--text-4)">
                 点击对话流里的工具节点后，在这里查看参数、输出和观察证据
               </p>
             </div>
           </div>
           <button
             aria-label="关闭工具详情"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-50"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-(--line) bg-(--fill-1) text-(--text-3) hover:bg-(--fill-2) hover:text-(--text-1)"
             onClick={onClose}
             title="关闭工具详情"
             type="button"
@@ -157,7 +157,7 @@ export function ToolPreviewPanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-[#08090d] p-4">
+      <div className="flex-1 overflow-auto bg-(--surface) p-4">
         <ToolCallView
           events={events}
           onExpand={setExpandedEvent}
@@ -210,8 +210,8 @@ function ToolCallView({
       <ToolCallDetail event={toolEvent} onExpand={onExpand} />
       {isBrowserTool ? (
         <div className="grid gap-3">
-          <div className="rounded-[22px] border border-blue-500/20 bg-blue-500/[0.06] px-4 py-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-blue-100">
+          <div className="rounded-[22px] border border-(--accent)/20 bg-blue-500/[0.06] px-4 py-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-(--accent)">
               <Monitor size={16} aria-hidden="true" />
               浏览器实时观察
             </div>
@@ -260,12 +260,12 @@ function ToolCallDetail({
   );
 
   return (
-    <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] shadow-sm">
+    <div className="overflow-hidden rounded-[24px] border border-(--line) bg-(--fill-1) shadow-sm">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.025] px-4 py-3">
-            <h3 className="flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-zinc-50">
-              <Icon className="shrink-0 text-blue-400" size={17} aria-hidden="true" />
+          <div className="flex items-center justify-between gap-3 border-b border-(--line) bg-white/[0.025] px-4 py-3">
+            <h3 className="flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-(--text-1)">
+              <Icon className="shrink-0 text-(--accent)" size={17} aria-hidden="true" />
               {toolName || "tool_called"}
             </h3>
             <div className="flex shrink-0 items-center gap-2">
@@ -273,7 +273,7 @@ function ToolCallDetail({
               <CopyButton value={output || JSON.stringify(event.payload, null, 2)} />
               <button
                 aria-label="展开工具详情"
-                className="inline-flex h-8 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-zinc-400 hover:text-zinc-50"
+                className="inline-flex h-8 items-center gap-1 rounded-full border border-(--line) bg-(--fill-1) px-3 text-xs font-medium text-(--text-3) hover:text-(--text-1)"
                 onClick={() => onExpand(event)}
                 title="展开工具详情"
                 type="button"
@@ -281,7 +281,7 @@ function ToolCallDetail({
                 <Maximize2 size={14} aria-hidden="true" />
                 展开详情
               </button>
-              <span className="text-xs text-zinc-600">
+              <span className="text-xs text-(--text-5)">
                 {formatDateTime(event.created_at)}
               </span>
             </div>
@@ -352,21 +352,21 @@ function ToolResultDialog({
       <div
         aria-labelledby="tool-result-title"
         aria-modal="true"
-        className="mx-auto flex h-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#08090d] shadow-2xl shadow-black/70"
+        className="mx-auto flex h-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-(--line) bg-(--surface) shadow-2xl shadow-black/70"
         role="dialog"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#0b0d14]/95 px-5 py-4">
+        <div className="flex items-center justify-between gap-3 border-b border-(--line) bg-(--surface-2)/95 px-5 py-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2
-                className="truncate text-base font-semibold text-zinc-50"
+                className="truncate text-base font-semibold text-(--text-1)"
                 id="tool-result-title"
               >
                 {toolName || "工具详情"}
               </h2>
               <ToolKindBadge kind={previewKind} />
             </div>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-(--text-4)">
               {formatDateTime(event.created_at)}
             </p>
           </div>
@@ -374,7 +374,7 @@ function ToolResultDialog({
             <CopyButton value={output || JSON.stringify(event.payload, null, 2)} />
             <button
               aria-label="关闭工具详情"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-(--line) bg-(--fill-1) text-(--text-3) hover:bg-(--fill-2) hover:text-(--text-1)"
               onClick={onClose}
               title="关闭"
               type="button"
@@ -385,7 +385,7 @@ function ToolResultDialog({
         </div>
 
         <div className="grid flex-1 grid-cols-[320px_1fr] overflow-hidden max-lg:grid-cols-1">
-          <aside className="overflow-auto border-r border-white/10 bg-white/[0.025] p-4 max-lg:border-b max-lg:border-r-0">
+          <aside className="overflow-auto border-r border-(--line) bg-white/[0.025] p-4 max-lg:border-b max-lg:border-r-0">
             <ToolObservationCard
               brief={observation.brief}
               pills={observation.pills}
@@ -428,25 +428,25 @@ function ToolArguments({ value }: { value: unknown }) {
   const entries = getArgumentEntries(value);
   return (
     <div className="mt-3">
-      <div className="mb-1 text-xs font-medium text-zinc-500">调用参数</div>
+      <div className="mb-1 text-xs font-medium text-(--text-4)">调用参数</div>
       {entries.length ? (
         <div className="grid gap-2">
           {entries.map(([key, entryValue]) => (
             <div
-              className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2"
+              className="rounded-2xl border border-(--line) bg-(--field) px-3 py-2"
               key={key}
             >
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-(--text-5)">
                 {key}
               </div>
-              <div className="mt-1 break-words text-xs leading-5 text-zinc-300">
+              <div className="mt-1 break-words text-xs leading-5 text-(--text-2)">
                 {formatArgumentValue(entryValue)}
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-500">
+        <div className="rounded-2xl border border-(--line) bg-(--field) px-3 py-2 text-xs text-(--text-4)">
           这个工具没有显式参数。
         </div>
       )}
@@ -464,8 +464,8 @@ function ToolObservationCard({
   title: string;
 }) {
   return (
-    <section className="rounded-[22px] border border-blue-500/20 bg-blue-500/[0.06] px-4 py-3">
-      <div className="flex items-center gap-2 text-sm font-semibold text-blue-100">
+    <section className="rounded-[22px] border border-(--accent)/20 bg-blue-500/[0.06] px-4 py-3">
+      <div className="flex items-center gap-2 text-sm font-semibold text-(--accent)">
         <Check size={15} aria-hidden="true" />
         {title}
       </div>
@@ -474,7 +474,7 @@ function ToolObservationCard({
         <div className="mt-3 flex flex-wrap gap-2">
           {pills.map((label) => (
             <span
-              className="rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-xs font-medium text-blue-100/80"
+              className="rounded-full border border-(--accent)/20 bg-(--accent)/10 px-3 py-1 text-xs font-medium text-blue-100/80"
               key={label}
             >
               {label}
@@ -510,8 +510,8 @@ function CopyButton({
       aria-label={copied ? "工具输出已复制" : "复制工具输出"}
       className={
         tone === "light"
-          ? "inline-flex h-9 items-center gap-1 rounded-md border border-white/10 px-3 text-xs font-medium text-zinc-400 hover:bg-white/[0.04]"
-          : "inline-flex h-8 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-zinc-400 hover:text-zinc-50"
+          ? "inline-flex h-9 items-center gap-1 rounded-md border border-(--line) px-3 text-xs font-medium text-(--text-3) hover:bg-(--fill-1)"
+          : "inline-flex h-8 items-center gap-1 rounded-full border border-(--line) bg-(--fill-1) px-3 text-xs font-medium text-(--text-3) hover:text-(--text-1)"
       }
       onClick={copyValue}
       title="复制工具输出"
@@ -536,8 +536,8 @@ function ToolKindBadge({
 }) {
   const className =
     tone === "light"
-      ? "rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-semibold text-zinc-400"
-      : "rounded-full border border-blue-500/25 bg-blue-500/10 px-2 py-0.5 text-[11px] font-semibold text-blue-200";
+      ? "rounded-full border border-(--line) bg-(--fill-1) px-2 py-0.5 text-[11px] font-semibold text-(--text-3)"
+      : "rounded-full border border-(--accent)/25 bg-(--accent)/10 px-2 py-0.5 text-[11px] font-semibold text-(--accent)";
   return <span className={className}>{kind}</span>;
 }
 
@@ -549,11 +549,11 @@ function PlainToolPreview({
   title: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-black/30">
-      <div className="border-b border-white/10 px-3 py-2 text-xs font-semibold text-zinc-400">
+    <div className="rounded-xl border border-(--line) bg-(--field)">
+      <div className="border-b border-(--line) px-3 py-2 text-xs font-semibold text-(--text-3)">
         {title}
       </div>
-      <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words p-4 text-xs leading-5 text-zinc-200">
+      <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words p-4 text-xs leading-5 text-(--text-2)">
         {output || "<no output>"}
       </pre>
     </div>
@@ -570,8 +570,8 @@ function ShellOutputPreview({ output }: { output: string }) {
           : "border-emerald-500/20 bg-emerald-500/[0.06]"
       }`}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-zinc-200">
+      <div className="flex items-center justify-between gap-3 border-b border-(--line) px-3 py-2">
+        <div className="flex items-center gap-2 text-xs font-semibold text-(--text-2)">
           <Terminal
             className={failed ? "text-rose-300" : "text-emerald-300"}
             size={15}
@@ -587,7 +587,7 @@ function ShellOutputPreview({ output }: { output: string }) {
           {failed ? "error" : "ok"}
         </span>
       </div>
-      <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs leading-6 text-zinc-100">
+      <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs leading-6 text-(--text-1)">
         {output || "<no output>"}
       </pre>
     </div>
@@ -596,13 +596,13 @@ function ShellOutputPreview({ output }: { output: string }) {
 
 function ScreenshotPreview({ screenshot }: { screenshot: ScreenshotPayload }) {
   return (
-    <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
+    <div className="mt-3 overflow-hidden rounded-2xl border border-(--line) bg-(--fill-1)">
       <img
         alt="浏览器截图"
         className="max-h-64 w-full object-contain"
         src={`data:${screenshot.mime_type};base64,${screenshot.base64_data}`}
       />
-      <div className="border-t border-white/10 px-3 py-2 text-xs text-zinc-500">
+      <div className="border-t border-(--line) px-3 py-2 text-xs text-(--text-4)">
         {screenshot.mime_type} · {screenshot.size} bytes
       </div>
     </div>
@@ -611,32 +611,32 @@ function ScreenshotPreview({ screenshot }: { screenshot: ScreenshotPayload }) {
 
 function SearchResultsPreview({ results }: { results: SearchResultsPayload }) {
   return (
-    <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035]">
-      <div className="border-b border-white/10 px-3 py-2">
-        <div className="text-xs font-medium text-zinc-500">搜索结果</div>
-        <div className="mt-1 text-sm font-semibold text-zinc-50">
+    <div className="mt-3 rounded-2xl border border-(--line) bg-(--fill-1)">
+      <div className="border-b border-(--line) px-3 py-2">
+        <div className="text-xs font-medium text-(--text-4)">搜索结果</div>
+        <div className="mt-1 text-sm font-semibold text-(--text-1)">
           {results.query}
         </div>
-        <div className="mt-1 text-xs text-zinc-500">
+        <div className="mt-1 text-xs text-(--text-4)">
           provider: {results.provider}
         </div>
       </div>
       <div className="grid gap-2 p-3">
         {results.items.map((item) => (
           <a
-            className="block rounded-md border border-white/10 px-3 py-2 transition hover:border-blue-500/40 hover:bg-white/[0.04]"
+            className="block rounded-md border border-(--line) px-3 py-2 transition hover:border-(--accent)/40 hover:bg-(--fill-1)"
             href={item.url}
             key={`${item.title}-${item.url}`}
             rel="noreferrer"
             target="_blank"
           >
-            <div className="line-clamp-1 text-sm font-semibold text-zinc-50">
+            <div className="line-clamp-1 text-sm font-semibold text-(--text-1)">
               {item.title || item.url}
             </div>
-            <div className="mt-1 line-clamp-1 text-xs text-blue-300">
+            <div className="mt-1 line-clamp-1 text-xs text-(--accent)">
               {item.url}
             </div>
-            <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-(--text-3)">
               {item.snippet || "暂无摘要"}
             </p>
           </a>
@@ -652,7 +652,7 @@ function SearchErrorPreview({ error }: { error: SearchErrorPayload }) {
       <div className="text-xs font-medium uppercase tracking-[0.14em] text-amber-300">
         搜索暂不可用
       </div>
-      <div className="mt-2 text-sm font-semibold text-zinc-50">
+      <div className="mt-2 text-sm font-semibold text-(--text-1)">
         {error.query}
       </div>
       <p className="mt-2 text-sm leading-6 text-amber-100/80">
@@ -667,38 +667,38 @@ function SearchErrorPreview({ error }: { error: SearchErrorPayload }) {
 
 function McpResultPreview({ result }: { result: McpToolResultPayload }) {
   return (
-    <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035]">
-      <div className="border-b border-white/10 px-3 py-2">
-        <div className="text-xs font-medium text-zinc-500">MCP 工具结果</div>
-        <div className="mt-1 text-sm font-semibold text-zinc-50">
+    <div className="mt-3 rounded-2xl border border-(--line) bg-(--fill-1)">
+      <div className="border-b border-(--line) px-3 py-2">
+        <div className="text-xs font-medium text-(--text-4)">MCP 工具结果</div>
+        <div className="mt-1 text-sm font-semibold text-(--text-1)">
           {result.server_name}.{result.tool_name}
         </div>
       </div>
       <div className="grid gap-3 p-3">
         <div>
-          <div className="mb-1 text-xs font-medium text-zinc-500">
+          <div className="mb-1 text-xs font-medium text-(--text-4)">
             MCP 参数
           </div>
           <div className="grid gap-2">
             {getArgumentEntries(result.arguments).map(([key, value]) => (
               <div
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-zinc-300"
+                className="rounded-xl border border-(--line) bg-(--fill-1) px-3 py-2 text-xs text-(--text-2)"
                 key={key}
               >
-                <span className="font-semibold text-zinc-500">{key}：</span>
+                <span className="font-semibold text-(--text-4)">{key}：</span>
                 {formatArgumentValue(value)}
               </div>
             ))}
           </div>
         </div>
         <div>
-          <div className="mb-1 text-xs font-medium text-zinc-500">
+          <div className="mb-1 text-xs font-medium text-(--text-4)">
             MCP 返回内容
           </div>
           <div className="grid max-h-56 gap-2 overflow-auto">
             {result.content.map((item, index) => (
               <div
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs leading-5 text-zinc-300"
+                className="rounded-xl border border-(--line) bg-(--fill-1) px-3 py-2 text-xs leading-5 text-(--text-2)"
                 key={`${result.tool_name}-${index}`}
               >
                 {renderMcpContentItem(item)}
@@ -715,39 +715,39 @@ function A2aResultPreview({ result }: { result: A2aTaskResultPayload }) {
   // 这个组件只负责展示 A2A 工具结果。
   // 数据已经在 parseA2aTaskResult 中做过结构检查，所以这里可以直接渲染。
   return (
-    <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035]">
-      <div className="border-b border-white/10 px-3 py-2">
-        <div className="text-xs font-medium text-zinc-500">A2A 远程 Agent</div>
-        <div className="mt-1 text-sm font-semibold text-zinc-50">
+    <div className="mt-3 rounded-2xl border border-(--line) bg-(--fill-1)">
+      <div className="border-b border-(--line) px-3 py-2">
+        <div className="text-xs font-medium text-(--text-4)">A2A 远程 Agent</div>
+        <div className="mt-1 text-sm font-semibold text-(--text-1)">
           {result.remote_agent}
         </div>
-        <div className="mt-1 text-xs text-zinc-500">
+        <div className="mt-1 text-xs text-(--text-4)">
           {result.agent_key} · {result.task_id} · {result.status}
         </div>
       </div>
       <div className="grid gap-3 p-3">
         <div>
-          <div className="mb-1 text-xs font-medium text-zinc-500">
+          <div className="mb-1 text-xs font-medium text-(--text-4)">
             远程输出
           </div>
-          <div className="rounded-md bg-white/[0.04] p-2 text-xs leading-5 text-zinc-300">
+          <div className="rounded-md bg-(--fill-1) p-2 text-xs leading-5 text-(--text-2)">
             {result.output_message.map((part) => part.text).join("\n") || "暂无输出"}
           </div>
         </div>
         <div>
-          <div className="mb-1 text-xs font-medium text-zinc-500">
+          <div className="mb-1 text-xs font-medium text-(--text-4)">
             协作步骤
           </div>
           <div className="grid gap-2">
             {result.steps.map((step) => (
               <div
-                className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5"
+                className="rounded-md border border-(--line) bg-(--fill-1) px-2 py-1.5"
                 key={`${step.index}-${step.action}`}
               >
-                <div className="text-xs font-semibold text-zinc-100">
+                <div className="text-xs font-semibold text-(--text-1)">
                   {step.index}. {step.action}
                 </div>
-                <p className="mt-1 text-xs leading-5 text-zinc-400">
+                <p className="mt-1 text-xs leading-5 text-(--text-3)">
                   {step.detail}
                 </p>
               </div>
@@ -763,33 +763,33 @@ function MultiAgentResultPreview({ result }: { result: MultiAgentResultPayload }
   // 这个组件展示 Manager / Worker / Reviewer 的协作结果。
   // 数据已经经过 parseMultiAgentResult 检查，因此这里只负责布局。
   return (
-    <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035]">
-      <div className="border-b border-white/10 px-3 py-2">
-        <div className="text-xs font-medium text-zinc-500">多 Agent 协作</div>
-        <div className="mt-1 text-sm font-semibold text-zinc-50">
+    <div className="mt-3 rounded-2xl border border-(--line) bg-(--fill-1)">
+      <div className="border-b border-(--line) px-3 py-2">
+        <div className="text-xs font-medium text-(--text-4)">多 Agent 协作</div>
+        <div className="mt-1 text-sm font-semibold text-(--text-1)">
           {result.manager}
         </div>
-        <p className="mt-1 text-xs leading-5 text-zinc-500">{result.task}</p>
+        <p className="mt-1 text-xs leading-5 text-(--text-4)">{result.task}</p>
       </div>
       <div className="grid gap-3 p-3">
         <div>
-          <div className="mb-1 text-xs font-medium text-zinc-500">
+          <div className="mb-1 text-xs font-medium text-(--text-4)">
             子任务分派
           </div>
           <div className="grid gap-2">
             {result.subtasks.map((subtask) => (
               <div
-                className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5"
+                className="rounded-md border border-(--line) bg-(--fill-1) px-2 py-1.5"
                 key={subtask.id}
               >
                 <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="font-semibold text-zinc-100">
+                  <span className="font-semibold text-(--text-1)">
                     {subtask.title}
                   </span>
-                  <span className="text-zinc-500">{subtask.status}</span>
+                  <span className="text-(--text-4)">{subtask.status}</span>
                 </div>
-                <p className="mt-1 text-xs text-zinc-500">{subtask.assignee}</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-300">
+                <p className="mt-1 text-xs text-(--text-4)">{subtask.assignee}</p>
+                <p className="mt-1 text-xs leading-5 text-(--text-2)">
                   {subtask.output}
                 </p>
               </div>
@@ -809,7 +809,7 @@ function MultiAgentResultPreview({ result }: { result: MultiAgentResultPayload }
             {result.review.improvement}
           </p>
         </div>
-        <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-white/[0.04] p-3 text-xs leading-5 text-zinc-300">
+        <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-(--fill-1) p-3 text-xs leading-5 text-(--text-2)">
           {result.final_answer}
         </pre>
       </div>
@@ -825,7 +825,7 @@ function EmptyState({
   text: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-zinc-500">
+    <div className="flex items-center gap-2 rounded-md border border-(--line) bg-(--fill-1) px-3 py-2 text-sm text-(--text-4)">
       <Icon size={16} aria-hidden="true" />
       <span>{text}</span>
     </div>

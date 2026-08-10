@@ -1,7 +1,10 @@
+import json
+from collections.abc import AsyncIterator
+
 import httpx
 
 from app.core.exceptions import AppException
-from app.domain.llm.entities import LLMChatRequest, LLMChatResult
+from app.domain.llm.entities import LLMChatRequest, LLMChatResult, LLMStreamDelta
 
 
 # ===================== 第1步：封装 OpenAI 兼容的 HTTP 客户端 =====================
@@ -82,3 +85,133 @@ class OpenAICompatibleClient:
             content=content,
             usage=data.get("usage"),
         )
+
+    async def chat_vision(
+        self,
+        *,
+        model: str,
+        image_data_url: str,
+        prompt: str,
+        max_tokens: int,
+        timeout_seconds: float | None = None,
+    ) -> str:
+        """调用视觉模型解析一张图片，返回提取的文本。
+
+        使用 OpenAI 兼容的多模态消息格式：content 为
+        [image_url, text] 数组（DashScope qwen-vl 系列同样遵循）。
+        """
+
+        payload = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": image_data_url}},
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ],
+            "max_tokens": max_tokens,
+        }
+        try:
+            async with httpx.AsyncClient(
+                timeout=timeout_seconds or self.timeout_seconds
+            ) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+        except httpx.HTTPError as exc:
+            raise AppException(
+                message=f"vision model request failed: {exc}",
+                code=502,
+                status_code=502,
+            ) from exc
+
+        if response.status_code >= 400:
+            raise AppException(
+                message=f"vision model returned HTTP {response.status_code}",
+                code=502,
+                status_code=502,
+            )
+        data = response.json()
+        choices = data.get("choices") or []
+        content = (choices[0].get("message") or {}).get("content") if choices else None
+        if not isinstance(content, str) or not content.strip():
+            raise AppException(
+                message="vision model returned empty content",
+                code=502,
+                status_code=502,
+            )
+        return content.strip()
+
+    async def chat_stream(self, request: LLMChatRequest) -> AsyncIterator[LLMStreamDelta]:
+        """以流式方式调用 /chat/completions，逐段产出增量。
+
+        OpenAI 兼容协议在 stream=true 时返回 SSE：每行 `data: {json}`，
+        正文增量位于 choices[0].delta.content；思考型模型（Qwen/DeepSeek-R1 等）
+        会先在 delta.reasoning_content 输出思考过程。`data: [DONE]` 表示结束。
+        """
+
+        payload = {
+            "model": request.model,
+            "messages": [
+                {"role": message.role, "content": message.content}
+                for message in request.messages
+            ],
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+            "stream": True,
+        }
+        if request.extra_body:
+            payload.update(request.extra_body)
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                ) as response:
+                    if response.status_code >= 400:
+                        raise AppException(
+                            message=f"LLM provider returned HTTP {response.status_code}",
+                            code=502,
+                            status_code=502,
+                        )
+                    async for line in response.aiter_lines():
+                        clean_line = line.strip()
+                        if not clean_line.startswith("data:"):
+                            continue
+                        data_text = clean_line.removeprefix("data:").strip()
+                        if data_text == "[DONE]":
+                            return
+                        try:
+                            chunk = json.loads(data_text)
+                        except json.JSONDecodeError:
+                            continue
+                        choices = chunk.get("choices") or []
+                        if not choices:
+                            continue
+                        delta = choices[0].get("delta") or {}
+                        reasoning = delta.get("reasoning_content")
+                        if isinstance(reasoning, str) and reasoning:
+                            yield LLMStreamDelta(kind="reasoning", text=reasoning)
+                        content = delta.get("content")
+                        if isinstance(content, str) and content:
+                            yield LLMStreamDelta(kind="content", text=content)
+        except httpx.HTTPError as exc:
+            raise AppException(
+                message=f"LLM request failed: {exc}",
+                code=502,
+                status_code=502,
+            ) from exc

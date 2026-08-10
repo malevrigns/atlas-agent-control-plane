@@ -18,20 +18,20 @@ export function ContextPanel({
   onRefresh,
 }: ContextPanelProps) {
   return (
-    <section className="flex h-full flex-col overflow-hidden border border-white/10 bg-[#08090d] shadow-2xl shadow-black/60">
-      <div className="flex items-start justify-between gap-3 border-b border-white/10 bg-black/60 p-5">
+    <section className="flex h-full flex-col overflow-hidden border border-(--line) bg-(--surface) shadow-2xl shadow-black/25">
+      <div className="flex items-start justify-between gap-3 border-b border-(--line) bg-(--surface-2)/95 p-5">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-50">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-(--text-1)">
             <BrainCircuit size={17} aria-hidden="true" />
             上下文工程
           </h2>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-(--text-4)">
             查看本次任务实际使用的短期上下文和长期记忆
           </p>
         </div>
         <div className="flex gap-2">
           <button
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-50 disabled:text-zinc-700"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-(--line) bg-(--fill-1) text-(--text-3) hover:bg-(--fill-2) hover:text-(--text-1) disabled:text-(--text-5)"
             disabled={disabled}
             onClick={onRefresh}
             title="刷新上下文"
@@ -40,7 +40,7 @@ export function ContextPanel({
             <RefreshCw size={16} aria-hidden="true" />
           </button>
           <button
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-50"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-(--line) bg-(--fill-1) text-(--text-3) hover:bg-(--fill-2) hover:text-(--text-1)"
             onClick={onClose}
             title="关闭上下文"
             type="button"
@@ -52,7 +52,7 @@ export function ContextPanel({
 
       <div className="flex-1 overflow-auto p-5">
         {context.type === "loading" ? (
-          <p className="rounded-md bg-white/[0.04] px-3 py-2 text-sm text-zinc-500">
+          <p className="rounded-md bg-(--fill-1) px-3 py-2 text-sm text-(--text-4)">
             上下文加载中
           </p>
         ) : context.type === "error" ? (
@@ -62,7 +62,7 @@ export function ContextPanel({
         ) : context.data ? (
           <ContextSnapshot snapshot={context.data} />
         ) : (
-          <p className="rounded-md bg-white/[0.04] px-3 py-2 text-sm text-zinc-500">
+          <p className="rounded-md bg-(--fill-1) px-3 py-2 text-sm text-(--text-4)">
             选择会话后可以查看上下文快照
           </p>
         )}
@@ -74,11 +74,11 @@ export function ContextPanel({
 function ContextSnapshot({ snapshot }: { snapshot: SessionContextData }) {
   return (
     <div className="space-y-4">
-      <p className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm leading-6 text-zinc-400">
+      <p className="rounded-md border border-(--line) bg-(--fill-1) px-3 py-2 text-sm leading-6 text-(--text-3)">
         {snapshot.summary}
       </p>
 
-      <div className="grid grid-cols-3 gap-2 text-xs text-zinc-400">
+      <div className="grid grid-cols-3 gap-2 text-xs text-(--text-3)">
         <Metric label="纳入消息" value={snapshot.budget.included_messages} />
         <Metric label="省略消息" value={snapshot.budget.omitted_messages} />
         <Metric label="纳入事件" value={snapshot.budget.included_events} />
@@ -90,23 +90,23 @@ function ContextSnapshot({ snapshot }: { snapshot: SessionContextData }) {
       <MemoryContextSection memoryContext={snapshot.memory_context} />
 
       <div>
-        <h3 className="text-sm font-semibold text-zinc-100">最近消息</h3>
+        <h3 className="text-sm font-semibold text-(--text-1)">最近消息</h3>
         <div className="mt-2 space-y-2">
           {snapshot.messages.length === 0 ? (
-            <p className="rounded-md bg-white/[0.04] px-3 py-2 text-sm text-zinc-500">
+            <p className="rounded-md bg-(--fill-1) px-3 py-2 text-sm text-(--text-4)">
               暂无消息
             </p>
           ) : (
             snapshot.messages.map((message, index) => (
               <div
-                className="rounded-md border border-white/10 bg-white/[0.04] p-3"
+                className="rounded-md border border-(--line) bg-(--fill-1) p-3"
                 key={`${message.created_at}-${index}`}
               >
-                <div className="flex items-center justify-between gap-2 text-xs text-zinc-500">
+                <div className="flex items-center justify-between gap-2 text-xs text-(--text-4)">
                   <span>{message.role}</span>
                   <span>{formatDateTime(message.created_at)}</span>
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-300">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-(--text-2)">
                   {message.content}
                 </p>
                 {message.truncated ? (
@@ -121,20 +121,20 @@ function ContextSnapshot({ snapshot }: { snapshot: SessionContextData }) {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-zinc-100">事件摘要</h3>
+        <h3 className="text-sm font-semibold text-(--text-1)">事件摘要</h3>
         <div className="mt-2 grid gap-2">
           {snapshot.event_summaries.length === 0 ? (
-            <p className="rounded-md bg-white/[0.04] px-3 py-2 text-sm text-zinc-500">
+            <p className="rounded-md bg-(--fill-1) px-3 py-2 text-sm text-(--text-4)">
               暂无事件
             </p>
           ) : (
             snapshot.event_summaries.map((event) => (
               <div
-                className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-md border border-(--line) bg-(--fill-1) px-3 py-2 text-sm"
                 key={event.type}
               >
-                <span className="font-medium text-zinc-300">{event.type}</span>
-                <span className="text-xs text-zinc-500">{event.count} 次</span>
+                <span className="font-medium text-(--text-2)">{event.type}</span>
+                <span className="text-xs text-(--text-4)">{event.count} 次</span>
               </div>
             ))
           )}
@@ -142,28 +142,28 @@ function ContextSnapshot({ snapshot }: { snapshot: SessionContextData }) {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-zinc-100">文件引用</h3>
+        <h3 className="text-sm font-semibold text-(--text-1)">文件引用</h3>
         <div className="mt-2 space-y-2">
           {snapshot.files.length === 0 ? (
-            <p className="rounded-md bg-white/[0.04] px-3 py-2 text-sm text-zinc-500">
+            <p className="rounded-md bg-(--fill-1) px-3 py-2 text-sm text-(--text-4)">
               暂无文件引用
             </p>
           ) : (
             snapshot.files.map((file) => (
               <div
-                className="rounded-md border border-white/10 bg-white/[0.04] p-3"
+                className="rounded-md border border-(--line) bg-(--fill-1) p-3"
                 key={file.id}
               >
                 <div className="flex items-start gap-2">
-                  <FileText className="mt-0.5 text-zinc-500" size={16} aria-hidden="true" />
+                  <FileText className="mt-0.5 text-(--text-4)" size={16} aria-hidden="true" />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-zinc-200">
+                    <p className="truncate text-sm font-medium text-(--text-2)">
                       {file.name}
                     </p>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-(--text-4)">
                       {file.content_type} · {formatBytes(file.size)}
                     </p>
-                    <p className="mt-2 text-xs leading-5 text-zinc-400">
+                    <p className="mt-2 text-xs leading-5 text-(--text-3)">
                       {file.usage_hint}
                     </p>
                   </div>
@@ -179,9 +179,9 @@ function ContextSnapshot({ snapshot }: { snapshot: SessionContextData }) {
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2">
-      <div className="text-zinc-500">{label}</div>
-      <div className="mt-1 text-base font-semibold text-zinc-100">{value}</div>
+    <div className="rounded-md border border-(--line) bg-(--fill-1) px-3 py-2">
+      <div className="text-(--text-4)">{label}</div>
+      <div className="mt-1 text-base font-semibold text-(--text-1)">{value}</div>
     </div>
   );
 }

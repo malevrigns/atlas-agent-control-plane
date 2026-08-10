@@ -4,7 +4,6 @@ import { ChatInput } from "./chat-input";
 import { ContextPanel } from "./context-panel";
 import { ConversationTimeline } from "./conversation-timeline";
 import { FilePreviewPanel } from "./file-preview-panel";
-import { PlanProgressBar } from "./conversation/plan-progress-bar";
 import { SessionControlBar } from "./session-control-bar";
 import { ToolPreviewPanel } from "./tool-preview-panel";
 import { useState } from "react";
@@ -20,7 +19,6 @@ import type {
   SessionItem,
   VncStatusData,
 } from "../types";
-import { buildPlanProgressView } from "./conversation/view-model";
 
 type ChatWorkspaceProps = {
   attachments: SessionFileItem[];
@@ -30,6 +28,8 @@ type ChatWorkspaceProps = {
   context: LoadState<SessionContextData | null>;
   files: LoadState<SessionFileItem[]>;
   filePreview: LoadState<FilePreviewData | null>;
+  liveAnswer: string;
+  liveThinking: string;
   messages: LoadState<ChatMessage[]>;
   onClearUnread: () => void;
   onRefreshContext: () => void;
@@ -60,6 +60,8 @@ export function ChatWorkspace({
   events,
   files,
   filePreview,
+  liveAnswer,
+  liveThinking,
   messages,
   onClearUnread,
   onRefreshContext,
@@ -89,13 +91,6 @@ export function ChatWorkspace({
   const hasFilePreview =
     !showContextPreview && selectedToolEventId === null && selectedFile !== null;
   const hasPreview = hasToolPreview || hasFilePreview || showContextPreview;
-  const eventItems = events.type === "ready" ? events.data : [];
-  const planProgress = buildPlanProgressView(
-    plan,
-    eventItems,
-    planning,
-    executingPlan,
-  );
 
   function openFilePreview(file: SessionFileItem) {
     setShowContextPreview(false);
@@ -106,8 +101,8 @@ export function ChatWorkspace({
 
   return (
     <section className="relative flex h-full min-h-0 gap-0 overflow-hidden bg-transparent">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:64px_64px]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.14),transparent_34%),linear-gradient(180deg,rgba(5,6,10,0.25),#05060a_78%)]" />
+      <div className="chat-grid-overlay pointer-events-none absolute inset-0" />
+      <div className="chat-backdrop pointer-events-none absolute inset-0" />
       <div
         className={`relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden ${
           hasPreview ? "" : "mx-auto w-full max-w-[780px]"
@@ -128,6 +123,8 @@ export function ChatWorkspace({
         />
         <ConversationTimeline
           events={events}
+          liveAnswer={liveAnswer}
+          liveThinking={liveThinking}
           messages={messages}
           onSelectToolEvent={(eventId) => {
             setShowContextPreview(false);
@@ -140,10 +137,9 @@ export function ChatWorkspace({
           selectedToolEventId={selectedToolEventId}
           task={task}
         />
-        <div className="mt-auto shrink-0 bg-[#05060a]/85 px-8 py-4 backdrop-blur-2xl max-md:px-4 max-sm:py-2">
+        <div className="mt-auto shrink-0 bg-(--page)/85 px-8 py-4 backdrop-blur-2xl max-md:px-4 max-sm:py-2">
           <div className="mx-auto mb-3 h-px w-[220px] bg-gradient-to-r from-transparent via-blue-500/30 to-transparent max-sm:mb-2" />
           <div className="mx-auto max-w-5xl">
-            <PlanProgressBar progress={planProgress} />
             <div className="mb-2 flex flex-wrap items-center justify-start gap-2">
               <div className="flex items-center gap-3">
                 <AttachmentUpload
@@ -168,7 +164,7 @@ export function ChatWorkspace({
       {hasToolPreview ? (
         <aside
           aria-label="当前工具详情工作区"
-          className="relative z-20 h-full w-[600px] shrink-0 border-l border-white/10 bg-[#07080d]/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[70dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2"
+          className="relative z-20 h-full w-[600px] shrink-0 border-l border-(--line) bg-(--surface)/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[70dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2"
         >
           <ToolPreviewPanel
             events={events}
@@ -182,7 +178,7 @@ export function ChatWorkspace({
       {hasFilePreview ? (
         <aside
           aria-label="文件预览工作区"
-          className="relative z-20 h-full w-[600px] shrink-0 border-l border-white/10 bg-[#07080d]/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[70dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2"
+          className="relative z-20 h-full w-[600px] shrink-0 border-l border-(--line) bg-(--surface)/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[70dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2"
         >
           <FilePreviewPanel
             onClose={() => onSelectFile(null)}
@@ -195,7 +191,7 @@ export function ChatWorkspace({
       {showContextPreview ? (
         <aside
           aria-label="上下文工作区"
-          className="relative z-20 h-full w-[600px] shrink-0 border-l border-white/10 bg-[#07080d]/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[76dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2"
+          className="relative z-20 h-full w-[600px] shrink-0 border-l border-(--line) bg-(--surface)/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[76dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2"
         >
           <ContextPanel
             context={context}

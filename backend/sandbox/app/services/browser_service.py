@@ -17,6 +17,7 @@ from app.schemas.browser import (
     BrowserScreenshotResponse,
     BrowserSessionResponse,
     BrowserStatusResponse,
+    BrowserTextResponse,
 )
 
 
@@ -135,6 +136,34 @@ class SandboxBrowserService:
         return BrowserPageResponse(
             url=runtime.page.url,
             title=await self._safe_title(runtime.page),
+        )
+
+    # ===================== 第3.5步：读取页面正文 =====================
+    async def page_text(self, max_chars: int = 8000) -> BrowserTextResponse:
+        """读取当前页面的可见正文，供 Agent 依据网页内容作答。
+
+        用 innerText 而不是 content()：前者是渲染后的可见文本，
+        天然过滤 script/style 和隐藏元素，最接近人眼读到的内容。
+        """
+        runtime = await self._ensure_runtime()
+        try:
+            text = await runtime.page.evaluate(
+                "() => document.body ? document.body.innerText : ''"
+            )
+        except PlaywrightError as exc:
+            raise SandboxException(message=f"failed to read page text: {exc}") from exc
+
+        clean_text = "\n".join(
+            line.rstrip() for line in str(text).splitlines() if line.strip()
+        )
+        total_chars = len(clean_text)
+        truncated = total_chars > max_chars
+        return BrowserTextResponse(
+            url=runtime.page.url,
+            title=await self._safe_title(runtime.page) or "",
+            text=clean_text[:max_chars],
+            total_chars=total_chars,
+            truncated=truncated,
         )
 
     # ===================== 第4步：页面截图 =====================

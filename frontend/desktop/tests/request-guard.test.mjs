@@ -3,7 +3,7 @@ import test from "node:test";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { normalizeApiRequest } = require("../electron/request-guard.cjs");
+const { normalizeApiRequest, normalizeStreamRequest } = require("../electron/request-guard.cjs");
 
 test("accepts the API paths the desktop client actually calls", () => {
   const paths = [
@@ -62,4 +62,26 @@ test("passes the body through untouched", () => {
 test("survives a malformed request object", () => {
   assert.throws(() => normalizeApiRequest(undefined), /invalid Atlas API path/);
   assert.throws(() => normalizeApiRequest({}), /invalid Atlas API path/);
+});
+
+test("stream requests accept the chat stream path and force POST", () => {
+  const normalized = normalizeStreamRequest({
+    path: "/api/sessions/2f4a/messages/stream",
+    body: { content: "你好" },
+  });
+  assert.equal(normalized.path, "/api/sessions/2f4a/messages/stream");
+  assert.equal(normalized.method, "POST");
+  assert.deepEqual(normalized.body, { content: "你好" });
+});
+
+test("stream requests reject hostile paths", () => {
+  const hostile = [
+    "/etc/passwd",
+    "//evil.test/api/steal",
+    "/api/../../secret",
+    "https://evil.test/api/stream",
+  ];
+  for (const path of hostile) {
+    assert.throws(() => normalizeStreamRequest({ path }), /invalid Atlas API path/, path);
+  }
 });

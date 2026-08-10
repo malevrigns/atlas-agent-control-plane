@@ -1,16 +1,29 @@
-import { Bot, Plus, RefreshCw, Settings } from "lucide-react";
+import {
+  BookOpenText,
+  Bot,
+  PanelLeftClose,
+  Plus,
+  Puzzle,
+  RefreshCw,
+  Settings,
+} from "lucide-react";
 
 import { SessionList } from "./session-list";
+import { ThemeMenu } from "./theme-menu";
 import { workspaceButton, workspaceSurface } from "../lib/design-tokens";
 import type { LoadState, SessionItem } from "../types";
 
+/** 主区域可切换的视图。 */
+export type MainView = "workspace" | "settings" | "knowledge" | "skills";
+
 type AppSidebarProps = {
   actionError: string | null;
-  activeView: "workspace" | "settings";
+  activeView: MainView;
+  onCollapse: () => void;
   onCreateSession: () => void;
   onDeleteSession: (sessionId: string) => void;
   onRefresh: () => void;
-  onViewChange: (view: "workspace" | "settings") => void;
+  onViewChange: (view: MainView) => void;
   onSelectSession: (sessionId: string) => void;
   selectedSessionId: string | null;
   sessions: LoadState<SessionItem[]>;
@@ -22,6 +35,7 @@ type AppSidebarProps = {
 export function AppSidebar({
   actionError,
   activeView,
+  onCollapse,
   onCreateSession,
   onDeleteSession,
   onRefresh,
@@ -34,17 +48,26 @@ export function AppSidebar({
   onTitleChange,
 }: AppSidebarProps) {
   return (
-    <aside className="flex h-screen min-h-0 flex-col overflow-hidden border-r border-white/10 bg-black px-4 py-5 max-lg:h-auto max-lg:max-h-[40dvh] max-lg:border-b max-lg:border-r-0 max-sm:max-h-[34dvh] max-sm:px-4 max-sm:py-4">
+    <aside className="flex h-screen min-h-0 flex-col overflow-hidden border-r border-(--line) bg-(--surface) px-4 py-5 max-lg:h-auto max-lg:max-h-[40dvh] max-lg:border-b max-lg:border-r-0 max-sm:max-h-[34dvh] max-sm:px-4 max-sm:py-4">
       <div className="flex shrink-0 items-center gap-3 px-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/15 text-blue-400">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-(--accent)/30 bg-(--accent)/15 text-(--accent)">
           <Bot size={22} aria-hidden="true" />
         </div>
-        <div>
-          <div className="text-base font-semibold leading-5 text-zinc-50">
+        <div className="min-w-0 flex-1">
+          <div className="text-base font-semibold leading-5 text-(--text-1)">
             AtlasAgent
           </div>
-          <div className="mt-1 text-xs text-zinc-500">Agent Workspace</div>
+          <div className="mt-1 text-xs text-(--text-4)">Agent Workspace</div>
         </div>
+        <button
+          aria-label="隐藏侧边栏"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-(--text-4) transition hover:bg-(--fill-2) hover:text-(--text-1)"
+          onClick={onCollapse}
+          title="隐藏侧边栏"
+          type="button"
+        >
+          <PanelLeftClose size={17} aria-hidden="true" />
+        </button>
       </div>
 
       <div
@@ -55,41 +78,70 @@ export function AppSidebar({
           className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
             activeView === "workspace"
               ? "bg-blue-500 text-white"
-              : "text-zinc-500 hover:text-zinc-100"
+              : "text-(--text-4) hover:text-(--text-1)"
           }`}
           onClick={() => onViewChange("workspace")}
           type="button"
         >
           对话
         </button>
-        <button
-          aria-label="打开设置"
-          className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
-            activeView === "settings"
-              ? "bg-white/15 text-zinc-50"
-              : "text-zinc-600 hover:bg-white/10 hover:text-zinc-100"
-          }`}
-          onClick={() => onViewChange("settings")}
-          title="设置"
-          type="button"
-        >
-          <Settings size={15} aria-hidden="true" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            aria-label="知识库管理"
+            className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
+              activeView === "knowledge"
+                ? "bg-(--fill-3) text-(--text-1)"
+                : "text-(--text-5) hover:bg-(--fill-2) hover:text-(--text-1)"
+            }`}
+            onClick={() => onViewChange("knowledge")}
+            title="知识库（RAG）"
+            type="button"
+          >
+            <BookOpenText size={15} aria-hidden="true" />
+          </button>
+          <button
+            aria-label="技能注册中心"
+            className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
+              activeView === "skills"
+                ? "bg-(--fill-3) text-(--text-1)"
+                : "text-(--text-5) hover:bg-(--fill-2) hover:text-(--text-1)"
+            }`}
+            onClick={() => onViewChange("skills")}
+            title="技能注册中心"
+            type="button"
+          >
+            <Puzzle size={15} aria-hidden="true" />
+          </button>
+          <ThemeMenu />
+          <button
+            aria-label="打开设置"
+            className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
+              activeView === "settings"
+                ? "bg-(--fill-3) text-(--text-1)"
+                : "text-(--text-5) hover:bg-(--fill-2) hover:text-(--text-1)"
+            }`}
+            onClick={() => onViewChange("settings")}
+            title="设置"
+            type="button"
+          >
+            <Settings size={15} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <form
-        className="mt-6 shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 max-sm:mt-4 max-sm:p-2.5"
+        className="mt-6 shrink-0 rounded-2xl border border-(--line) bg-(--fill-1) p-3 max-sm:mt-4 max-sm:p-2.5"
         onSubmit={(event) => {
           event.preventDefault();
           onCreateSession();
         }}
       >
-        <label className="text-xs font-medium text-zinc-500" htmlFor="title">
+        <label className="text-xs font-medium text-(--text-4)" htmlFor="title">
           新建任务
         </label>
         <div className="flex gap-2">
           <input
-            className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/50 px-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-blue-500/60"
+            className="h-10 min-w-0 flex-1 rounded-xl border border-(--line) bg-(--field) px-3 text-sm text-(--text-1) outline-none transition placeholder:text-(--text-5) focus:border-(--accent)/60"
             id="title"
             maxLength={200}
             onChange={(event) => onTitleChange(event.target.value)}
@@ -109,12 +161,12 @@ export function AppSidebar({
       </form>
 
       <div className="mt-6 flex shrink-0 items-center justify-between max-sm:mt-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+        <div className="flex items-center gap-2 text-sm font-semibold text-(--text-2)">
           <span>任务列表</span>
         </div>
         <button
           aria-label="刷新任务列表"
-          className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-zinc-50"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-(--text-4) transition hover:bg-(--fill-2) hover:text-(--text-1)"
           onClick={onRefresh}
           title="刷新"
           type="button"

@@ -119,6 +119,26 @@ class ModelToolSelectionService:
                             '{"tool_name":"工具名","arguments":{},"observable_summary":"给用户看的简短说明"}'
                             "\n\n可用工具：\n"
                             f"{self._render_tool_schemas()}\n\n"
+                            "工具使用准则：\n"
+                            "1. 分析、推演、解释、撰写这类纯思考步骤（不需要外部操作）必须用 "
+                            "write_content，并把该步骤要产出的具体内容要求完整写进 task 参数；"
+                            "严禁使用 draft_plan / summarize_text / extract_keywords 这类模板工具，"
+                            "它们只会输出无信息量的固定文本。\n"
+                            "2. 执行多行代码时，禁止塞进 shell 单行命令（python -c 多行必然语法错误）；"
+                            "正确做法：先用 file_write 把完整代码写入脚本文件（如 main.py），"
+                            "下一步再用 shell_run 执行 `python3 main.py`。\n"
+                            "3. 上下文里已有此前步骤的执行结果；根据当前步骤的目的选择工具，"
+                            "不要重复做已完成的事（例如页面已打开就不要再 browser_open）。\n"
+                            "4. 若历史里有 ⚠️ 失败 的步骤，本步优先补救：缺文件就先写文件，"
+                            "写完的脚本还没成功执行就再次执行，然后才继续原步骤目标。"
+                            "严禁执行尚未创建的脚本文件。\n"
+                            "5. 需要根据网页内容回答问题、提取网页信息或总结页面时，"
+                            "必须用 browser_read（可直接传 url，一步完成打开+读取正文），"
+                            "然后基于返回的正文作答；同一网页的正文已经出现在步骤历史里时，"
+                            "严禁再次 browser_read，后续分析/总结步骤直接用 write_content 引用已读内容。"
+                            "browser_open 只用于确认页面可达或为截图做准备；"
+                            "截图必须用 browser_screenshot；查会话状态用 browser_status。\n"
+                            "6. 文件读写用 file_read / file_write，路径相对于沙箱工作目录。\n\n"
                             "压缩上下文：\n"
                             f"{agent_context or '暂无额外上下文'}\n\n"
                             "注意：不要输出隐藏推理，只输出可观察的工具选择结果。"
@@ -127,7 +147,8 @@ class ModelToolSelectionService:
                     LLMMessage(role="user", content=task_text),
                 ],
                 temperature=0.1,
-                max_tokens=800,
+                # 思考型模型的 reasoning 计入输出额度，给足空间避免 JSON 被截断。
+                max_tokens=2400,
             )
             payload = json.loads(self._strip_code_fence(result.content))
         except (AppException, json.JSONDecodeError, TypeError, ValueError):
@@ -265,9 +286,17 @@ class ModelToolSelectionService:
         task_text: str,
         agent_context: str,
     ) -> dict[str, Any]:
-        """在 AgentTool 校验前补齐可推断参数。"""
+        """在 AgentTool 校验前清洗多余参数并补齐可推断参数。
 
-        repaired = dict(arguments)
+        模型偶尔会把协议字段（observable_summary / tool_name）或臆造的
+        键混进 arguments；严格校验会因此拒绝整次调用。这里先按工具
+        schema 白名单过滤，小偏差不应毁掉整个任务。
+        """
+
+        allowed_names = {parameter.name for parameter in tool.definition.parameters}
+        repaired = {
+            key: value for key, value in arguments.items() if key in allowed_names
+        }
         text_with_context = (
             f"{task_text}\n\n需要遵守的上下文：\n{agent_context}"
             if agent_context

@@ -50,6 +50,13 @@ class SandboxBrowserClient:
             json={"full_page": full_page},
         )
 
+    def page_text(self, max_chars: int = 8000) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "/browser/page/text",
+            json={"max_chars": max_chars},
+        )
+
     # ===================== 第3步：统一处理 Sandbox 响应 =====================
     def _request(
         self,

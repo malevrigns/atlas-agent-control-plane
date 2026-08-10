@@ -13,7 +13,7 @@ export function AttachmentUpload({
 }: AttachmentUploadProps) {
   return (
     <label
-      className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-500 transition hover:border-blue-500/40 hover:text-zinc-100 disabled:cursor-not-allowed"
+      className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-(--line) bg-(--fill-1) text-(--text-4) transition hover:border-(--accent)/40 hover:text-(--text-1) disabled:cursor-not-allowed"
       title={uploading ? "附件上传中" : "上传附件"}
     >
       <Paperclip size={17} aria-hidden="true" />
