@@ -564,8 +564,45 @@ a {
 
 /* ===================== 滚动条 ===================== */
 
-/* Chromium：纤细的蓝紫渐变滑块悬浮在透明轨道上，
-   悬停时提亮变宽，隐藏两端箭头按钮。 */
+/* Chromium：纤细的蓝紫渐变滑块悬浮在透明轨道上。
+   滚动条伪元素本身不支持 transition，动画走的是「可插值变量」通道：
+   用 @property 把滑块两端颜色和光晕注册成可过渡的自定义属性，
+   全局脚本在滚动时给容器加 .is-scrolling，变量平滑切换 →
+   滑块随滚动点亮发光、停止后温和熄灭。 */
+@property --sb-live-a {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+@property --sb-live-b {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+@property --sb-glow {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+* {
+  --sb-live-a: var(--sb-from);
+  --sb-live-b: var(--sb-to);
+  --sb-glow: 0px;
+  transition:
+    --sb-live-a 0.45s ease,
+    --sb-live-b 0.45s ease,
+    --sb-glow 0.45s ease;
+}
+
+.is-scrolling {
+  --sb-live-a: var(--sb-from-hover);
+  --sb-live-b: var(--sb-to-hover);
+  --sb-glow: 7px;
+}
+
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
@@ -577,14 +614,15 @@ a {
 
 ::-webkit-scrollbar-thumb {
   min-height: 40px;
-  background: linear-gradient(180deg, var(--sb-from), var(--sb-to));
+  background: linear-gradient(180deg, var(--sb-live-a), var(--sb-live-b));
   background-clip: padding-box;
   border: 2px solid transparent;
   border-radius: 999px;
+  box-shadow: 0 0 var(--sb-glow) var(--sb-live-a);
 }
 
 ::-webkit-scrollbar-thumb:horizontal {
-  background: linear-gradient(90deg, var(--sb-from), var(--sb-to));
+  background: linear-gradient(90deg, var(--sb-live-a), var(--sb-live-b));
   background-clip: padding-box;
 }
 

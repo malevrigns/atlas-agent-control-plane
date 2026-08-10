@@ -1,6 +1,9 @@
+"use client";
+
 import {
   Activity,
   BrainCircuit,
+  ChevronDown,
   FileText,
   MessagesSquare,
   RefreshCw,
@@ -8,10 +11,14 @@ import {
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 import { formatBytes, formatDateTime } from "../lib/format";
 import type { LoadState, SessionContextData } from "../types";
 import { MemoryContextSection } from "./memory-context-section";
+
+/** 超过该长度的消息默认折叠，避免一条长回答占满整个面板。 */
+const MESSAGE_COLLAPSE_CHARS = 220;
 
 type ContextPanelProps = {
   context: LoadState<SessionContextData | null>;
@@ -141,33 +148,10 @@ function ContextSnapshot({ snapshot }: { snapshot: SessionContextData }) {
             </p>
           ) : (
             snapshot.messages.map((message, index) => (
-              <div
-                className="rounded-xl border border-(--line) bg-(--fill-1) p-3"
+              <ContextMessage
                 key={`${message.created_at}-${index}`}
-              >
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <span
-                    className={`rounded-full px-2 py-0.5 font-semibold ${
-                      message.role === "user"
-                        ? "bg-(--accent)/12 text-(--accent)"
-                        : "bg-violet-500/12 text-violet-400"
-                    }`}
-                  >
-                    {message.role === "user" ? "用户" : "助手"}
-                  </span>
-                  <span className="text-(--text-5)">
-                    {formatDateTime(message.created_at)}
-                  </span>
-                </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-(--text-2)">
-                  {message.content}
-                </p>
-                {message.truncated ? (
-                  <p className="mt-2 text-xs text-amber-400">
-                    原始长度 {message.original_chars} 字符，已按预算裁剪
-                  </p>
-                ) : null}
-              </div>
+                message={message}
+              />
             ))
           )}
         </div>
@@ -232,6 +216,67 @@ function ContextSnapshot({ snapshot }: { snapshot: SessionContextData }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ContextMessage({
+  message,
+}: {
+  message: SessionContextData["messages"][number];
+}) {
+  const collapsible = message.content.length > MESSAGE_COLLAPSE_CHARS;
+  const [expanded, setExpanded] = useState(false);
+  const clamped = collapsible && !expanded;
+
+  return (
+    <div className="rounded-xl border border-(--line) bg-(--fill-1) p-3">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span
+          className={`rounded-full px-2 py-0.5 font-semibold ${
+            message.role === "user"
+              ? "bg-(--accent)/12 text-(--accent)"
+              : "bg-violet-500/12 text-violet-400"
+          }`}
+        >
+          {message.role === "user" ? "用户" : "助手"}
+        </span>
+        <span className="text-(--text-5)">{formatDateTime(message.created_at)}</span>
+      </div>
+      <div className="relative">
+        <p
+          className={`mt-2 whitespace-pre-wrap text-sm leading-6 text-(--text-2) ${
+            clamped ? "line-clamp-4" : ""
+          }`}
+        >
+          {message.content}
+        </p>
+        {clamped ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-(--surface) to-transparent"
+          />
+        ) : null}
+      </div>
+      {collapsible ? (
+        <button
+          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-(--accent) transition hover:opacity-80"
+          onClick={() => setExpanded((value) => !value)}
+          type="button"
+        >
+          <ChevronDown
+            aria-hidden="true"
+            className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+            size={13}
+          />
+          {expanded ? "收起" : `展开全文（${message.content.length} 字）`}
+        </button>
+      ) : null}
+      {message.truncated ? (
+        <p className="mt-2 text-xs text-amber-400">
+          原始长度 {message.original_chars} 字符，已按预算裁剪
+        </p>
+      ) : null}
     </div>
   );
 }
