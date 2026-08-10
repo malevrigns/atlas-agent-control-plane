@@ -167,6 +167,7 @@ class AgentRunnerService:
         *,
         session_id: UUID,
         content: str,
+        skill_ids: list[UUID] | None = None,
     ):
         """把用户消息转换成可流式观察的 Agent 执行过程。
 
@@ -178,6 +179,7 @@ class AgentRunnerService:
             async for item in self._stream_user_message_inner(
                 session_id=session_id,
                 content=content,
+                skill_ids=skill_ids,
             ):
                 yield item
         finally:
@@ -188,6 +190,7 @@ class AgentRunnerService:
         *,
         session_id: UUID,
         content: str,
+        skill_ids: list[UUID] | None = None,
     ):
         """stream_user_message 的主体流程。"""
 
@@ -210,12 +213,25 @@ class AgentRunnerService:
                 payload=message_event,
             )
 
+            # 用户显式调用的技能：直答注入 system 上下文，流水线拼进规划任务。
+            invoked_skills = await self._load_invoked_skills(skill_ids)
+
             if needs_agent_pipeline(content):
+                task_text = content
+                if invoked_skills:
+                    skill_blocks = "\n\n".join(
+                        f"《{label}》：\n{instructions}"
+                        for label, instructions in invoked_skills
+                    )
+                    task_text = (
+                        f"{content}\n\n[用户显式调用的技能指引，规划与执行时必须遵循]\n"
+                        f"{skill_blocks}"
+                    )
                 # 3a. 工具任务：流式生成计划——规划阶段的模型思考实时推给前端，
                 #     用户不再只看到“正在生成计划”的加载态。
                 async for kind, value in self.planner_service.stream_plan(
                     session_id=session_id,
-                    task=content,
+                    task=task_text,
                 ):
                     if kind == "thinking":
                         yield AgentRunnerStreamItem(
@@ -257,6 +273,7 @@ class AgentRunnerService:
                 async for item in self._stream_direct_answer(
                     session_id=session_id,
                     content=content,
+                    invoked_skills=invoked_skills,
                 ):
                     yield item
         except Exception as error:
@@ -329,6 +346,7 @@ class AgentRunnerService:
         *,
         session_id: UUID,
         content: str,
+        invoked_skills: list[tuple[str, str]] | None = None,
     ):
         """跳过计划流水线，直接用 LLM 流式回答用户问题。
 
@@ -350,7 +368,7 @@ class AgentRunnerService:
         attachment_excerpts = await self._load_attachment_excerpts(session_id)
         rag_context, rag_sources = await self._load_rag_context(content)
         chat_messages = self._build_chat_messages(
-            snapshot, content, attachment_excerpts, rag_context
+            snapshot, content, attachment_excerpts, rag_context, invoked_skills
         )
 
         answer_parts: list[str] = []
@@ -494,6 +512,42 @@ class AgentRunnerService:
                 break
         return "\n\n".join(lines), sources
 
+    async def _load_invoked_skills(
+        self,
+        skill_ids: list[UUID] | None,
+    ) -> list[tuple[str, str]]:
+        """加载用户显式调用（/ 触发）的技能指引。
+
+        只接受 published 且启用的技能；查询失败静默降级为空，
+        与 RAG 自动召回一致——增强项不阻断问答主链路。
+        """
+
+        if not skill_ids:
+            return []
+        try:
+            from app.application.skill_service import SkillService
+            from app.domain.skills.entities import SkillStatus
+            from app.infrastructure.database.session import AsyncSessionLocal
+
+            async with AsyncSessionLocal() as db_session:
+                service = SkillService(UnitOfWork(db_session))
+                loaded: list[tuple[str, str]] = []
+                for skill_id in skill_ids[:4]:
+                    try:
+                        skill = await service.get_skill(skill_id)
+                    except Exception:  # noqa: BLE001 —— 单个技能失效不影响其余。
+                        continue
+                    if skill.status is not SkillStatus.published or not skill.enabled:
+                        continue
+                    if not skill.instructions.strip():
+                        continue
+                    loaded.append(
+                        (f"{skill.name} v{skill.version}", skill.instructions.strip())
+                    )
+                return loaded
+        except Exception:  # noqa: BLE001
+            return []
+
     async def _load_attachment_excerpts(
         self,
         session_id: UUID,
@@ -557,6 +611,7 @@ class AgentRunnerService:
         content: str,
         attachment_excerpts: list[tuple[str, str]] | None = None,
         rag_context: str = "",
+        invoked_skills: list[tuple[str, str]] | None = None,
     ) -> list[LLMMessage]:
         """把上下文快照转换成多轮对话消息。
 
@@ -577,6 +632,15 @@ class AgentRunnerService:
                 for item in snapshot.memory_context.items
             )
             sections.append(f"长期记忆（可参考，不要复述）：\n{memory_lines}")
+        if invoked_skills:
+            skill_blocks = "\n\n".join(
+                f"《{label}》：\n{instructions}"
+                for label, instructions in invoked_skills
+            )
+            sections.append(
+                "用户本轮通过 / 显式调用了以下技能，回答时必须遵循其中的操作指引：\n"
+                f"{skill_blocks}"
+            )
         if rag_context:
             sections.append(
                 "知识库检索结果（系统已自动检索，按相关度排序）：\n"

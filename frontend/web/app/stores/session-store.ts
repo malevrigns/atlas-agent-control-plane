@@ -69,7 +69,7 @@ type SessionActions = {
   clearUnread: () => Promise<void>;
   selectSession: (sessionId: string | null) => void;
   selectFile: (file: SessionFileItem | null) => void;
-  sendMessage: () => Promise<void>;
+  sendMessage: (skillIds?: string[]) => Promise<void>;
   stopSession: () => Promise<void>;
   uploadAttachment: (file: File) => Promise<void>;
   setActionError: (message: string | null) => void;
@@ -531,7 +531,7 @@ export const useSessionStore = create<SessionState & SessionActions>(
       }
     },
 
-    sendMessage: async () => {
+    sendMessage: async (skillIds = []) => {
       const sessionId = get().selectedSessionId;
       const content = get().draft.trim();
       if (!sessionId) {
@@ -555,7 +555,10 @@ export const useSessionStore = create<SessionState & SessionActions>(
         set({ draft: "" });
         // ===================== 第1步：通过统一 SSE 发送任务并接收执行过程 =====================
         // 后端会依次推送 message_created、plan_created、step/tool/task 事件。
-        await streamMessage(sessionId, content, async (event) => {
+        await streamMessage(
+          sessionId,
+          content,
+          async (event) => {
           // 零延迟事件（流式增量）不进定时器：后台标签页的 setTimeout
           // 会被浏览器钳制到 1 秒以上，逐字流会被拖成龟速。
           const presentationDelay = getPresentationDelay(event.event);
@@ -642,7 +645,9 @@ export const useSessionStore = create<SessionState & SessionActions>(
                 sessionEvent.type === "plan_created" ? false : state.planning,
             };
           });
-        });
+          },
+          skillIds,
+        );
         await Promise.all([
           get().loadSessionDetail(sessionId, { silent: true }),
           get().refreshSessions(),

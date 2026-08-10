@@ -103,6 +103,7 @@ export async function streamMessage(
   sessionId: string,
   content: string,
   onEvent: (event: StreamEvent) => void | Promise<void>,
+  skillIds: string[] = [],
 ) {
   const response = await fetch(
     `${STREAM_BASE}/api/sessions/${sessionId}/messages/stream`,
@@ -112,7 +113,7 @@ export async function streamMessage(
         "Content-Type": "application/json",
         Accept: "text/event-stream",
       },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, skill_ids: skillIds }),
     },
   );
 
