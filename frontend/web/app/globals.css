@@ -294,32 +294,33 @@ body {
   animation: ticker-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ===== 侧栏驾驶舱 =====
-   双色调布局：无论亮暗主题，侧栏都保持深邃蓝黑 + 顶部极光。
-   通过局部覆盖主题变量，让列表、表单、下拉等既有组件自动完成深色适配。 */
+/* ===== 侧栏 =====
+   底色跟随主题（亮色下是白色系，与主区协调），只在顶部留一层
+   淡淡的蓝紫极光和向下渐隐的细网格作为品牌点缀；浓淡按主题分档。 */
 .cockpit {
-  --page: #070a14;
-  --surface: #0b0f1d;
-  --surface-3: #101527;
-  --field: rgba(255, 255, 255, 0.05);
-  --fill-1: rgba(255, 255, 255, 0.04);
-  --fill-2: rgba(255, 255, 255, 0.08);
-  --fill-3: rgba(255, 255, 255, 0.13);
-  --line: rgba(255, 255, 255, 0.09);
-  --line-soft: rgba(255, 255, 255, 0.06);
-  --line-strong: rgba(255, 255, 255, 0.18);
-  --text-1: #f2f5ff;
-  --text-2: #dbe2f4;
-  --text-3: #aab4cf;
-  --text-4: #8590ad;
-  --text-5: #59627e;
-  --accent: #60a5fa;
+  --cockpit-glow-a: 0.3;
+  --cockpit-glow-b: 0.22;
+  --cockpit-grid: rgba(255, 255, 255, 0.035);
 
   position: relative;
   background:
-    radial-gradient(420px 260px at 16% -6%, rgba(59, 130, 246, 0.33), transparent 62%),
-    radial-gradient(380px 250px at 96% 2%, rgba(139, 92, 246, 0.24), transparent 60%),
-    linear-gradient(200deg, #0b1122 0%, #070a14 48%, #05070f 100%);
+    radial-gradient(
+      420px 260px at 16% -6%,
+      rgba(59, 130, 246, var(--cockpit-glow-a)),
+      transparent 62%
+    ),
+    radial-gradient(
+      380px 250px at 96% 2%,
+      rgba(139, 92, 246, var(--cockpit-glow-b)),
+      transparent 60%
+    ),
+    var(--surface);
+}
+
+:root[data-theme="light"] .cockpit {
+  --cockpit-glow-a: 0.12;
+  --cockpit-glow-b: 0.08;
+  --cockpit-grid: rgba(15, 23, 42, 0.045);
 }
 
 /* 顶部细网格纹理，与主区网格底呼应，向下渐隐。 */
@@ -328,8 +329,8 @@ body {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    linear-gradient(var(--cockpit-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cockpit-grid) 1px, transparent 1px);
   background-size: 26px 26px;
   mask-image: linear-gradient(180deg, #000, transparent 68%);
   -webkit-mask-image: linear-gradient(180deg, #000, transparent 68%);
@@ -340,7 +341,8 @@ body {
   position: relative;
 }
 
-/* 品牌渐变：徽标底与标题文字共用 favicon 同款蓝紫。 */
+/* 品牌渐变：徽标底与标题文字共用 favicon 同款蓝紫。
+   标题渐变按主题分档——深底用亮渐变，白底用饱和渐变，保证对比度。 */
 .brand-gradient {
   background-image: linear-gradient(135deg, #4e8cff, #7c5cfc);
 }
@@ -350,6 +352,10 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+:root[data-theme="light"] .brand-title {
+  background-image: linear-gradient(90deg, #2f6bf0, #7146ec);
 }
 
 /* 会话卡片逐项入场。 */
@@ -394,7 +400,7 @@ body {
 }
 
 .status-dot.idle {
-  background: #59627e;
+  background: var(--text-5);
 }
 
 .status-dot.bad {
