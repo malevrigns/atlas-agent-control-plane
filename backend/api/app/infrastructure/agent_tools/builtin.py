@@ -71,11 +71,55 @@ def draft_plan(task: str) -> str:
     )
 
 
+# ===================== 第3.5步：真实内容生成工具 =====================
+@agent_tool(
+    name="write_content",
+    description=(
+        "用大模型完成分析、推演、解释或撰写类步骤，产出真实的 Markdown 内容。"
+        "适用于不需要外部操作（沙箱/浏览器/搜索）的思考型步骤。"
+    ),
+    parameter_descriptions={
+        "task": "本步骤要产出的内容要求，包含必要的上下文与约束。",
+    },
+)
+async def write_content(task: str) -> str:
+    """调用配置的 LLM 真实生成内容；模型不可用时明确说明。
+
+    draft_plan/summarize_text 是教学用的确定性工具，输出是无信息量的
+    模板文本；分析与撰写类步骤必须由这个工具产出真实内容。
+    """
+
+    from app.application.llm_service import LLMService
+    from app.core.exceptions import AppException
+    from app.domain.llm.entities import LLMMessage
+
+    try:
+        result = await LLMService().chat(
+            messages=[
+                LLMMessage(
+                    role="system",
+                    content=(
+                        "你是 AtlasAgent 的内容执行器，负责完成任务计划中的一个分析/撰写步骤。"
+                        "直接产出该步骤要求的实质内容（Markdown），"
+                        "不要复述步骤名称，不要输出与内容无关的过程说明。"
+                    ),
+                ),
+                LLMMessage(role="user", content=task),
+            ],
+            temperature=0.3,
+            max_tokens=2500,
+        )
+        return result.content.strip() or "（模型没有返回内容）"
+    except AppException as error:
+        return f"（内容生成失败：{error.message}）"
+
+
 # ===================== 第4步：创建内置工具注册表 =====================
 def build_builtin_tool_registry() -> ToolRegistry:
     """注册并返回本章可用的内置工具。"""
 
     registry = ToolRegistry()
+    registry.register(write_content)
     registry.register(summarize_text)
     registry.register(extract_keywords)
     registry.register(draft_plan)

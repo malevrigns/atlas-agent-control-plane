@@ -25,21 +25,21 @@ type RfbConstructor = new (target: HTMLElement, url: string) => RfbInstance;
 // ===================== 第1步：展示 Sandbox 浏览器远程桌面 =====================
 export function VncPanel({ onRefresh, state }: VncPanelProps) {
   return (
-    <div className="rounded-[24px] border border-white/10 bg-[#08090d] p-5 shadow-2xl shadow-black/50">
+    <div className="rounded-[24px] border border-(--line) bg-(--surface) p-5 shadow-2xl shadow-black/50">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-zinc-600">
+          <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-(--text-5)">
             Remote Desktop
           </div>
-          <h2 className="text-base font-semibold text-zinc-50">
+          <h2 className="text-base font-semibold text-(--text-1)">
             浏览器远程桌面
           </h2>
-          <p className="mt-1 text-sm leading-5 text-zinc-500">
+          <p className="mt-1 text-sm leading-5 text-(--text-4)">
             查看 Sandbox 中有头浏览器的实时画面
           </p>
         </div>
         <button
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-50"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-(--line) bg-(--fill-1) text-(--text-3) hover:bg-(--fill-2) hover:text-(--text-1)"
           onClick={onRefresh}
           title="刷新 VNC 状态"
           type="button"
@@ -49,7 +49,7 @@ export function VncPanel({ onRefresh, state }: VncPanelProps) {
       </div>
 
       {state.type === "loading" ? (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-zinc-500">
+        <div className="mt-4 rounded-2xl border border-(--line) bg-(--fill-1) p-3 text-sm text-(--text-4)">
           正在读取远程桌面状态...
         </div>
       ) : null}
@@ -81,10 +81,14 @@ function VncReadyView({ data }: { data: VncStatusData }) {
 
     let disposed = false;
 
-    // 1. 根据当前页面协议拼出 noVNC WebSocket 地址。
-    //    页面是 http 时使用 ws，页面是 https 时使用 wss。
+    // 1. 拼出 noVNC WebSocket 地址。
+    //    生产：同源路径，由 Nginx 网关代理到 websockify；
+    //    本地开发：Next 不能代理 WebSocket，用 NEXT_PUBLIC_VNC_WS_BASE 直连容器端口。
+    const devBase = process.env.NEXT_PUBLIC_VNC_WS_BASE;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const websocketUrl = `${protocol}//${window.location.host}/${data.websocket_path}`;
+    const websocketUrl = devBase
+      ? devBase
+      : `${protocol}//${window.location.host}/${data.websocket_path}`;
 
     setConnectionState("connecting");
     setErrorMessage(null);
@@ -164,21 +168,21 @@ function VncReadyView({ data }: { data: VncStatusData }) {
           {errorMessage}
         </div>
       ) : null}
-      <div className="h-[260px] overflow-hidden rounded-2xl border border-white/10 bg-black">
+      <div className="h-[260px] overflow-hidden rounded-2xl border border-(--line) bg-(--surface)">
         <div className="h-full w-full" ref={screenRef} />
       </div>
-      <dl className="grid gap-2 text-xs text-zinc-500">
+      <dl className="grid gap-2 text-xs text-(--text-4)">
         <div className="flex justify-between gap-3">
           <dt>显示器</dt>
-          <dd className="font-medium text-zinc-200">{data.display}</dd>
+          <dd className="font-medium text-(--text-2)">{data.display}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt>Web 端口</dt>
-          <dd className="font-medium text-zinc-200">{data.web_port}</dd>
+          <dd className="font-medium text-(--text-2)">{data.web_port}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt>WebSocket</dt>
-          <dd className="truncate font-medium text-zinc-200">
+          <dd className="truncate font-medium text-(--text-2)">
             {data.websocket_path}
           </dd>
         </div>

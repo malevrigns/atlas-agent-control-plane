@@ -81,6 +81,16 @@ class Settings(BaseSettings):
     context_skill_limit: int = 3
     context_skill_max_chars: int = 2000
     context_skill_min_score: float = 0.1
+    # ===================== 直答路径的附件内容注入 =====================
+    # 最近 N 个附件的文本内容（文本直读 / PDF 抽取）注入对话上下文。
+    chat_attachment_limit: int = 3
+    chat_attachment_context_chars: int = 20000
+    chat_attachment_max_file_bytes: int = 15 * 1024 * 1024
+    # ===================== 直答路径的知识库自动检索（RAG） =====================
+    # 每次直答前自动检索所有知识库；top_k 设为 0 可整体关闭。
+    chat_rag_top_k: int = 4
+    chat_rag_min_score: float = 0.3
+    chat_rag_context_chars: int = 6000
     module_config_path: str = "runtime-config/modules.yaml"
     mcp_stdio_enabled: bool = False
     mcp_stdio_allowed_commands: list[str] = []

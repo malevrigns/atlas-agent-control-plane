@@ -81,6 +81,103 @@ class PlannerService:
         await self.uow.commit()
         return plan, event
 
+    # ===================== 第2.5步：流式规划——思考过程实时可见 =====================
+    async def stream_plan(
+        self,
+        session_id: UUID,
+        task: str,
+    ):
+        """流式生成计划：先逐段产出思考增量，最后产出 (plan, event)。
+
+        产出协议：("thinking", 文本增量) × N，最后一条 ("result", (plan, event))。
+        规划的思考过程会写入 plan_created 事件 payload，供事后回看。
+        """
+
+        clean_task = task.strip()
+        if not clean_task:
+            raise AppException(
+                message="task is required",
+                code=400,
+                status_code=400,
+            )
+        session = await self.uow.sessions.get(session_id)
+        if session is None:
+            raise AppException(
+                message="session not found",
+                code=404,
+                status_code=404,
+            )
+
+        context_snapshot = await ContextEngineeringService(self.uow).build_snapshot(
+            session_id,
+            task=clean_task,
+        )
+        agent_context = ContextEngineeringService.render_for_agent(context_snapshot)
+
+        reasoning_parts: list[str] = []
+        content_parts: list[str] = []
+        try:
+            async for delta in self.llm_service.chat_stream(
+                self._build_planning_messages(clean_task, agent_context),
+                temperature=0.2,
+                max_tokens=3000,
+            ):
+                if delta.kind == "reasoning":
+                    reasoning_parts.append(delta.text)
+                    yield ("thinking", delta.text)
+                else:
+                    content_parts.append(delta.text)
+            plan = (
+                self._parse_llm_plan(task=clean_task, content="".join(content_parts))
+                if content_parts
+                else self._build_fallback_plan(clean_task)
+            )
+        except AppException:
+            plan = self._build_fallback_plan(clean_task)
+
+        payload = self._plan_to_payload(
+            plan,
+            memory_ids=[
+                str(item.id) for item in context_snapshot.memory_context.items
+            ],
+        )
+        reasoning = "".join(reasoning_parts).strip()
+        if reasoning:
+            payload["reasoning"] = reasoning
+        event = await self.uow.session_events.add(
+            session_id=session_id,
+            event_type=SessionEventType.plan_created,
+            payload=payload,
+        )
+        await self.uow.sessions.touch(session_id)
+        await self.uow.commit()
+        yield ("result", (plan, event))
+
+    def _build_planning_messages(
+        self,
+        task: str,
+        agent_context: str,
+    ) -> list[LLMMessage]:
+        return [
+            LLMMessage(
+                role="system",
+                content=(
+                    "你是一个 PlannerAgent。请把用户任务拆成 3 到 5 个可执行步骤。"
+                    "只返回 JSON，不要返回 Markdown。JSON 格式为："
+                    '{"title":"计划标题","goal":"目标","steps":['
+                    '{"title":"步骤标题","description":"步骤说明","expected_output":"预期输出"}'
+                    "]}\n\n"
+                    "规划准则：每个步骤对应一次工具调用，步骤目的必须互不重复。"
+                    "涉及编写代码的任务，按“把完整代码写入脚本文件 → 执行该文件 → 检查输出”拆步，"
+                    "不要设计把多行代码塞进单行 shell 命令的步骤。"
+                    "浏览器任务里“打开页面”“截图”“提取信息”是不同步骤，各做一次。\n\n"
+                    "生成计划时必须遵守下面的压缩上下文；不要把上下文原样复制到计划：\n"
+                    f"{agent_context or '暂无额外上下文'}"
+                ),
+            ),
+            LLMMessage(role="user", content=task),
+        ]
+
     # ===================== 第3步：优先使用 LLM 生成计划 =====================
     async def _generate_plan(
         self,
@@ -101,6 +198,10 @@ class PlannerService:
                             '{"title":"计划标题","goal":"目标","steps":['
                             '{"title":"步骤标题","description":"步骤说明","expected_output":"预期输出"}'
                             "]}\n\n"
+                            "规划准则：每个步骤对应一次工具调用，步骤目的必须互不重复。"
+                            "涉及编写代码的任务，按“把完整代码写入脚本文件 → 执行该文件 → 检查输出”拆步，"
+                            "不要设计把多行代码塞进单行 shell 命令的步骤。"
+                            "浏览器任务里“打开页面”“截图”“提取信息”是不同步骤，各做一次。\n\n"
                             "生成计划时必须遵守下面的压缩上下文；不要把上下文原样复制到计划：\n"
                             f"{agent_context or '暂无额外上下文'}"
                         ),
@@ -108,7 +209,8 @@ class PlannerService:
                     LLMMessage(role="user", content=task),
                 ],
                 temperature=0.2,
-                max_tokens=1200,
+                # 思考型模型的 reasoning 计入输出额度，给足空间避免 JSON 被截断。
+                max_tokens=3000,
             )
             return self._parse_llm_plan(task=task, content=result.content)
         except AppException:

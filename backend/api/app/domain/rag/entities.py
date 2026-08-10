@@ -18,12 +18,17 @@ class KnowledgeDocumentStatus(StrEnum):
 
 
 class KnowledgeSourceType(StrEnum):
-    """文档的来源类型，用于引用展示与审计。"""
+    """文档的来源类型，用于引用展示与审计。
+
+    manual 手工粘贴、upload 文件上传、url 网页抓取、
+    session 会话沉淀、image 图片视觉解析（多模态 RAG）。
+    """
 
     manual = "manual"
     upload = "upload"
     url = "url"
     session = "session"
+    image = "image"
 
 
 @dataclass(slots=True)

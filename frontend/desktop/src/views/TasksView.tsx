@@ -5,17 +5,15 @@ import {
   Check,
   CheckCircle,
   Clock,
-  DotsThree,
-  Funnel,
+  ListDashes,
   Pause,
   Play,
-  Plus,
-  TerminalWindow,
+  Warning,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { atlasRequest } from "../api";
-import { ThemeSelect } from "../components";
+import { InlineNotice, ThemeSelect, formatTimestamp } from "../components";
 import type {
   ApiState,
   Checkpoint,
@@ -25,59 +23,15 @@ import type {
   TaskState,
   TaskStateList,
   Theme,
-  ToolPolicy,
 } from "../types";
 
-const demoCheckpoints: CheckpointView[] = [
-  {
-    id: "CP-001",
-    title: "需求梳理与边界对齐",
-    description: "对齐重构目标、非目标与验收标准",
-    time: "10:12",
-    state: "done",
-    eventRange: "1–48",
-  },
-  {
-    id: "CP-002",
-    title: "记忆模型重构",
-    description: "设计新版记忆结构与检索策略",
-    time: "10:47",
-    state: "done",
-    eventRange: "49–116",
-  },
-  {
-    id: "CP-003",
-    title: "Memory 层实现与迁移",
-    description: "实现记忆层并完成数据迁移与回归验证",
-    time: "11:38",
-    state: "done",
-    eventRange: "117–181",
-  },
-  {
-    id: "CP-004",
-    title: "工具运行时接入",
-    description: "接入工具运行时并校验授权与兼容性",
-    time: "12:28",
-    state: "running",
-    eventRange: "182–236",
-  },
-  {
-    id: "CP-005",
-    title: "端到端验证",
-    description: "端到端流程验证与性能回归",
-    time: "13:05",
-    state: "pending",
-    eventRange: "待生成",
-  },
-];
-
-function mapCheckpoint(checkpoint: Checkpoint, task: TaskState, index: number): CheckpointView {
+function mapCheckpoint(checkpoint: Checkpoint, index: number): CheckpointView {
   const createdAt = new Date(checkpoint.created_at);
   const valid = Boolean(checkpoint.validator_report?.valid);
   return {
     id: `CP-${String(index + 1).padStart(3, "0")}`,
     rawId: checkpoint.id,
-    title: checkpoint.kind === "incremental" ? task.title : `${task.title} · ${checkpoint.kind}`,
+    title: checkpoint.kind === "incremental" ? "增量检查点" : `检查点 · ${checkpoint.kind}`,
     description: valid ? "状态哈希与证据范围已通过校验" : "检查点校验未通过",
     time: Number.isNaN(createdAt.valueOf())
       ? "--:--"
@@ -88,44 +42,12 @@ function mapCheckpoint(checkpoint: Checkpoint, task: TaskState, index: number): 
   };
 }
 
-function formatTimestamp(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.valueOf())
-    ? "时间未知"
-    : date.toLocaleString("zh-CN", { hour12: false });
-}
-
-interface TaskSidebarProps {
-  activeCheckpoint: string;
-  completedCollapsed: boolean;
-  onCollapseCompleted: () => void;
-  onSelectCheckpoint: (checkpointId: string) => void;
-  checkpoints: CheckpointView[];
-}
-
-interface TimelineCheckpointProps {
-  checkpoint: CheckpointView;
-  expanded: boolean;
-  onToggle: () => void;
-  toolPolicy: ToolPolicy;
-  onToolPolicyChange: (policy: ToolPolicy) => void;
-  onRun: () => void;
-  onRestore: () => void | Promise<void>;
-}
-
-interface DetailProps {
-  label: string;
-  value: string;
-}
-
-interface CommandComposerProps {
-  command: string;
-  inputRef: RefObject<HTMLInputElement | null>;
-  notice: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void | Promise<void>;
-  onSuggestion: (value: string) => void;
-  submitting: boolean;
+function taskStatusLabel(status: string): string {
+  if (status === "running") return "进行中";
+  if (status === "paused") return "已暂停";
+  if (status === "done") return "已完成";
+  if (status === "failed") return "已失败";
+  return status || "待启动";
 }
 
 interface TasksViewProps {
@@ -135,46 +57,81 @@ interface TasksViewProps {
 }
 
 export function TasksView({ theme, setTheme, onApiState }: TasksViewProps) {
-  const [activeCheckpoint, setActiveCheckpoint] = useState("CP-004");
-  const [paused, setPaused] = useState(false);
-  const [completedCollapsed, setCompletedCollapsed] = useState(false);
+  const [tasks, setTasks] = useState<TaskState[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [checkpoints, setCheckpoints] = useState<CheckpointView[]>([]);
+  const [activeCheckpoint, setActiveCheckpoint] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
   const [command, setCommand] = useState("");
-  const [toolPolicy, setToolPolicy] = useState<ToolPolicy>("自动允许");
   const [notice, setNotice] = useState("");
+  const [noticeTone, setNoticeTone] = useState<"info" | "danger">("info");
   const [submitting, setSubmitting] = useState(false);
-  const [task, setTask] = useState<TaskState | null>(null);
-  const [checkpoints, setCheckpoints] = useState<CheckpointView[]>(demoCheckpoints);
   const composerRef = useRef<HTMLInputElement>(null);
+  const selectedTaskIdRef = useRef<string | null>(null);
+  selectedTaskIdRef.current = selectedTaskId;
+
+  const task = useMemo(
+    () => tasks.find((item) => item.id === selectedTaskId) || null,
+    [tasks, selectedTaskId],
+  );
+  const paused = task?.status === "paused";
+
+  const report = useCallback((message: string, tone: "info" | "danger" = "info") => {
+    setNotice(message);
+    setNoticeTone(tone);
+  }, []);
+
+  const refreshTasks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await atlasRequest<TaskStateList>(
+        "/api/control-plane/tasks?project_id=default&limit=20",
+      );
+      setTasks(data.items || []);
+      setOffline(false);
+      onApiState("connected");
+      setSelectedTaskId((current) => {
+        if (current && (data.items || []).some((item) => item.id === current)) return current;
+        return data.items?.[0]?.id ?? null;
+      });
+    } catch (error) {
+      setOffline(true);
+      onApiState("offline");
+      report(error instanceof Error ? error.message : "无法连接控制平面", "danger");
+    } finally {
+      setLoading(false);
+    }
+  }, [onApiState, report]);
+
+  const loadCheckpoints = useCallback(async (taskId: string) => {
+    try {
+      const data = await atlasRequest<CheckpointList>(
+        `/api/control-plane/tasks/${taskId}/checkpoints`,
+      );
+      if (selectedTaskIdRef.current !== taskId) return;
+      const mapped = (data.items || []).map((checkpoint, index) =>
+        mapCheckpoint(checkpoint, index),
+      );
+      setCheckpoints(mapped);
+      setActiveCheckpoint(mapped[mapped.length - 1]?.id ?? null);
+    } catch {
+      if (selectedTaskIdRef.current === taskId) {
+        setCheckpoints([]);
+        setActiveCheckpoint(null);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    let disposed = false;
-    atlasRequest<TaskStateList>("/api/control-plane/tasks?project_id=default&limit=1")
-      .then(async (data) => {
-        const liveTask = data?.items?.[0];
-        if (!liveTask || disposed) throw new Error("no task");
-        const checkpointData = await atlasRequest<CheckpointList>(
-          `/api/control-plane/tasks/${liveTask.id}/checkpoints`,
-        );
-        if (disposed) return;
-        const liveCheckpoints = (checkpointData?.items || []).map((checkpoint, index) =>
-          mapCheckpoint(checkpoint, liveTask, index),
-        );
-        setTask(liveTask);
-        setPaused(liveTask.status === "paused");
-        if (liveCheckpoints.length) {
-          setCheckpoints(liveCheckpoints);
-          setActiveCheckpoint(liveCheckpoints[0].id);
-        }
-        onApiState("connected");
-      })
-      .catch(() => {
-        if (!disposed) onApiState("offline");
-      });
-    return () => {
-      disposed = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void refreshTasks();
+  }, [refreshTasks]);
+
+  useEffect(() => {
+    setCheckpoints([]);
+    setActiveCheckpoint(null);
+    if (selectedTaskId) void loadCheckpoints(selectedTaskId);
+  }, [selectedTaskId, loadCheckpoints]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -182,17 +139,13 @@ export function TasksView({ theme, setTheme, onApiState }: TasksViewProps) {
         event.preventDefault();
         composerRef.current?.focus();
       }
-      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-        event.preventDefault();
-        submitCommand();
-      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  });
+  }, []);
 
   const active = useMemo(
-    () => checkpoints.find((checkpoint) => checkpoint.id === activeCheckpoint) || checkpoints[0],
+    () => checkpoints.find((checkpoint) => checkpoint.id === activeCheckpoint) || null,
     [activeCheckpoint, checkpoints],
   );
 
@@ -204,27 +157,30 @@ export function TasksView({ theme, setTheme, onApiState }: TasksViewProps) {
   async function submitCommand() {
     const clean = command.trim();
     if (!clean || submitting) return;
+    if (!task) {
+      report("当前没有可操作的任务，请先在控制平面创建任务。", "danger");
+      return;
+    }
     setSubmitting(true);
     try {
-      if (!task) throw new Error("当前是离线演示数据，无法提交");
       const nextActions = [...(task.next_actions || []), { text: clean, source: "desktop" }];
       const updated = await atlasRequest<TaskState>(`/api/control-plane/tasks/${task.id}`, {
         method: "PATCH",
         body: { expected_version: task.version, next_actions: nextActions },
       });
-      setTask(updated);
-      setNotice("命令已写入控制平面的下一步动作。");
-      setSubmitting(false);
+      setTasks((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      report("命令已写入控制平面的下一步动作。");
       setCommand("");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "提交失败");
+      report(error instanceof Error ? error.message : "提交失败", "danger");
+    } finally {
       setSubmitting(false);
     }
   }
 
   async function togglePaused() {
     if (!task) {
-      setNotice("当前是离线演示数据，无法修改任务状态。");
+      report("当前没有可操作的任务。", "danger");
       return;
     }
     const nextPaused = !paused;
@@ -233,73 +189,185 @@ export function TasksView({ theme, setTheme, onApiState }: TasksViewProps) {
         method: "PATCH",
         body: { expected_version: task.version, status: nextPaused ? "paused" : "running" },
       });
-      setTask(updated);
-      setPaused(nextPaused);
-      setNotice(nextPaused ? "任务已在控制平面暂停。" : "任务已在控制平面继续。");
+      setTasks((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      report(nextPaused ? "任务已在控制平面暂停。" : "任务已在控制平面继续。");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "状态更新失败");
+      report(error instanceof Error ? error.message : "状态更新失败", "danger");
     }
   }
 
   async function restoreCheckpoint(checkpoint: CheckpointView) {
-    if (!task || !checkpoint.rawId) {
-      setNotice("离线演示数据不能执行恢复。");
-      return;
-    }
+    if (!task || !checkpoint.rawId) return;
     try {
       const restored = await atlasRequest<CheckpointRestoreResult>(
         `/api/control-plane/tasks/${task.id}/checkpoints/${checkpoint.rawId}/restore`,
         { method: "POST", body: { expected_version: task.version, resume: false } },
       );
-      setTask(restored.task);
-      setPaused(true);
-      setNotice(`已恢复到 ${checkpoint.id}，任务保持暂停等待确认。`);
+      setTasks((current) =>
+        current.map((item) => (item.id === restored.task.id ? restored.task : item)),
+      );
+      report(`已恢复到 ${checkpoint.id}，任务保持暂停等待确认。`);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "恢复失败");
+      report(error instanceof Error ? error.message : "恢复失败", "danger");
     }
   }
 
+  const pendingActions = (task?.next_actions || [])
+    .map((action) => String((action as Record<string, unknown>).text ?? ""))
+    .filter(Boolean)
+    .slice(-3)
+    .reverse();
+
   return (
     <>
-      <TaskSidebar
-        activeCheckpoint={activeCheckpoint}
-        completedCollapsed={completedCollapsed}
-        onCollapseCompleted={() => setCompletedCollapsed((value) => !value)}
-        onSelectCheckpoint={setActiveCheckpoint}
-        checkpoints={checkpoints}
-      />
+      <aside className="task-sidebar" aria-label="任务与检查点">
+        <div className="sidebar-title-row">
+          <h2>任务</h2>
+          <div>
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="刷新任务"
+              onClick={() => void refreshTasks()}
+            >
+              <ArrowClockwise size={18} className={loading ? "spin" : undefined} />
+            </button>
+          </div>
+        </div>
+        <div className="task-list-scroll">
+          {tasks.length === 0 && !loading ? (
+            <p className="empty-hint sidebar-empty">
+              {offline
+                ? "未连接控制平面。"
+                : "还没有任务。通过对话或控制平面 API 创建任务后，会显示在这里。"}
+            </p>
+          ) : null}
+          {tasks.map((item) => (
+            <button
+              key={item.id}
+              className={`selected-task ${item.id === selectedTaskId ? "current" : ""}`}
+              type="button"
+              onClick={() => setSelectedTaskId(item.id)}
+            >
+              <span className="task-dot" />
+              <span>
+                <strong>{item.title}</strong>
+                <small>
+                  {taskStatusLabel(item.status)} · 更新于 {formatTimestamp(item.updated_at)}
+                </small>
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="checkpoint-list">
+          {checkpoints.length === 0 ? (
+            <p className="empty-hint sidebar-empty">
+              {task ? "该任务还没有检查点。" : ""}
+            </p>
+          ) : (
+            checkpoints.map((checkpoint) => (
+              <button
+                key={checkpoint.id}
+                className={`checkpoint-nav ${activeCheckpoint === checkpoint.id ? "selected" : ""}`}
+                type="button"
+                onClick={() => setActiveCheckpoint(checkpoint.id)}
+              >
+                <span className={`nav-node ${checkpoint.state}`}>
+                  {checkpoint.state === "done" ? <Check size={10} weight="bold" /> : null}
+                </span>
+                <span>
+                  <strong>{checkpoint.id} · {checkpoint.title}</strong>
+                  <small>
+                    {checkpoint.state === "done" ? "已验证" : "未通过校验"} · {checkpoint.time}
+                  </small>
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
       <section className="task-workspace" aria-label="任务执行工作区">
         <header className="task-header">
           <div className="task-heading">
-            <h1>{task?.title || "重构 Agent Memory 与 Tool Runtime"}</h1>
+            <h1>{task?.title || (offline ? "未连接控制平面" : "还没有任务")}</h1>
             <div className="task-meta">
-              <span className="live-status"><span className="status-pulse" />{paused ? "已暂停" : "进行中"}</span>
-              <span>{task ? `更新于 ${formatTimestamp(task.updated_at)}` : "离线演示数据"}</span>
-              <span>项目 {task?.project_id || "default"}</span>
-              <span>{task ? `版本 v${task.version}` : "未连接控制平面"}</span>
+              {task ? (
+                <>
+                  <span className="live-status">
+                    <span className="status-pulse" />
+                    {taskStatusLabel(task.status)}
+                  </span>
+                  <span>更新于 {formatTimestamp(task.updated_at)}</span>
+                  <span>项目 {task.project_id}</span>
+                  <span>版本 v{task.version}</span>
+                </>
+              ) : (
+                <span>
+                  {offline
+                    ? "请先启动后端服务（scripts/start.sh 或本地开发模式）"
+                    : "使用对话或 POST /api/control-plane/tasks 创建第一个任务"}
+                </span>
+              )}
             </div>
           </div>
           <div className="header-actions">
             <ThemeSelect theme={theme} onChange={setTheme} />
-            <button className="outline-button" type="button" onClick={togglePaused}>
-              {paused ? <Play size={18} weight="fill" /> : <Pause size={18} weight="fill" />}
-              {paused ? "继续任务" : "暂停任务"}
-            </button>
-            <button className="icon-button" type="button" aria-label="更多任务操作"><DotsThree size={22} weight="bold" /></button>
+            {task ? (
+              <button className="outline-button" type="button" onClick={togglePaused}>
+                {paused ? <Play size={18} weight="fill" /> : <Pause size={18} weight="fill" />}
+                {paused ? "继续任务" : "暂停任务"}
+              </button>
+            ) : null}
           </div>
         </header>
 
+        <InlineNotice notice={notice} tone={noticeTone} />
+
         <div className="timeline-scroll">
+          {offline ? (
+            <div className="workspace-empty">
+              <Warning size={38} weight="duotone" />
+              <h2>未连接控制平面</h2>
+              <p>
+                桌面端不展示演示数据。请先启动后端（默认 <code>http://127.0.0.1:8088</code>），
+                然后点击左上角刷新按钮重试。
+              </p>
+              <button className="outline-button" type="button" onClick={() => void refreshTasks()}>
+                <ArrowClockwise size={16} /> 重新连接
+              </button>
+            </div>
+          ) : null}
+          {!offline && !loading && !task ? (
+            <div className="workspace-empty">
+              <ListDashes size={38} weight="duotone" />
+              <h2>控制平面里还没有任务</h2>
+              <p>
+                在「对话」里下达一个包含执行意图的指令，或调用
+                <code>POST /api/control-plane/tasks</code> 创建结构化任务后，
+                这里会展示任务的检查点时间线。
+              </p>
+            </div>
+          ) : null}
+          {task && checkpoints.length === 0 && !offline ? (
+            <div className="workspace-empty">
+              <Clock size={38} weight="duotone" />
+              <h2>该任务还没有检查点</h2>
+              <p>
+                任务执行过程中调用
+                <code>POST /api/control-plane/tasks/{"{task_id}"}/checkpoints</code>
+                后，可验证的恢复点会出现在这条时间线上。
+              </p>
+            </div>
+          ) : null}
           <div className="timeline" aria-label="检查点时间线">
             {checkpoints.map((checkpoint) => (
               <TimelineCheckpoint
                 key={checkpoint.id}
                 checkpoint={checkpoint}
-                expanded={checkpoint.id === active.id}
+                expanded={checkpoint.id === active?.id}
+                mustPreserve={task?.must_preserve?.[0] || ""}
+                pendingActions={pendingActions}
                 onToggle={() => setActiveCheckpoint(checkpoint.id)}
-                toolPolicy={toolPolicy}
-                onToolPolicyChange={setToolPolicy}
-                onRun={() => applySuggestion("运行兼容性测试并将完整输出保存为 Artifact")}
                 onRestore={() => restoreCheckpoint(checkpoint)}
               />
             ))}
@@ -309,7 +377,7 @@ export function TasksView({ theme, setTheme, onApiState }: TasksViewProps) {
         <CommandComposer
           command={command}
           inputRef={composerRef}
-          notice={notice}
+          disabled={!task || submitting}
           onChange={setCommand}
           onSubmit={submitCommand}
           onSuggestion={applySuggestion}
@@ -320,62 +388,21 @@ export function TasksView({ theme, setTheme, onApiState }: TasksViewProps) {
   );
 }
 
-function TaskSidebar({
-  activeCheckpoint,
-  completedCollapsed,
-  onCollapseCompleted,
-  onSelectCheckpoint,
-  checkpoints,
-}: TaskSidebarProps) {
-  return (
-    <aside className="task-sidebar" aria-label="任务与检查点">
-      <div className="sidebar-title-row">
-        <h2>任务</h2>
-        <div>
-          <button className="icon-button" type="button" aria-label="新建任务"><Plus size={20} /></button>
-          <button className="icon-button" type="button" aria-label="筛选任务"><Funnel size={19} /></button>
-        </div>
-      </div>
-      <button className="selected-task" type="button">
-        <span className="task-dot" />
-        <span>
-          <strong>重构 Agent Memory 与 Tool Runtime</strong>
-          <small>进行中 · 更新于 14:32</small>
-        </span>
-      </button>
-      <div className="checkpoint-list">
-        {checkpoints.map((checkpoint) => (
-          <button
-            key={checkpoint.id}
-            className={`checkpoint-nav ${activeCheckpoint === checkpoint.id ? "selected" : ""}`}
-            type="button"
-            onClick={() => onSelectCheckpoint(checkpoint.id)}
-          >
-            <span className={`nav-node ${checkpoint.state}`}>
-              {checkpoint.state === "done" ? <Check size={10} weight="bold" /> : null}
-            </span>
-            <span>
-              <strong>{checkpoint.id} · {checkpoint.title}</strong>
-              <small>{checkpoint.state === "done" ? `已完成 · 08-01 ${checkpoint.time}` : checkpoint.state === "running" ? `进行中 · ${checkpoint.time}` : "等待中"}</small>
-            </span>
-          </button>
-        ))}
-      </div>
-      <button className="completed-toggle" type="button" onClick={onCollapseCompleted}>
-        {completedCollapsed ? <CaretUp size={15} /> : <CaretDown size={15} />}
-        {completedCollapsed ? "展开已完成" : "收起已完成"}
-      </button>
-    </aside>
-  );
+interface TimelineCheckpointProps {
+  checkpoint: CheckpointView;
+  expanded: boolean;
+  mustPreserve: string;
+  pendingActions: string[];
+  onToggle: () => void;
+  onRestore: () => void | Promise<void>;
 }
 
 function TimelineCheckpoint({
   checkpoint,
   expanded,
+  mustPreserve,
+  pendingActions,
   onToggle,
-  toolPolicy,
-  onToolPolicyChange,
-  onRun,
   onRestore,
 }: TimelineCheckpointProps) {
   const isDone = checkpoint.state === "done";
@@ -383,7 +410,7 @@ function TimelineCheckpoint({
     <article className={`timeline-item ${expanded ? "expanded" : ""}`}>
       <time>{checkpoint.time}</time>
       <span className={`timeline-node ${checkpoint.state}`}>
-        {isDone ? <CheckCircle size={24} weight="duotone" /> : checkpoint.state === "running" ? <Clock size={23} weight="duotone" /> : <Clock size={22} />}
+        {isDone ? <CheckCircle size={24} weight="duotone" /> : <Clock size={22} />}
       </span>
       <div className="timeline-content">
         <button className="timeline-summary" type="button" onClick={onToggle} aria-expanded={expanded}>
@@ -393,45 +420,58 @@ function TimelineCheckpoint({
           </span>
           <span className="summary-status">
             <span>事件 {checkpoint.eventRange}</span>
-            {isDone ? <span className="verified">已验证，可恢复</span> : checkpoint.state === "running" ? <span className="verified">已验证，可恢复</span> : <span>预计 08-01 {checkpoint.time}</span>}
+            {isDone ? (
+              <span className="verified">已验证，可恢复</span>
+            ) : (
+              <span>校验未通过</span>
+            )}
             {expanded ? <CaretUp size={16} /> : <CaretDown size={16} />}
           </span>
         </button>
         {expanded ? (
           <div className="checkpoint-card">
             <div className="checkpoint-evidence">
-              <Detail label="保留的需求" value="不得把模型推测直接写入长期事实" />
-              <Detail label="事件覆盖" value={`事件 ${checkpoint.eventRange}（共 55 条）`} />
+              {mustPreserve ? (
+                <div className="detail-block">
+                  <span>保留的需求</span>
+                  <strong>{mustPreserve}</strong>
+                </div>
+              ) : null}
+              <div className="detail-block">
+                <span>事件覆盖</span>
+                <strong>事件 {checkpoint.eventRange}</strong>
+              </div>
               <div className="detail-block">
                 <span>状态摘要</span>
-                <strong className="verified"><CheckCircle size={17} weight="fill" /> 已验证，可恢复</strong>
-                <small>最后验证 2026-08-01 {checkpoint.time}</small>
+                {isDone ? (
+                  <strong className="verified">
+                    <CheckCircle size={17} weight="fill" /> 已验证，可恢复
+                  </strong>
+                ) : (
+                  <strong>校验未通过，恢复前请先检查任务状态</strong>
+                )}
               </div>
             </div>
             <div className="checkpoint-actions">
-              <div className="state-hash">
-                <span>状态哈希</span>
-                <code>{checkpoint.stateHash || "a7f9c3d8b2e1f4a9"}</code>
-              </div>
-              <div className="next-action">
-                <span>下一步动作（建议）</span>
-                <button type="button" onClick={onRun}>
-                  <Play size={17} weight="fill" />
-                  <span><strong>运行兼容性测试</strong><code>pytest -q tests/compat --maxfail=1</code></span>
-                  <em>推荐</em>
-                </button>
-              </div>
-              <button className="outline-button" type="button" onClick={onRestore}>恢复到此检查点</button>
-              <label className="tool-policy">
-                <span>工具授权</span>
-                <span className="policy-select"><TerminalWindow size={18} /> pytest · 低风险 ·
-                  <select value={toolPolicy} onChange={(event) => onToolPolicyChange(event.target.value as ToolPolicy)} aria-label="工具授权策略">
-                    <option>自动允许</option>
-                    <option>每次询问</option>
-                    <option>本次拒绝</option>
-                  </select>
-                </span>
-              </label>
+              {checkpoint.stateHash ? (
+                <div className="state-hash">
+                  <span>状态哈希</span>
+                  <code>{checkpoint.stateHash}</code>
+                </div>
+              ) : null}
+              {pendingActions.length ? (
+                <div className="next-action">
+                  <span>待执行动作（来自控制平面）</span>
+                  <ul className="pending-actions">
+                    {pendingActions.map((action, index) => (
+                      <li key={`${action}-${index}`}>{action}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <button className="outline-button" type="button" onClick={onRestore}>
+                恢复到此检查点
+              </button>
             </div>
           </div>
         ) : null}
@@ -440,14 +480,20 @@ function TimelineCheckpoint({
   );
 }
 
-function Detail({ label, value }: DetailProps) {
-  return <div className="detail-block"><span>{label}</span><strong>{value}</strong></div>;
+interface CommandComposerProps {
+  command: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  disabled: boolean;
+  onChange: (value: string) => void;
+  onSubmit: () => void | Promise<void>;
+  onSuggestion: (value: string) => void;
+  submitting: boolean;
 }
 
 function CommandComposer({
   command,
   inputRef,
-  notice,
+  disabled,
   onChange,
   onSubmit,
   onSuggestion,
@@ -455,7 +501,6 @@ function CommandComposer({
 }: CommandComposerProps) {
   return (
     <div className="composer-wrap">
-      {notice ? <div className="composer-notice" role="status"><CheckCircle size={16} weight="fill" />{notice}</div> : null}
       <div className="composer">
         <label className="agent-picker">AtlasAgent <CaretDown size={15} /></label>
         <input
@@ -463,21 +508,27 @@ function CommandComposer({
           value={command}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) onSubmit();
+            if (event.key === "Enter" && !event.shiftKey) void onSubmit();
           }}
-          placeholder="输入指令或 @ 选择上下文，支持自然语言或命令"
-          aria-label="向 AtlasAgent 发送指令"
+          placeholder="把下一步动作写入当前任务（Ctrl/⌘+K 聚焦）"
+          aria-label="向当前任务写入下一步动作"
+          disabled={disabled && !submitting}
         />
         <kbd>⌘K</kbd>
-        <button className="send-button" type="button" onClick={onSubmit} disabled={!command.trim() || submitting} aria-label="发送指令">
+        <button
+          className="send-button"
+          type="button"
+          onClick={() => void onSubmit()}
+          disabled={!command.trim() || disabled}
+          aria-label="写入下一步动作"
+        >
           {submitting ? <ArrowClockwise className="spin" size={19} /> : <Play size={19} weight="fill" />}
         </button>
         <div className="suggestions">
-          <span>建议操作：</span>
+          <span>快捷填充：</span>
           <button type="button" onClick={() => onSuggestion("继续执行当前检查点")}>继续执行</button>
-          <button type="button" onClick={() => onSuggestion("回滚到 CP-003 并重新验证")}>回滚到 CP-003</button>
-          <button type="button" onClick={() => onSuggestion("跳过当前检查并记录原因")}>跳过当前检查</button>
-          <button type="button" onClick={() => onSuggestion("查看 CP-004 的变更和证据")}>查看变更</button>
+          <button type="button" onClick={() => onSuggestion("总结当前进度、风险与下一步")}>总结进度</button>
+          <button type="button" onClick={() => onSuggestion("回滚到上一个已验证检查点并说明原因")}>回滚检查点</button>
         </div>
       </div>
     </div>

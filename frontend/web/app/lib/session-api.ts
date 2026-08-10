@@ -93,19 +93,28 @@ export async function uploadSessionFile(
   return payload.data;
 }
 
+// 本地开发时 Next 的 rewrite 代理会把 SSE 整体缓冲，逐字流会退化成
+// “憋很久然后一次性弹出”。设置 NEXT_PUBLIC_STREAM_BASE（如
+// http://127.0.0.1:8000）让流式端点直连后端绕过代理；后端 CORS 已放行
+// localhost:3000。生产环境不设置该变量，走 Nginx（已配 proxy_buffering off）。
+const STREAM_BASE = process.env.NEXT_PUBLIC_STREAM_BASE ?? "";
+
 export async function streamMessage(
   sessionId: string,
   content: string,
   onEvent: (event: StreamEvent) => void | Promise<void>,
 ) {
-  const response = await fetch(`/api/sessions/${sessionId}/messages/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
+  const response = await fetch(
+    `${STREAM_BASE}/api/sessions/${sessionId}/messages/stream`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({ content }),
     },
-    body: JSON.stringify({ content }),
-  });
+  );
 
   if (!response.ok) {
     try {

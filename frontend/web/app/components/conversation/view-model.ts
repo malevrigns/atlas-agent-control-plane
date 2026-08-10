@@ -9,24 +9,14 @@ import type {
 } from "./types";
 
 // ===================== 第1步：把后端事件整理成前端时间线模型 =====================
+// 每个 plan_created 事件都是一条独立的时间线项（kind: "plan"），
+// 按 created_at 与消息交错排序——任务卡片属于触发它的那轮对话，
+// 而不是固定挂在时间线末尾。
 export function buildAgentRunViewModel(
   messages: ChatMessage[],
   events: SessionEventItem[],
-  plan: AgentPlan | null,
 ): AgentRunViewModel {
-  const timelineItems = buildTimelineItems(messages, events);
-  const latestPlan = plan ?? getLatestPlanFromEvents(events);
-  const finalEvent =
-    [...events]
-      .reverse()
-      .find((event) => event.type === "task_done" || event.type === "task_error") ??
-    null;
-
-  return {
-    finalEvent,
-    latestPlan,
-    timelineItems,
-  };
+  return { timelineItems: buildTimelineItems(messages, events) };
 }
 
 function buildTimelineItems(
@@ -35,8 +25,28 @@ function buildTimelineItems(
 ): TimelineItem[] {
   const planEvents = events.filter((event) => event.type === "plan_created");
 
+  // 计划执行路径的最终回答由 AgentRunBlock 的 FinalAnswer 展示；
+  // 同一内容的 assistant 消息不再重复渲染成气泡。
+  // 只统计流水线运行（mode 非 chat）的 task_done——直接问答的回答
+  // 没有 AgentRunBlock，它们的气泡必须保留。
+  const finalAnswers = new Set(
+    events
+      .filter(
+        (event) =>
+          event.type === "task_done" && getString(event.payload.mode) !== "chat",
+      )
+      .map((event) => getString(event.payload.final_answer))
+      .filter(Boolean),
+  );
+  const visibleMessages = planEvents.length
+    ? messages.filter(
+        (message) =>
+          message.role !== "assistant" || !finalAnswers.has(message.content),
+      )
+    : messages;
+
   return [
-    ...messages.map((message) => ({
+    ...visibleMessages.map((message) => ({
       kind: "message" as const,
       id: `message-${message.id}`,
       created_at: message.created_at,
@@ -118,15 +128,25 @@ export function buildPlanProgressView(
   };
 }
 
-function getLatestPlanFromEvents(events: SessionEventItem[]): AgentPlan | null {
-  const event = [...events].reverse().find((item) => item.type === "plan_created");
-  if (!event) {
-    return null;
+// ===================== 第1.5步：把思考过程映射到对应的回答消息 =====================
+export function buildReasoningMap(
+  events: SessionEventItem[],
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const event of events) {
+    if (event.type !== "task_done") {
+      continue;
+    }
+    const messageId = getString(event.payload.message_id);
+    const reasoning = getString(event.payload.reasoning);
+    if (messageId && reasoning) {
+      map.set(messageId, reasoning);
+    }
   }
-  return parsePlanPayload(event.payload);
+  return map;
 }
 
-function parsePlanPayload(payload: Record<string, unknown>): AgentPlan {
+export function parsePlanPayload(payload: Record<string, unknown>): AgentPlan {
   const steps = Array.isArray(payload.steps) ? payload.steps : [];
   return {
     id: getString(payload.id) || getString(payload.plan_id),
@@ -358,7 +378,7 @@ export function getRunningCopy(step: StepView) {
 
 export function getStatusClass(status: string) {
   if (status === "completed") {
-    return "rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-300";
+    return "rounded-full border border-(--accent)/30 bg-(--accent)/10 px-3 py-1 text-xs font-semibold text-(--accent)";
   }
   if (status === "running") {
     return "rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-200";
@@ -373,9 +393,9 @@ export function getStatusClass(status: string) {
     return "rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-200";
   }
   if (status === "stopped") {
-    return "rounded-full border border-zinc-500/30 bg-zinc-500/10 px-3 py-1 text-xs font-semibold text-zinc-300";
+    return "rounded-full border border-(--line-strong) bg-(--fill-1) px-3 py-1 text-xs font-semibold text-(--text-2)";
   }
-  return "rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-zinc-500";
+  return "rounded-full border border-(--line) bg-(--fill-1) px-3 py-1 text-xs font-semibold text-(--text-4)";
 }
 
 export function getStatusLabel(status: string) {

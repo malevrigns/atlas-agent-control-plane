@@ -65,6 +65,38 @@ def register_sandbox_browser_tools(
     registry.register(
         AgentTool(
             definition=ToolDefinition(
+                name="browser_read",
+                description=(
+                    "读取网页正文内容用于作答：传入 url 时先打开该网页再读取；"
+                    "不传 url 则读取当前已打开页面。返回页面可见文本，"
+                    "适合'根据网页内容回答问题/提取信息/总结页面'类步骤。"
+                ),
+                risk_level=ToolRiskLevel.medium,
+                required_permissions=("network:access", "browser:read"),
+                parameters=[
+                    ToolParameter(
+                        name="url",
+                        type="string",
+                        description="要读取的网页地址；留空表示读取当前页面。",
+                        required=False,
+                    ),
+                    ToolParameter(
+                        name="max_chars",
+                        type="number",
+                        description="返回正文的最大字符数，默认 8000。",
+                        required=False,
+                    ),
+                ],
+            ),
+            handler=lambda url="", max_chars=8000: _read_page(
+                browser_client, url, max_chars
+            ),
+        )
+    )
+
+    registry.register(
+        AgentTool(
+            definition=ToolDefinition(
                 name="browser_screenshot",
                 description="截取当前浏览器页面，返回图片信息和 base64 数据。",
                 required_permissions=("browser:read",),
@@ -108,6 +140,33 @@ def _format_status(data: dict) -> str:
             f"视口：{data.get('viewport_width')}x{data.get('viewport_height')}",
         ]
     )
+
+
+def _read_page(client: SandboxBrowserClient, url: object, max_chars: object) -> str:
+    """打开（可选）并读取页面正文，输出带来源信息的纯文本。"""
+
+    clean_url = str(url or "").strip()
+    if clean_url:
+        client.navigate(url=clean_url)
+    limit = _to_int(max_chars, default=8000, low=200, high=60000)
+    data = client.page_text(max_chars=limit)
+    header = [
+        f"页面地址：{data.get('url')}",
+        f"页面标题：{data.get('title') or '-'}",
+    ]
+    if data.get("truncated"):
+        header.append(
+            f"（正文共 {data.get('total_chars')} 字，已截断到前 {limit} 字）"
+        )
+    return "\n".join([*header, "", "页面正文：", str(data.get("text") or "(页面无可见文本)")])
+
+
+def _to_int(value: object, default: int, low: int, high: int) -> int:
+    try:
+        number = int(float(str(value)))
+    except (TypeError, ValueError):
+        return default
+    return max(low, min(high, number))
 
 
 def _format_page(data: dict) -> str:

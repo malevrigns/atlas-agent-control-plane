@@ -39,6 +39,11 @@ class SessionMessageRepository(Protocol):
     async def add_user_message(self, session_id: UUID, content: str) -> SessionMessage:
         raise NotImplementedError
 
+    async def add_assistant_message(
+        self, session_id: UUID, content: str
+    ) -> SessionMessage:
+        raise NotImplementedError
+
     async def list_by_session(self, session_id: UUID) -> list[SessionMessage]:
         raise NotImplementedError
 

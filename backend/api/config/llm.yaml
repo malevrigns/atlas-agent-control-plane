@@ -3,9 +3,20 @@ llm:
   default_model: deepseek-chat
   temperature: 0.2
   max_tokens: 1024
+  # 流式对话是否请求模型思考过程（Qwen/DashScope 的 enable_thinking）。
+  # 开启后前端可实时查看推理过程；模型不支持时自动降级为普通流式回答。
+  thinking: false
+  # 多模态 RAG 的视觉模型（如 qwen-vl-plus / qwen-vl-max）。
+  # 留空表示不启用图片解析入库；密钥复用 default_provider 的环境变量。
+  vision_model: ""
 
 providers:
   openai_compatible:
+    # 任何 OpenAI 兼容的对话服务地址。常见组合：
+    #   DeepSeek:     https://api.deepseek.com/v1                       + deepseek-chat
+    #   阿里云百炼:    https://dashscope.aliyuncs.com/compatible-mode/v1 + qwen-plus
+    #   Kimi:         https://api.moonshot.cn/v1                        + moonshot-v1-8k
+    # 密钥只通过 LLM_API_KEY 环境变量传入，不要写进本文件。
     base_url: https://api.deepseek.com/v1
     api_key_env: LLM_API_KEY
     timeout_seconds: 60

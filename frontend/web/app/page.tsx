@@ -1,11 +1,14 @@
 "use client";
 
-import { CheckCircle2, Clock3, Wifi } from "lucide-react";
+import { CheckCircle2, Clock3, PanelLeftOpen, Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AppSidebar } from "./components/app-sidebar";
+import type { MainView } from "./components/app-sidebar";
 import { ChatWorkspace } from "./components/chat-workspace";
+import { KnowledgeWorkspace } from "./components/knowledge-workspace";
 import { SettingsWorkspace } from "./components/settings-workspace";
+import { SkillsWorkspace } from "./components/skills-workspace";
 import { StatusBadge } from "./components/status-badge";
 import { useSessionWorkspace } from "./hooks/use-session-workspace";
 import { ApiRequestError, createApiSession, requestApi } from "./lib/api";
@@ -42,7 +45,7 @@ export default function Home() {
 
   if (access === "checking") {
     return (
-      <main className="grid h-[100dvh] place-items-center bg-[#050506] text-sm text-zinc-500">
+      <main className="grid h-[100dvh] place-items-center bg-(--page) text-sm text-(--text-4)">
         正在验证控制平面…
       </main>
     );
@@ -74,19 +77,19 @@ function AccessGate({ onAuthenticated }: { onAuthenticated: () => void }) {
   }
 
   return (
-    <main className="grid h-[100dvh] place-items-center bg-[#050506] px-5 text-zinc-50">
-      <form className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl" onSubmit={submit}>
-        <div className="text-xs font-medium uppercase tracking-[0.22em] text-blue-400">AtlasAgent</div>
+    <main className="grid h-[100dvh] place-items-center bg-(--page) px-5 text-(--text-1)">
+      <form className="w-full max-w-md rounded-3xl border border-(--line) bg-(--fill-1) p-8 shadow-2xl" onSubmit={submit}>
+        <div className="text-xs font-medium uppercase tracking-[0.22em] text-(--accent)">AtlasAgent</div>
         <h1 className="mt-3 text-3xl font-semibold">进入控制平面</h1>
-        <p className="mt-3 text-sm leading-6 text-zinc-500">
+        <p className="mt-3 text-sm leading-6 text-(--text-4)">
           输入启动脚本生成的 API Key。密钥只用于换取 HttpOnly 会话，不会保存在浏览器存储中。
         </p>
-        <label className="mt-6 block text-xs font-medium text-zinc-400">
+        <label className="mt-6 block text-xs font-medium text-(--text-3)">
           API Key
           <input
             autoComplete="current-password"
             autoFocus
-            className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-black/40 px-4 font-mono text-sm outline-none focus:border-blue-500/70"
+            className="mt-2 h-12 w-full rounded-xl border border-(--line) bg-(--field) px-4 font-mono text-sm outline-none focus:border-(--accent)/70"
             onChange={(event) => setApiKey(event.target.value)}
             type="password"
             value={apiKey}
@@ -106,9 +109,23 @@ function AccessGate({ onAuthenticated }: { onAuthenticated: () => void }) {
 }
 
 function WorkspaceHome() {
-  const [activeView, setActiveView] = useState<"workspace" | "settings">(
-    "workspace",
-  );
+  // 左侧导航可隐藏：隐藏时对话区自动铺满整个宽度，偏好持久化。
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    if (window.localStorage.getItem("atlas-sidebar-open") === "0") {
+      setSidebarOpen(false);
+    }
+  }, []);
+
+  function toggleSidebar() {
+    setSidebarOpen((open) => {
+      window.localStorage.setItem("atlas-sidebar-open", open ? "0" : "1");
+      return !open;
+    });
+  }
+
+  const [activeView, setActiveView] = useState<MainView>("workspace");
   // API 和数据库属于工作台的基础健康状态。
   // VNC 只在用户点击浏览器工具详情时出现，所以这里只保留连接信息，不再渲染常驻演示面板。
   const [apiStatus, setApiStatus] = useState<LoadState<ApiStatusData>>({
@@ -272,34 +289,54 @@ function WorkspaceHome() {
   const dbBadge = getBadge(databaseStatus, "数据库正常", "数据库异常");
 
   return (
-    <main className="h-[100dvh] overflow-hidden bg-[#050506] text-zinc-50">
-      <div className="grid h-full min-h-0 grid-cols-[300px_1fr] max-lg:grid-cols-1 max-lg:grid-rows-[auto_1fr]">
-        <AppSidebar
-          actionError={workspace.actionError}
-          activeView={activeView}
-          onCreateSession={workspace.createSession}
-          onDeleteSession={workspace.deleteSession}
-          onRefresh={refreshAll}
-          onSelectSession={workspace.selectSession}
-          onViewChange={setActiveView}
-          onTitleChange={workspace.setTitle}
-          selectedSessionId={workspace.selectedSessionId}
-          sessions={workspace.sessions}
-          submitting={workspace.submitting}
-          title={workspace.title}
-        />
+    <main className="relative h-[100dvh] overflow-hidden bg-(--page) text-(--text-1)">
+      {!sidebarOpen ? (
+        <button
+          aria-label="展开侧边栏"
+          className="absolute left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-xl border border-(--line) bg-(--surface-3)/90 text-(--text-3) shadow-lg shadow-black/20 backdrop-blur-xl transition hover:border-(--accent)/40 hover:text-(--text-1)"
+          onClick={toggleSidebar}
+          title="展开侧边栏"
+          type="button"
+        >
+          <PanelLeftOpen size={17} aria-hidden="true" />
+        </button>
+      ) : null}
+      <div
+        className={`grid h-full min-h-0 ${
+          sidebarOpen
+            ? "grid-cols-[300px_1fr] max-lg:grid-cols-1 max-lg:grid-rows-[auto_1fr]"
+            : "grid-cols-1"
+        }`}
+      >
+        {sidebarOpen ? (
+          <AppSidebar
+            actionError={workspace.actionError}
+            activeView={activeView}
+            onCollapse={toggleSidebar}
+            onCreateSession={workspace.createSession}
+            onDeleteSession={workspace.deleteSession}
+            onRefresh={refreshAll}
+            onSelectSession={workspace.selectSession}
+            onViewChange={setActiveView}
+            onTitleChange={workspace.setTitle}
+            selectedSessionId={workspace.selectedSessionId}
+            sessions={workspace.sessions}
+            submitting={workspace.submitting}
+            title={workspace.title}
+          />
+        ) : null}
 
-        <section className="agent-grid-bg flex min-h-0 min-w-0 flex-col overflow-hidden bg-[#05060a]">
+        <section className="agent-grid-bg flex min-h-0 min-w-0 flex-col overflow-hidden bg-(--page)">
           {activeView === "settings" ? (
-            <header className="flex min-h-24 items-center justify-between border-b border-white/10 bg-[#05060a]/80 px-8 backdrop-blur-2xl max-sm:flex-col max-sm:items-start max-sm:gap-3 max-sm:px-4 max-sm:py-4">
+            <header className="flex min-h-24 items-center justify-between border-b border-(--line) bg-(--page)/80 px-8 backdrop-blur-2xl max-sm:flex-col max-sm:items-start max-sm:gap-3 max-sm:px-4 max-sm:py-4">
               <div>
-                <div className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-blue-400/80">
+                <div className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-(--accent)/80">
                   Control Center
                 </div>
-                <h1 className="text-3xl font-semibold tracking-normal text-zinc-50 max-sm:text-2xl">
+                <h1 className="text-3xl font-semibold tracking-normal text-(--text-1) max-sm:text-2xl">
                   设置
                 </h1>
-                <p className="mt-2 text-sm text-zinc-500">
+                <p className="mt-2 text-sm text-(--text-4)">
                   集中管理模型、工具、远程 Agent 和多 Agent 配置
                 </p>
               </div>
@@ -326,6 +363,8 @@ function WorkspaceHome() {
                 events={workspace.events}
                 files={workspace.files}
                 filePreview={workspace.filePreview}
+                liveAnswer={workspace.liveAnswer}
+                liveThinking={workspace.liveThinking}
                 messages={workspace.messages}
                 onClearUnread={workspace.clearUnread}
                 onDraftChange={workspace.setDraft}
@@ -347,7 +386,8 @@ function WorkspaceHome() {
                 stopping={workspace.stoppingSession}
                 uploadingFile={workspace.uploadingFile}
               />
-            ) : (
+            ) : null}
+            {activeView === "settings" ? (
               <SettingsWorkspace
                 onCreateIntegration={addSettingsIntegration}
                 onDeleteIntegration={removeSettingsIntegration}
@@ -357,7 +397,9 @@ function WorkspaceHome() {
                 onToggleModule={toggleSettingsModule}
                 settings={appSettings}
               />
-            )}
+            ) : null}
+            {activeView === "knowledge" ? <KnowledgeWorkspace /> : null}
+            {activeView === "skills" ? <SkillsWorkspace /> : null}
           </div>
         </section>
       </div>

@@ -64,6 +64,7 @@ class ReActAgentService:
         agent_context = ContextEngineeringService.render_for_agent(context_snapshot)
 
         created_events: list[SessionEvent] = []
+        step_history: list[str] = []
         current_step: dict | None = None
         current_index = 0
         await self.uow.sessions.update_status(session_id, SessionStatus.running.value)
@@ -73,21 +74,27 @@ class ReActAgentService:
             for index, step in enumerate(steps, start=1):
                 current_step = step
                 current_index = index
-                created_events.extend(
-                    await self._execute_step(
-                        session_id=session_id,
-                        plan=plan,
-                        step=step,
-                        index=index,
-                        memory_context=memory_context,
-                        agent_context=agent_context,
-                    )
+                step_events = await self._execute_step(
+                    session_id=session_id,
+                    plan=plan,
+                    step=step,
+                    index=index,
+                    memory_context=memory_context,
+                    agent_context=agent_context,
+                    step_history=step_history,
                 )
+                created_events.extend(step_events)
+                self._append_step_history(step_history, index, step, step_events)
                 # 每个步骤结束后提交一次，SSE 层才能把最新事件及时推给前端。
                 await self.uow.sessions.touch(session_id)
                 await self.uow.commit()
 
             final_answer = await self._build_final_answer(plan, created_events)
+            answer_event = await self._persist_final_answer_message(
+                session_id=session_id,
+                final_answer=final_answer,
+            )
+            created_events.append(answer_event)
             done_event = await self.uow.session_events.add(
                 session_id=session_id,
                 event_type=SessionEventType.task_done,
@@ -130,8 +137,13 @@ class ReActAgentService:
         index: int,
         memory_context: MemoryContext,
         agent_context: str,
+        step_history: list[str] | None = None,
     ) -> list[SessionEvent]:
-        """把一个计划步骤转换成 started/tool/completed 三类事件。"""
+        """把一个计划步骤转换成 started/tool/completed 三类事件。
+
+        step_history 是本轮已完成步骤的观察摘要：工具选择器必须知道
+        前面发生了什么，否则会重复做已完成的事（如反复打开同一页面）。
+        """
 
         plan_id = plan.get("id") or plan.get("plan_id")
         step_id = step.get("id")
@@ -146,13 +158,22 @@ class ReActAgentService:
             },
         )
 
+        step_context = agent_context
+        if step_history:
+            history_text = "\n".join(step_history)
+            step_context = (
+                f"{agent_context}\n\n本轮已完成步骤的结果（不要重复做）：\n{history_text}"
+                if agent_context
+                else f"本轮已完成步骤的结果（不要重复做）：\n{history_text}"
+            )
+
         tool_result = await self._call_tool_for_step(
             session_id=session_id,
             plan=plan,
             step=step,
             index=index,
             memory_context=memory_context,
-            agent_context=agent_context,
+            agent_context=step_context,
         )
         tool_called = await self.uow.session_events.add(
             session_id=session_id,
@@ -230,6 +251,34 @@ class ReActAgentService:
             "duration_ms": result.duration_ms,
             "audit": result.audit or {},
         }
+
+    def _append_step_history(
+        self,
+        step_history: list[str],
+        index: int,
+        step: dict,
+        step_events: list[SessionEvent],
+    ) -> None:
+        """把刚完成步骤的工具与观察摘要追加进历史，供后续步骤选择工具时参考。"""
+
+        for event in step_events:
+            if event.type is not SessionEventType.tool_called:
+                continue
+            tool_name = str(event.payload.get("tool_name") or "")
+            output = str(event.payload.get("output") or "")
+            summary = self._summarize_tool_output(tool_name, output)
+            # 失败信号显式标注（工具状态非成功，或 shell 非零退出码），
+            # 后续步骤的工具选择器会优先修复而不是机械推进。
+            failed = str(event.payload.get("status") or "") not in {"", "success", "succeeded"}
+            if tool_name.startswith("shell_"):
+                return_code = self._match_line_value(output, "退出码")
+                if return_code and return_code != "0":
+                    failed = True
+            prefix = "⚠️ 失败" if failed else "已完成"
+            step_history.append(
+                f"- 步骤{index}「{step.get('title', '')}」{prefix}（{tool_name}）："
+                f"{self._trim_text(summary, 200)}"
+            )
 
     @staticmethod
     def _tool_execution_context(
@@ -530,6 +579,7 @@ class ReActAgentService:
         agent_context = ContextEngineeringService.render_for_agent(context_snapshot)
 
         # 4. 标记会话进入 running 状态。状态事件由路由层负责推送。
+        step_history: list[str] = []
         current_step: dict | None = None
         current_index = 0
         await self.uow.sessions.update_status(session_id, SessionStatus.running.value)
@@ -547,15 +597,16 @@ class ReActAgentService:
                     index=index,
                     memory_context=memory_context,
                     agent_context=agent_context,
+                    step_history=step_history,
                 )
+                self._append_step_history(step_history, index, step, step_events)
                 await self.uow.sessions.touch(session_id)
                 await self.uow.commit()
                 for event in step_events:
                     yield event
 
-            # 6. 所有步骤完成后写入 task_done，并把会话恢复为空闲。
-            #    final_answer 会把每一步工具观察结果整理成最终回答，
-            #    前端不再只显示泛泛的“任务已完成”。
+            # 6. 所有步骤完成后流式生成最终回答（GPT 式打字机），
+            #    思考与正文增量实时推送；失败时回退到规则版总结。
             completed_events: list[SessionEvent] = []
             for event in await self.uow.session_events.list_by_session(session_id):
                 if (
@@ -568,13 +619,52 @@ class ReActAgentService:
                     == (plan.get("id") or plan.get("plan_id"))
                 ):
                     completed_events.append(event)
-            final_answer = await self._build_final_answer(plan, completed_events)
+
+            answer_parts: list[str] = []
+            reasoning_parts: list[str] = []
+            evidence = self._build_final_answer_evidence(plan, completed_events)
+            if evidence:
+                try:
+                    async for delta in LLMService().chat_stream(
+                        self._build_final_answer_messages(plan, evidence),
+                        temperature=0.2,
+                        max_tokens=2500,
+                    ):
+                        if delta.kind == "reasoning":
+                            reasoning_parts.append(delta.text)
+                            yield ("thinking_delta", delta.text)
+                        else:
+                            answer_parts.append(delta.text)
+                            yield ("answer_delta", delta.text)
+                except AppException:
+                    answer_parts = []
+            final_answer = "".join(answer_parts).strip() or (
+                self._build_rule_based_final_answer(plan, completed_events)
+            )
+            reasoning = "".join(reasoning_parts).strip()
+
+            answer_message = await self.uow.session_messages.add_assistant_message(
+                session_id=session_id,
+                content=final_answer,
+            )
+            answer_event = await self.uow.session_events.add(
+                session_id=session_id,
+                event_type=SessionEventType.message_created,
+                payload={
+                    "message_id": str(answer_message.id),
+                    "role": answer_message.role.value,
+                    "content": answer_message.content,
+                },
+            )
             done_event = await self.uow.session_events.add(
                 session_id=session_id,
                 event_type=SessionEventType.task_done,
                 payload={
                     "plan_id": plan.get("id") or plan.get("plan_id"),
                     "final_answer": final_answer,
+                    # 与直答路径同构：思考过程关联回答消息，刷新后可回看。
+                    "reasoning": reasoning,
+                    "message_id": str(answer_message.id),
                     "message": "计划步骤已全部执行完成。",
                     "memory_ids": [str(item.id) for item in memory_context.items],
                     "memory_count": len(memory_context.items),
@@ -583,6 +673,7 @@ class ReActAgentService:
             await self.uow.sessions.update_status(session_id, SessionStatus.idle.value)
             await self.uow.sessions.touch(session_id)
             await self.uow.commit()
+            yield answer_event
             yield done_event
         except Exception as error:
             # 7. 任意步骤失败时，写入结构化 task_error。
@@ -602,6 +693,32 @@ class ReActAgentService:
             await self.uow.sessions.update_status(session_id, SessionStatus.failed.value)
             await self.uow.commit()
             yield error_event
+
+    async def _persist_final_answer_message(
+        self,
+        *,
+        session_id: UUID,
+        final_answer: str,
+    ) -> SessionEvent:
+        """把最终回答落库成 assistant 消息并返回 message_created 事件。
+
+        消息列表是客户端刷新后的事实源。回答只存在 task_done 事件里时，
+        刷新后消息列表只剩用户消息，对话看起来像“没有人回复”。
+        """
+
+        message = await self.uow.session_messages.add_assistant_message(
+            session_id=session_id,
+            content=final_answer,
+        )
+        return await self.uow.session_events.add(
+            session_id=session_id,
+            event_type=SessionEventType.message_created,
+            payload={
+                "message_id": str(message.id),
+                "role": message.role.value,
+                "content": message.content,
+            },
+        )
 
     # ===================== 第7步：根据工具输出生成最终总结 =====================
     async def _build_final_answer(
@@ -625,35 +742,42 @@ class ReActAgentService:
 
         try:
             result = await LLMService().chat(
-                messages=[
-                    LLMMessage(
-                        role="system",
-                        content=(
-                            "你是 AtlasAgent 的任务总结器。"
-                            "请根据可观察的工具输出写最终回复正文，不要编造未执行的动作，"
-                            "不要输出隐藏推理，不要提到 JSON 或内部事件。"
-                            "如果是代码文件解析任务，请总结组件结构、状态逻辑、风险点和优化建议。"
-                            "如果是搜索任务，请总结搜索发现和可点击来源价值。"
-                            "输出中文 Markdown，并固定包含：## 总结、## 证据与引用、## 产物、## 下一步建议。"
-                            "没有产物时写“本次任务没有生成新的文件产物”。"
-                        ),
-                    ),
-                    LLMMessage(
-                        role="user",
-                        content=(
-                            f"任务目标：{plan.get('goal') or plan.get('title') or '未命名任务'}\n\n"
-                            f"工具观察材料：\n{evidence}"
-                        ),
-                    ),
-                ],
+                messages=self._build_final_answer_messages(plan, evidence),
                 temperature=0.2,
-                max_tokens=900,
+                # 思考型模型的 reasoning 计入输出额度，给足空间避免总结被截断。
+                max_tokens=2500,
             )
         except AppException:
             return fallback_answer
 
         clean_content = result.content.strip()
         return clean_content or fallback_answer
+
+    @staticmethod
+    def _build_final_answer_messages(plan: dict, evidence: str) -> list[LLMMessage]:
+        """最终回答总结器的提示词，供流式与非流式两条路径共用。"""
+
+        return [
+            LLMMessage(
+                role="system",
+                content=(
+                    "你是 AtlasAgent 的任务总结器。"
+                    "请根据可观察的工具输出写最终回复正文，不要编造未执行的动作，"
+                    "不要输出隐藏推理，不要提到 JSON 或内部事件。"
+                    "如果是代码文件解析任务，请总结组件结构、状态逻辑、风险点和优化建议。"
+                    "如果是搜索任务，请总结搜索发现和可点击来源价值。"
+                    "输出中文 Markdown，并固定包含：## 总结、## 证据与引用、## 产物、## 下一步建议。"
+                    "没有产物时写“本次任务没有生成新的文件产物”。"
+                ),
+            ),
+            LLMMessage(
+                role="user",
+                content=(
+                    f"任务目标：{plan.get('goal') or plan.get('title') or '未命名任务'}\n\n"
+                    f"工具观察材料：\n{evidence}"
+                ),
+            ),
+        ]
 
     def _build_rule_based_final_answer(
         self,

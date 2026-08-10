@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.rag_service import RagService
@@ -231,6 +231,29 @@ async def ingest_document(
         source_type=parse_source_type(payload.source_type),
         source_ref=payload.source_ref,
         metadata=payload.metadata,
+    )
+    return ApiResponse(data=to_document_response(document))
+
+
+@router.post(
+    "/knowledge-bases/{knowledge_base_id}/documents/image",
+    response_model=ApiResponse[DocumentResponse],
+)
+async def ingest_image_document(
+    knowledge_base_id: UUID,
+    upload: UploadFile = File(...),
+    title: str = Form(""),
+    service: RagService = Depends(build_rag_service),
+) -> ApiResponse[DocumentResponse]:
+    """多模态摄取：上传图片，由视觉模型解析成文本后切分入库。"""
+
+    data = await upload.read()
+    document = await service.ingest_image_document(
+        knowledge_base_id,
+        filename=upload.filename or "image",
+        content_type=upload.content_type or "",
+        data=data,
+        title=title,
     )
     return ApiResponse(data=to_document_response(document))
 

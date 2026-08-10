@@ -39,7 +39,7 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 | 控制边界 | AtlasAgent 如何处理 | 关键机制 |
 | --- | --- | --- |
 | **Evidence-backed Memory** | 只把仍然有效、来源明确且通过门禁的事实注入上下文 | 类型化记忆、Write Gate、证据链、作用域、有效期、替代关系、可解释检索 |
-| **RAG Knowledge Base** | 让团队文档成为可检索、可引用、可验证的证据来源 | 段落切分与重叠、可替换向量后端（pgvector / Qdrant）、向量+词法混合重排、编号引用、检索审计 |
+| **RAG Knowledge Base** | 让团队文档成为可检索、可引用、可验证的证据来源 | 段落切分与重叠、可替换向量后端（pgvector / Qdrant）、向量+词法混合重排、编号引用、检索审计、多模态摄取（图片经视觉模型解析入库） |
 | **Skill Registry** | 把团队沉淀的操作指引变成受治理、可回溯的 Agent 行为规范 | draft/published/deprecated 生命周期、published 内容冻结、semver 版本、启停分离、相关度注入 |
 | **Checkpoint DAG** | 为长任务提供可验证的暂停、恢复与回溯点 | 父子 Checkpoint、事件区间、状态哈希、环境指纹、校验报告 |
 | **Unified Tool Runtime** | 在 handler 之前统一约束权限与副作用 | 风险分级、审批、幂等、超时、脱敏、大输出制品化、全程审计 |
@@ -163,8 +163,8 @@ CLEAN_VOLUMES=true ./scripts/stop.sh
 
 | 客户端 | 最适合 | 特色 |
 | --- | --- | --- |
-| **Web** | 浏览器协作与完整功能体验 | 会话、文件、Sandbox、设置、MCP、A2A 与 Agent 工作流 |
-| **Desktop** | 长时间驻留、治理与多面板观察 | Checkpoint 时间线、技能注册中心管理、知识库摄取与检索验证台、暂停/恢复、Ink / Dawn / Contrast 三主题 |
+| **Web** | 浏览器协作与完整功能体验 | 会话、流式问答、文件、Sandbox、设置、MCP、A2A 与 Agent 工作流 |
+| **Desktop** | 长时间驻留、治理与多面板观察 | 流式对话（默认视图）、Checkpoint 时间线、技能注册中心管理、知识库摄取与检索验证台、暂停/恢复、Ink / Dawn / Contrast 三主题 |
 | **TUI** | SSH、低带宽与键盘工作流 | 任务 / Checkpoint / 审计三栏、快捷键、三套终端主题、离线演示数据 |
 
 桌面端默认启用 `contextIsolation` 并关闭 `nodeIntegration`；主题选择会在本地持久化。TUI 的快捷键与客户端配置见 [客户端指南](docs/CLIENTS.md)。
@@ -232,6 +232,7 @@ docker compose up -d postgres redis
 | Web | `cd frontend/web && pnpm install && pnpm dev` | `http://localhost:3000` |
 | Desktop | `cd frontend/desktop && npm install && npm run electron:dev` | Electron 桌面窗口 |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` | 后端不可达时自动进入演示模式 |
+| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 8100:8100 -p 6080:6080 -e SANDBOX_AUTH_ENABLED=false atlas-sandbox` | Agent 的虚拟电脑：`http://localhost:8100`；API 侧设 `SANDBOX_API_BASE_URL=http://localhost:8100/api` 与 `TOOL_AUTO_APPROVE_RISK=high` 后，对话即可真实执行代码/浏览器任务 |
 
 ## 项目结构
 
@@ -283,7 +284,16 @@ npm test
 
 服务端常用配置集中在根目录的 [`.env.example`](.env.example)：
 
-- `LLM_API_KEY`：模型服务密钥；未配置时仍可使用不依赖模型的演示与控制平面能力
+- `LLM_API_KEY`：模型服务密钥；未配置时仍可使用不依赖模型的演示与控制平面能力。
+  任何 OpenAI 兼容服务都可以接入：在 `backend/api/config/llm.yaml` 中把 `base_url`
+  换成服务商地址（如 DeepSeek `https://api.deepseek.com/v1`、阿里云百炼
+  `https://dashscope.aliyuncs.com/compatible-mode/v1`），`default_model` 换成对应模型名
+  （如 `deepseek-chat`、`qwen-plus`），密钥只通过环境变量传入。
+  会话消息默认直接由模型流式回答；命中搜索、网页、文件、命令等工具意图时才进入计划执行流水线。
+  `llm.thinking: true`（llm.yaml）可开启思考过程流式输出（Qwen `enable_thinking`），
+  Web 与桌面端会实时展示并支持事后展开回看；不支持的模型自动降级为普通流式回答。
+  `llm.vision_model`（如 `qwen-vl-plus`）启用多模态 RAG：知识库页可上传截图/图表/扫描件，
+  视觉模型提取文字与图表结构后切分入库，图中内容即可被检索与引用
 - `ATLAS_API_KEY`：控制平面与 Sandbox 的共享访问密钥；启动脚本会替换示例占位符
 - `NGINX_PORT`：统一网关端口，默认 `8088`
 - `NGINX_HOST`：默认 `127.0.0.1`；确需远程访问时必须配合 TLS 与上游身份系统

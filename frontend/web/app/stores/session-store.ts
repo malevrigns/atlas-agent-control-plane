@@ -36,6 +36,10 @@ type SessionState = {
   files: LoadState<SessionFileItem[]>;
   filePreview: LoadState<FilePreviewData | null>;
   latestPlan: AgentPlan | null;
+  /** 直接问答路径的流式回答缓冲，回答完成后清空。 */
+  liveAnswer: string;
+  /** 模型思考过程的流式缓冲，回答完成后清空（完整思考存于 task_done 事件）。 */
+  liveThinking: string;
   messages: LoadState<ChatMessage[]>;
   selectedSessionId: string | null;
   selectedFile: SessionFileItem | null;
@@ -55,7 +59,10 @@ type SessionState = {
 type SessionActions = {
   createSession: () => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
-  loadSessionDetail: (sessionId: string) => Promise<void>;
+  loadSessionDetail: (
+    sessionId: string,
+    options?: { silent?: boolean },
+  ) => Promise<void>;
   loadSessionContext: (sessionId: string) => Promise<void>;
   loadFilePreview: (fileId: string) => Promise<void>;
   refreshSessions: () => Promise<void>;
@@ -102,6 +109,14 @@ function sleep(ms: number) {
 function getPresentationDelay(eventName: string) {
   // ===================== 第1步：给不同事件留出可感知的展示节奏 =====================
   // 这里不是伪造后端耗时，而是避免浏览器把 SSE 瞬间批量刷出，导致用户看不清执行顺序。
+  // 直接问答的流式增量必须零延迟，否则上百个 delta 会把回答拖慢十几秒。
+  if (
+    eventName === "answer_started" ||
+    eventName === "answer_delta" ||
+    eventName === "thinking_delta"
+  ) {
+    return 0;
+  }
   if (eventName === "message_created") {
     return 120;
   }
@@ -303,6 +318,8 @@ export const useSessionStore = create<SessionState & SessionActions>(
     files: initialDetailState.files,
     filePreview: initialDetailState.filePreview,
     latestPlan: null,
+    liveAnswer: "",
+    liveThinking: "",
     messages: initialDetailState.messages,
     selectedSessionId: null,
     selectedFile: null,
@@ -330,6 +347,8 @@ export const useSessionStore = create<SessionState & SessionActions>(
       set({
         attachments: [],
         latestPlan: null,
+        liveAnswer: "",
+        liveThinking: "",
         currentTask: null,
         selectedFile: null,
         selectedSessionId: sessionId,
@@ -361,15 +380,19 @@ export const useSessionStore = create<SessionState & SessionActions>(
       }
     },
 
-    loadSessionDetail: async (sessionId) => {
-      set({
-        context: { type: "loading" },
-        events: { type: "loading" },
-        files: { type: "loading" },
-        filePreview: { type: "ready", data: null },
-        messages: { type: "loading" },
-        selectedFile: null,
-      });
+    loadSessionDetail: async (sessionId, options) => {
+      // silent：流结束后的静默刷新。保留旧数据直接原地替换，
+      // 不置 loading——否则时间线会卸载重挂，滚动位置被重置到底部。
+      if (!options?.silent) {
+        set({
+          context: { type: "loading" },
+          events: { type: "loading" },
+          files: { type: "loading" },
+          filePreview: { type: "ready", data: null },
+          messages: { type: "loading" },
+          selectedFile: null,
+        });
+      }
       try {
         const [messages, events, files, context] = await Promise.all([
           fetchMessages(sessionId),
@@ -533,7 +556,34 @@ export const useSessionStore = create<SessionState & SessionActions>(
         // ===================== 第1步：通过统一 SSE 发送任务并接收执行过程 =====================
         // 后端会依次推送 message_created、plan_created、step/tool/task 事件。
         await streamMessage(sessionId, content, async (event) => {
-          await sleep(getPresentationDelay(event.event));
+          // 零延迟事件（流式增量）不进定时器：后台标签页的 setTimeout
+          // 会被浏览器钳制到 1 秒以上，逐字流会被拖成龟速。
+          const presentationDelay = getPresentationDelay(event.event);
+          if (presentationDelay > 0) {
+            await sleep(presentationDelay);
+          }
+
+          // 直接问答路径：answer_started 表示模型开始作答，
+          // thinking_delta 是思考过程增量，answer_delta 是正文增量。
+          if (event.event === "answer_started") {
+            set({ liveAnswer: "", liveThinking: "", planning: false });
+            return;
+          }
+          if (event.event === "thinking_delta") {
+            const delta = typeof event.data.delta === "string" ? event.data.delta : "";
+            if (delta) {
+              set((state) => ({ liveThinking: state.liveThinking + delta }));
+            }
+            return;
+          }
+          if (event.event === "answer_delta") {
+            const delta = typeof event.data.delta === "string" ? event.data.delta : "";
+            if (delta) {
+              set((state) => ({ liveAnswer: state.liveAnswer + delta }));
+            }
+            return;
+          }
+
           const session = toSessionItem(event);
           if (session) {
             set((state) => ({
@@ -575,6 +625,15 @@ export const useSessionStore = create<SessionState & SessionActions>(
                   ? false
                   : state.executingPlan || sessionEvent.type === "plan_created",
               latestPlan,
+              // 回答已经落库成正式消息，流式缓冲随即清空；
+              // 计划生成后，规划阶段的思考流也随之收起（已存入 plan_created 事件）。
+              liveAnswer:
+                streamMessageItem?.role === "assistant" ? "" : state.liveAnswer,
+              liveThinking:
+                streamMessageItem?.role === "assistant" ||
+                sessionEvent.type === "plan_created"
+                  ? ""
+                  : state.liveThinking,
               messages: {
                 type: "ready",
                 data: messages,
@@ -585,7 +644,7 @@ export const useSessionStore = create<SessionState & SessionActions>(
           });
         });
         await Promise.all([
-          get().loadSessionDetail(sessionId),
+          get().loadSessionDetail(sessionId, { silent: true }),
           get().refreshSessions(),
           get().loadSessionContext(sessionId),
         ]);
@@ -594,6 +653,8 @@ export const useSessionStore = create<SessionState & SessionActions>(
       } finally {
         set({
           executingPlan: false,
+          liveAnswer: "",
+          liveThinking: "",
           planning: false,
           sendingMessage: false,
         });

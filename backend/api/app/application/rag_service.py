@@ -10,8 +10,10 @@
 
 import hashlib
 import re
+from pathlib import Path
 from uuid import UUID, uuid4
 
+from app.application.llm_service import LLMService
 from app.application.unit_of_work import UnitOfWork
 from app.core.config import settings
 from app.core.exceptions import AppException
@@ -40,11 +42,20 @@ class RagService:
         *,
         vector_store: VectorStore | None = None,
         embedding_provider: EmbeddingProvider | None = None,
+        llm_service: LLMService | None = None,
     ) -> None:
         # 依赖注入优先，方便单元测试替换向量存储与向量化实现。
         self.uow = uow
         self.vector_store = vector_store or build_vector_store(uow.db_session)
         self.embedding = embedding_provider or build_embedding_provider()
+        # 视觉模型仅在多模态摄取时使用，懒加载配置。
+        self._llm_service = llm_service
+
+    @property
+    def llm_service(self) -> LLMService:
+        if self._llm_service is None:
+            self._llm_service = LLMService()
+        return self._llm_service
 
     # ===================== 第1步：知识库生命周期 =====================
     async def create_knowledge_base(
@@ -123,6 +134,60 @@ class RagService:
         deleted = await self.uow.knowledge_bases.soft_delete(knowledge_base_id)
         await self.uow.commit()
         return deleted or knowledge_base
+
+    # ===================== 第1.5步：多模态摄取（图片 → 视觉解析 → 文本入库） =====================
+    async def ingest_image_document(
+        self,
+        knowledge_base_id: UUID,
+        *,
+        filename: str,
+        content_type: str,
+        data: bytes,
+        title: str = "",
+    ) -> KnowledgeDocument:
+        """把一张图片解析成结构化文本后走标准摄取管线。
+
+        视觉模型（llm.vision_model，如 qwen-vl-plus）负责 OCR 与图表理解；
+        解析结果作为文档内容切分向量化，检索侧与普通文本完全一致。
+        """
+
+        clean_type = (content_type or "").split(";")[0].strip().lower()
+        if not clean_type.startswith("image/"):
+            raise AppException(
+                message=f"unsupported image content type: {content_type or 'unknown'}",
+                code=400,
+                status_code=400,
+            )
+        if len(data) > settings.max_upload_size:
+            raise AppException(
+                message="image is too large",
+                code=413,
+                status_code=413,
+            )
+        if not self.llm_service.vision_enabled():
+            raise AppException(
+                message="vision model is not configured; set llm.vision_model in llm.yaml",
+                code=503,
+                status_code=503,
+            )
+
+        extracted = await self.llm_service.vision_extract(
+            image_bytes=data,
+            content_type=clean_type,
+        )
+        clean_title = title.strip() or Path(filename).stem or "图片文档"
+        return await self.ingest_document(
+            knowledge_base_id,
+            title=clean_title,
+            content=extracted,
+            source_type=KnowledgeSourceType.image,
+            source_ref=filename,
+            metadata={
+                "vision_model": self.llm_service.config.llm.vision_model,
+                "image_content_type": clean_type,
+                "image_bytes": len(data),
+            },
+        )
 
     # ===================== 第2步：文档摄取管线 =====================
     async def ingest_document(
