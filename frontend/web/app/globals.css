@@ -36,9 +36,10 @@
   /* 背景网格与滚动条 */
   --grid-line: rgba(80, 96, 130, 0.13);
   --grid-line-soft: rgba(255, 255, 255, 0.035);
-  --scrollbar: rgba(122, 135, 162, 0.38);
-  --scrollbar-hover: rgba(150, 162, 190, 0.55);
-  --scrollbar-active: rgba(165, 178, 208, 0.72);
+  --sb-from: rgba(96, 165, 250, 0.4);
+  --sb-to: rgba(139, 92, 246, 0.4);
+  --sb-from-hover: rgba(96, 165, 250, 0.78);
+  --sb-to-hover: rgba(139, 92, 246, 0.78);
 }
 
 :root[data-theme="light"] {
@@ -66,9 +67,10 @@
   --accent-strong: #1d4ed8;
   --grid-line: rgba(30, 41, 59, 0.07);
   --grid-line-soft: rgba(15, 23, 42, 0.045);
-  --scrollbar: rgba(71, 85, 105, 0.35);
-  --scrollbar-hover: rgba(71, 85, 105, 0.55);
-  --scrollbar-active: rgba(51, 65, 85, 0.7);
+  --sb-from: rgba(59, 130, 246, 0.32);
+  --sb-to: rgba(124, 58, 237, 0.32);
+  --sb-from-hover: rgba(59, 130, 246, 0.6);
+  --sb-to-hover: rgba(124, 58, 237, 0.6);
 }
 
 * {
@@ -407,6 +409,59 @@ body {
   background: #fb7185;
 }
 
+/* ===== 登录场景 =====
+   独立的深色科技底：极光光斑缓慢漂移 + 渐隐网格，与主题无关。 */
+.login-scene {
+  background: linear-gradient(210deg, #0b1122 0%, #070a14 52%, #05070f 100%);
+}
+
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, 6%, 0) scale(1.08);
+  }
+}
+
+.login-aurora {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(90px);
+  pointer-events: none;
+  animation: aurora-drift 14s ease-in-out infinite;
+}
+
+.login-aurora-a {
+  left: -8%;
+  top: -12%;
+  height: 420px;
+  width: 520px;
+  background: rgba(59, 130, 246, 0.28);
+}
+
+.login-aurora-b {
+  right: -10%;
+  bottom: -16%;
+  height: 420px;
+  width: 520px;
+  background: rgba(139, 92, 246, 0.22);
+  animation-delay: -7s;
+}
+
+.login-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(560px 420px at 50% 42%, #000, transparent 78%);
+  -webkit-mask-image: radial-gradient(560px 420px at 50% 42%, #000, transparent 78%);
+  pointer-events: none;
+}
+
 /* 命令面板入场。 */
 @keyframes palette-in {
   from {
@@ -473,6 +528,7 @@ body {
   .ticker-value,
   .cockpit-item,
   .status-dot.live,
+  .login-aurora,
   .glow-wrap.glow-active::before,
   .glow-wrap.glow-active::after {
     animation: none;
@@ -508,10 +564,11 @@ a {
 
 /* ===================== 滚动条 ===================== */
 
-/* Chromium：细圆角滑块悬浮在透明轨道上，隐藏两端箭头按钮。 */
+/* Chromium：纤细的蓝紫渐变滑块悬浮在透明轨道上，
+   悬停时提亮变宽，隐藏两端箭头按钮。 */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -519,22 +576,28 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  min-height: 32px;
-  background: var(--scrollbar);
+  min-height: 40px;
+  background: linear-gradient(180deg, var(--sb-from), var(--sb-to));
   background-clip: padding-box;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   border-radius: 999px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-hover);
+::-webkit-scrollbar-thumb:horizontal {
+  background: linear-gradient(90deg, var(--sb-from), var(--sb-to));
   background-clip: padding-box;
-  border-width: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--sb-from-hover), var(--sb-to-hover));
+  background-clip: padding-box;
+  border-width: 1px;
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: var(--scrollbar-active);
+  background: linear-gradient(180deg, var(--sb-from-hover), var(--sb-to-hover));
   background-clip: padding-box;
+  border-width: 1px;
 }
 
 ::-webkit-scrollbar-button {
@@ -552,6 +615,6 @@ a {
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar) transparent;
+    scrollbar-color: var(--sb-from-hover) transparent;
   }
 }
