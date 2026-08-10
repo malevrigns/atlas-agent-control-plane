@@ -10,7 +10,7 @@ import {
 
 import { SessionList } from "./session-list";
 import { ThemeMenu } from "./theme-menu";
-import { workspaceButton, workspaceSurface } from "../lib/design-tokens";
+import { workspaceSurface } from "../lib/design-tokens";
 import type { LoadState, SessionItem } from "../types";
 
 /** 主区域可切换的视图。 */
@@ -48,16 +48,18 @@ export function AppSidebar({
   onTitleChange,
 }: AppSidebarProps) {
   return (
-    <aside className="flex h-screen min-h-0 flex-col overflow-hidden border-r border-(--line) bg-(--surface) px-4 py-5 max-lg:h-auto max-lg:max-h-[40dvh] max-lg:border-b max-lg:border-r-0 max-sm:max-h-[34dvh] max-sm:px-4 max-sm:py-4">
+    <aside className="cockpit flex h-screen min-h-0 flex-col overflow-hidden border-r border-(--line) px-4 py-5 max-lg:h-auto max-lg:max-h-[40dvh] max-lg:border-b max-lg:border-r-0 max-sm:max-h-[34dvh] max-sm:px-4 max-sm:py-4">
       <div className="flex shrink-0 items-center gap-3 px-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-(--accent)/30 bg-(--accent)/15 text-(--accent)">
+        <div className="brand-gradient flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 text-white shadow-lg shadow-blue-500/40">
           <Bot size={22} aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-base font-semibold leading-5 text-(--text-1)">
+          <div className="brand-title text-base font-bold leading-5 tracking-wide">
             AtlasAgent
           </div>
-          <div className="mt-1 text-xs text-(--text-4)">Agent Workspace</div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.22em] text-(--text-4)">
+            Agent Workspace
+          </div>
         </div>
         <button
           aria-label="隐藏侧边栏"
@@ -77,7 +79,7 @@ export function AppSidebar({
           aria-label="切换到对话工作台"
           className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
             activeView === "workspace"
-              ? "bg-blue-500 text-white"
+              ? "brand-gradient text-white shadow-lg shadow-blue-500/30"
               : "text-(--text-4) hover:text-(--text-1)"
           }`}
           onClick={() => onViewChange("workspace")}
@@ -150,7 +152,7 @@ export function AppSidebar({
           />
           <button
             aria-label="创建会话"
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${workspaceButton.primary}`}
+            className="brand-gradient sheen-btn flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-lg shadow-blue-500/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={submitting}
             title="创建会话"
             type="submit"
@@ -161,8 +163,11 @@ export function AppSidebar({
       </form>
 
       <div className="mt-6 flex shrink-0 items-center justify-between max-sm:mt-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-(--text-2)">
-          <span>任务列表</span>
+        <div className="flex items-center gap-2">
+          <span className="brand-gradient h-3.5 w-[3px] rounded-full" />
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-(--text-3)">
+            任务列表
+          </span>
         </div>
         <button
           aria-label="刷新任务列表"
