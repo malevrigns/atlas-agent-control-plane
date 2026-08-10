@@ -215,7 +215,7 @@ CONTEXT_SKILL_MIN_SCORE=0.1
 
 # 对话自动召回（直答路径）
 CHAT_RAG_TOP_K=4                   # 设为 0 关闭自动召回
-CHAT_RAG_MIN_SCORE=0.3
+CHAT_RAG_MIN_SCORE=0.42            # 底噪约 0.35，阈值必须明显高于它
 CHAT_RAG_CONTEXT_CHARS=6000
 ```
 

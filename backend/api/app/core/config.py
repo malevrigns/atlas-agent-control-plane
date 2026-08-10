@@ -88,8 +88,11 @@ class Settings(BaseSettings):
     chat_attachment_max_file_bytes: int = 15 * 1024 * 1024
     # ===================== 直答路径的知识库自动检索（RAG） =====================
     # 每次直答前自动检索所有知识库；top_k 设为 0 可整体关闭。
+    # min_score 的尺度不直观：向量分由余弦按 (cos+1)/2 映射，
+    # 完全无关的内容也有约 0.35 的底噪，所以阈值必须明显高于它才有意义。
+    # 0.42 是实测值——无关问题最高 0.388、相关命中 0.46 以上，取两者中点。
     chat_rag_top_k: int = 4
-    chat_rag_min_score: float = 0.3
+    chat_rag_min_score: float = 0.42
     chat_rag_context_chars: int = 6000
     module_config_path: str = "runtime-config/modules.yaml"
     mcp_stdio_enabled: bool = False
