@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AppSidebar } from "./components/app-sidebar";
 import type { MainView } from "./components/app-sidebar";
 import { ChatWorkspace } from "./components/chat-workspace";
+import { CommandPalette } from "./components/command-palette";
 import { KnowledgeWorkspace } from "./components/knowledge-workspace";
 import { SettingsWorkspace } from "./components/settings-workspace";
 import { SkillsWorkspace } from "./components/skills-workspace";
@@ -109,6 +110,8 @@ function AccessGate({ onAuthenticated }: { onAuthenticated: () => void }) {
 }
 
 function WorkspaceHome() {
+  // 命令面板（⌘K）：搜索会话、快速跳转、创建任务。
+  const [paletteOpen, setPaletteOpen] = useState(false);
   // 左侧导航可隐藏：隐藏时对话区自动铺满整个宽度，偏好持久化。
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -290,6 +293,22 @@ function WorkspaceHome() {
 
   return (
     <main className="relative h-[100dvh] overflow-hidden bg-(--page) text-(--text-1)">
+      <CommandPalette
+        onClose={() => setPaletteOpen(false)}
+        onCreateSession={(title) => {
+          workspace.setTitle(title);
+          workspace.createSession();
+          setActiveView("workspace");
+        }}
+        onSelectSession={(sessionId) => {
+          workspace.selectSession(sessionId);
+          setActiveView("workspace");
+        }}
+        onToggle={() => setPaletteOpen((open) => !open)}
+        onViewChange={setActiveView}
+        open={paletteOpen}
+        sessions={workspace.sessionItems}
+      />
       {!sidebarOpen ? (
         <button
           aria-label="展开侧边栏"
@@ -313,6 +332,7 @@ function WorkspaceHome() {
             actionError={workspace.actionError}
             activeView={activeView}
             onCollapse={toggleSidebar}
+            onOpenPalette={() => setPaletteOpen(true)}
             onCreateSession={workspace.createSession}
             onDeleteSession={workspace.deleteSession}
             onRefresh={refreshAll}

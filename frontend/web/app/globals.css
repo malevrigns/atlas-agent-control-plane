@@ -407,6 +407,41 @@ body {
   background: #fb7185;
 }
 
+/* 命令面板入场。 */
+@keyframes palette-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.palette-in {
+  animation: palette-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 工作区切换的滑动指示器：渐变胶囊平滑滑向激活按钮。 */
+.nav-pill {
+  position: absolute;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.35);
+  transition:
+    left 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 超椭圆圆角（Apple squircle）：支持 corner-shape 的浏览器渐进增强。 */
+@supports (corner-shape: squircle) {
+  .squircle {
+    corner-shape: squircle;
+  }
+}
+
 /* 按钮光泽：悬停时一道斜向高光扫过。 */
 .sheen-btn {
   position: relative;
@@ -448,8 +483,13 @@ body {
     -webkit-mask-image: none;
   }
 
+  .palette-in {
+    animation: none;
+  }
+
   .aurora-veil,
-  .sheen-btn::after {
+  .sheen-btn::after,
+  .nav-pill {
     transition: none;
   }
 }
