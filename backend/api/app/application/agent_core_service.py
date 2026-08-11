@@ -1,7 +1,6 @@
 from app.core.exceptions import AppException
 from app.domain.agent_core.memory import ConversationMemory, MemoryMessage
 from app.domain.agent_core.tools import ToolCallResult, ToolDefinition, ToolRegistry
-from app.infrastructure.agent_tools.builtin import build_builtin_tool_registry
 
 
 class AgentCoreService:
@@ -11,10 +10,10 @@ class AgentCoreService:
     它还不是完整 Agent，但已经具备后续 PlannerAgent 和 ReActAgent 需要的基础积木。
     """
 
-    def __init__(self, registry: ToolRegistry | None = None) -> None:
+    def __init__(self, registry: ToolRegistry) -> None:
         # ===================== 第1步：准备工具注册表 =====================
-        # 如果外部没有传入 registry，就使用本章内置的几个教学工具。
-        self.registry = registry or build_builtin_tool_registry()
+        # registry 由组合层显式构建并注入，以共享同一个模型实例。
+        self.registry = registry
 
     # ===================== 第2步：返回工具 schema 给前端或模型查看 =====================
     def list_tools(self) -> list[ToolDefinition]:

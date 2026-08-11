@@ -9,7 +9,13 @@ from app.application.context_engineering_service import ContextEngineeringServic
 from app.application.session_file_sync_service import SessionFileSyncService
 from app.application.unit_of_work import UnitOfWork
 from app.core.exceptions import AppException, build_task_error_payload
-from app.domain.sessions.entities import SessionEvent, SessionEventType, SessionStatus
+from app.domain.agent_runtime.entities import ReflectionAction
+from app.domain.sessions.entities import (
+    MessageRole,
+    SessionEvent,
+    SessionEventType,
+    SessionStatus,
+)
 
 
 class ReActAgentService:
@@ -83,12 +89,21 @@ class ReActAgentService:
 
     async def _commit_event(self, event: SessionEvent) -> None:
         status = None
-        if event.type in {SessionEventType.task_done, SessionEventType.step_blocked}:
+        if event.type in {
+            SessionEventType.task_done,
+            SessionEventType.step_blocked,
+        } or (
+            event.type is SessionEventType.message_created
+            and event.payload.get("role") == MessageRole.assistant.value
+        ):
             status = SessionStatus.idle
         elif event.type in {
             SessionEventType.step_failed,
             SessionEventType.task_error,
-        }:
+        } or (
+            event.type is SessionEventType.step_reflected
+            and event.payload.get("action") == ReflectionAction.fail.value
+        ):
             status = SessionStatus.failed
         if status is not None:
             await self.uow.sessions.update_status(event.session_id, status.value)

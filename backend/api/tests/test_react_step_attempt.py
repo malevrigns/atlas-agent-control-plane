@@ -33,6 +33,8 @@ class StepAttemptIdempotencyTest(unittest.IsolatedAsyncioTestCase):
         plan = plan_payload(1)
         common = {
             "session_id": uuid4(),
+            "run_id": uuid4(),
+            "plan_revision": 0,
             "plan": plan,
             "step": plan["steps"][0],
             "step_index": 0,
@@ -61,6 +63,8 @@ class StepAttemptIdempotencyTest(unittest.IsolatedAsyncioTestCase):
         plan = plan_payload(1)
         request = StepExecutionRequest(
             session_id=uuid4(),
+            run_id=uuid4(),
+            plan_revision=0,
             plan=plan,
             step=plan["steps"][0],
             step_index=0,

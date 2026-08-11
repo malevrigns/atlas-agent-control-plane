@@ -7,6 +7,14 @@ from app.application.agent_summary_types import (
     AgentSummaryResult,
     SummaryModel,
 )
+from app.application.agent_summary_references import (
+    artifact_lines,
+    first_line,
+    match_line,
+    parse_json_object,
+    reference_lines,
+    trim,
+)
 from app.application.unit_of_work import UnitOfWork
 from app.core.exceptions import AppException, ErrorSource
 from app.domain.llm.entities import LLMMessage
@@ -15,12 +23,34 @@ from app.domain.sessions.entities import SessionEvent, SessionEventType
 
 SUMMARY_MAX_TOKENS = 2500
 RAW_OBSERVATION_LIMIT = 900
-SEARCH_RESULT_LIMIT = 5
 SEARCH_TITLE_LIMIT = 3
-REFERENCE_TEXT_LIMIT = 160
-SNIPPET_LIMIT = 90
 SUMMARY_TEXT_LIMIT = 180
-BYTES_PER_KIBIBYTE = 1024
+AttemptKey = tuple[str, str, int, str, int]
+
+
+def _identity_text(payload: Mapping[str, object], field: str) -> str:
+    value = payload.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise AppException(
+            message=f"event identity field {field} must be a non-empty string",
+            source=ErrorSource.agent,
+        )
+    return value
+
+
+def _identity_int(
+    payload: Mapping[str, object],
+    field: str,
+    *,
+    minimum: int,
+) -> int:
+    value = payload.get(field)
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise AppException(
+            message=f"event identity field {field} must be an integer >= {minimum}",
+            source=ErrorSource.agent,
+        )
+    return value
 
 
 class AgentSummaryService:
@@ -94,30 +124,38 @@ class AgentSummaryService:
         events: tuple[SessionEvent, ...] | list[SessionEvent],
     ) -> str:
         step_map = self._step_map(plan)
-        blocks = []
-        for index, event in enumerate(events, start=1):
-            if event.type is not SessionEventType.tool_called:
-                continue
-            title = self._event_title(event, step_map, index)
-            tool_name = str(event.payload.get("tool_name") or "")
-            output = str(event.payload.get("output") or "")
-            lines = [
-                f"## {title}",
-                f"- 工具：{tool_name}",
-                f"- 参数：{json.dumps(event.payload.get('arguments') or {}, ensure_ascii=False)}",
-                f"- 状态：{event.payload.get('status') or 'unknown'}",
-                f"- 尝试：{event.payload.get('attempt') or 1}",
-                f"- 摘要：{self.summarize_tool_output(tool_name, output)}",
-            ]
-            references = self._reference_lines(title, tool_name, output)
-            artifacts = self._artifact_lines(title, tool_name, output)
-            if references:
-                lines.extend(["- 引用：", *references])
-            if artifacts:
-                lines.extend(["- 产物：", *artifacts])
-            lines.extend(["- 原始观察摘录：", self._trim(output, RAW_OBSERVATION_LIMIT)])
-            blocks.append("\n".join(lines))
+        accepted = self._accepted_tool_events(events)
+        blocks = [
+            self._evidence_block(event, step_map, index)
+            for index, event in accepted
+        ]
         return "\n\n".join(blocks)
+
+    def _evidence_block(
+        self,
+        event: SessionEvent,
+        step_map: Mapping[str, Mapping[str, object]],
+        index: int,
+    ) -> str:
+        title = self._event_title(event, step_map, index)
+        tool_name = str(event.payload.get("tool_name") or "")
+        output = str(event.payload.get("output") or "")
+        lines = [
+            f"## {title}",
+            f"- 工具：{tool_name}",
+            f"- 参数：{json.dumps(event.payload.get('arguments') or {}, ensure_ascii=False)}",
+            f"- 状态：{event.payload.get('status') or 'unknown'}",
+            f"- 尝试：{event.payload.get('attempt') or 1}",
+            f"- 摘要：{self.summarize_tool_output(tool_name, output)}",
+        ]
+        references = reference_lines(title, tool_name, output)
+        artifacts = artifact_lines(title, tool_name, output)
+        if references:
+            lines.extend(["- 引用：", *references])
+        if artifacts:
+            lines.extend(["- 产物：", *artifacts])
+        lines.extend(["- 原始观察摘录：", trim(output, RAW_OBSERVATION_LIMIT)])
+        return "\n".join(lines)
 
     @staticmethod
     def _build_messages(
@@ -150,6 +188,45 @@ class AgentSummaryService:
             if isinstance(step, Mapping) and step.get("id")
         }
 
+    @classmethod
+    def _accepted_attempts(
+        cls,
+        events: tuple[SessionEvent, ...] | list[SessionEvent],
+    ) -> set[AttemptKey]:
+        accepted = set()
+        for event in events:
+            if event.type is not SessionEventType.step_reflected:
+                continue
+            if event.payload.get("action") != "accept":
+                continue
+            accepted.add(cls._attempt_key(event))
+        return accepted
+
+    @classmethod
+    def _accepted_tool_events(
+        cls,
+        events: tuple[SessionEvent, ...] | list[SessionEvent],
+    ) -> list[tuple[int, SessionEvent]]:
+        accepted = cls._accepted_attempts(events)
+        matched = []
+        for index, event in enumerate(events, start=1):
+            if event.type is not SessionEventType.tool_called:
+                continue
+            if cls._attempt_key(event) in accepted:
+                matched.append((index, event))
+        return matched
+
+    @staticmethod
+    def _attempt_key(event: SessionEvent) -> AttemptKey:
+        payload = event.payload
+        return (
+            _identity_text(payload, "run_id"),
+            _identity_text(payload, "plan_id"),
+            _identity_int(payload, "plan_revision", minimum=0),
+            _identity_text(payload, "step_id"),
+            _identity_int(payload, "attempt", minimum=1),
+        )
+
     @staticmethod
     def _event_title(
         event: SessionEvent,
@@ -163,87 +240,19 @@ class AgentSummaryService:
             or f"步骤 {index}"
         )
 
-    def _reference_lines(self, title: str, tool_name: str, output: str) -> list[str]:
-        parsed = self._parse_json_object(output)
-        if parsed and parsed.get("kind") == "search_results":
-            items = parsed.get("items")
-            if not isinstance(items, list):
-                return []
-            return self._search_reference_lines(items)
-        if tool_name.startswith("file_"):
-            lines = [
-                line.strip()
-                for line in output.splitlines()
-                if line.strip()
-                and (line.startswith(("文件：", "路径：", "第 ")) or "行" in line)
-            ][:4]
-            return [
-                f"- **{title}**：{self._trim(line, REFERENCE_TEXT_LIMIT)}"
-                for line in lines
-            ]
-        if tool_name.startswith("browser_"):
-            return self._browser_reference_lines(title, output)
-        return []
-
-    def _search_reference_lines(self, items: list[object]) -> list[str]:
-        lines = []
-        for item in items[:SEARCH_RESULT_LIMIT]:
-            if not isinstance(item, Mapping):
-                continue
-            title = str(item.get("title") or "").strip()
-            url = str(item.get("url") or "").strip()
-            snippet = str(item.get("snippet") or "").strip()
-            if title and url:
-                suffix = (
-                    f"：{self._trim(snippet, SNIPPET_LIMIT)}" if snippet else ""
-                )
-                lines.append(f"- **{title}**（{url}）{suffix}")
-        return lines
-
-    def _browser_reference_lines(self, title: str, output: str) -> list[str]:
-        page_title = self._match_line(output, "页面标题")
-        url = self._match_line(output, "页面已打开") or self._match_line(
-            output, "当前地址"
-        )
-        if not page_title and not url:
-            return []
-        suffix = f"（{url}）" if url else ""
-        return [f"- **{title}**：{page_title or '浏览器页面'}{suffix}"]
-
-    def _artifact_lines(self, title: str, tool_name: str, output: str) -> list[str]:
-        parsed = self._parse_json_object(output)
-        if parsed and parsed.get("kind") == "browser_screenshot":
-            size = int(parsed.get("size") or 0)
-            size_text = (
-                f"{round(size / BYTES_PER_KIBIBYTE)} KB"
-                if size > 0
-                else "未知大小"
-            )
-            return [f"- **{title}**：浏览器截图已生成，大小约 {size_text}。"]
-        lines = []
-        for label in ("输出文件", "文件路径", "保存路径", "下载地址"):
-            value = self._match_line(output, label)
-            if value:
-                lines.append(f"- **{title}**：{label} `{value}`")
-        if lines or not tool_name.startswith("file_write"):
-            return lines
-        return [
-            f"- **{title}**：{self._trim(self._first_line(output), REFERENCE_TEXT_LIMIT)}"
-        ]
-
     def summarize_tool_output(self, tool_name: str, output: str) -> str:
-        parsed = self._parse_json_object(output)
+        parsed = parse_json_object(output)
         if parsed and parsed.get("kind") == "search_results":
             return self._summarize_search_results(parsed)
         if tool_name.startswith("shell_"):
-            command = self._match_line(output, "命令")
-            code = self._match_line(output, "退出码") or "未知"
+            command = match_line(output, "命令")
+            code = match_line(output, "退出码") or "未知"
             return f"已执行命令{f'“{command}”' if command else ''}，退出码 {code}。"
         if tool_name.startswith("browser_"):
-            title = self._match_line(output, "页面标题")
-            url = self._match_line(output, "当前地址")
-            return f"浏览器已返回：{title or url or self._first_line(output)}"
-        return self._trim(self._first_line(output), SUMMARY_TEXT_LIMIT)
+            title = match_line(output, "页面标题")
+            url = match_line(output, "当前地址")
+            return f"浏览器已返回：{title or url or first_line(output)}"
+        return trim(first_line(output), SUMMARY_TEXT_LIMIT)
 
     @staticmethod
     def _summarize_search_results(parsed: Mapping[str, object]) -> str:
@@ -257,31 +266,3 @@ class AgentSummaryService:
         suffix = f" 代表结果包括：{'、'.join(titles)}。" if titles else ""
         query = parsed.get("query") or "相关关键词"
         return f"已搜索“{query}”，找到 {len(items)} 条候选结果。{suffix}"
-
-    @staticmethod
-    def _parse_json_object(value: str) -> dict[str, object] | None:
-        try:
-            loaded = json.loads(value)
-        except (TypeError, ValueError):
-            return None
-        return loaded if isinstance(loaded, dict) else None
-
-    @staticmethod
-    def _match_line(text: str, label: str) -> str:
-        prefix = f"{label}："
-        for line in text.splitlines():
-            if line.startswith(prefix):
-                return line.removeprefix(prefix).strip()
-        return ""
-
-    @staticmethod
-    def _first_line(text: str) -> str:
-        for line in text.splitlines():
-            if line.strip():
-                return line.strip()
-        return "工具已返回结果。"
-
-    @staticmethod
-    def _trim(value: str, max_length: int) -> str:
-        clean = " ".join(value.split())
-        return clean if len(clean) <= max_length else f"{clean[:max_length]}..."

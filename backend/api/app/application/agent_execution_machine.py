@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator, Mapping
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.application.agent_execution_event_writer import (
     add_done_event,
@@ -18,6 +18,7 @@ from app.application.agent_execution_types import (
     StepExecutor,
     StreamItem,
     Summarizer,
+    plan_revision,
 )
 from app.application.agent_summary_service import AgentSummaryRequest, AgentSummaryResult
 from app.application.react_step_executor import StepExecutionRequest
@@ -63,7 +64,12 @@ class AgentExecutionMachine:
         execution_context: AgentExecutionContext,
     ) -> AsyncIterator[StreamItem]:
         plan = dict(plan_payload)
-        state = AgentRunState.from_plan(session_id, plan)
+        state = AgentRunState.from_plan(
+            session_id,
+            plan,
+            run_id=uuid4(),
+            plan_revision=plan_revision(plan),
+        )
         snapshot = MachineSnapshot(state, plan)
         while snapshot.state.phase not in self._TERMINAL_PHASES:
             transition = None
@@ -148,10 +154,10 @@ class AgentExecutionMachine:
             state.plan.steps[state.step_index], state.observation
         )
         reflected = await add_reflected_event(self._event_sink, snapshot, reflection)
-        yield reflected
         next_state = self._router.after_reflection(state, reflection)
         events = snapshot.events + (reflected,)
         terminal = await self._reflection_events(snapshot, next_state, reflection)
+        yield reflected
         for event in terminal:
             events += (event,)
             yield event
@@ -169,7 +175,15 @@ class AgentExecutionMachine:
                 source=ErrorSource.agent,
             )
         replacement = dict(await self._replanner.replan(snapshot.state))
-        state = AgentRunState.from_plan(snapshot.state.session_id, replacement)
+        replacement_revision = snapshot.state.plan_revision + 1
+        replacement["plan_revision"] = replacement_revision
+        replacement["run_id"] = str(snapshot.state.run_id)
+        state = AgentRunState.from_plan(
+            snapshot.state.session_id,
+            replacement,
+            run_id=snapshot.state.run_id,
+            plan_revision=replacement_revision,
+        )
         plan_event = await add_plan_event(
             self._event_sink,
             session_id=state.session_id,
@@ -204,13 +218,13 @@ class AgentExecutionMachine:
                 yield item
         if result is None:
             raise AppException(message="summarizer did not return a result")
-        yield result.message_event
         done = await add_done_event(
             self._event_sink,
             snapshot,
             result=result,
             context=context,
         )
+        yield result.message_event
         yield done
         state = self._router.after_summary(snapshot.state, result.final_answer)
         events = snapshot.events + (result.message_event, done)
@@ -229,6 +243,8 @@ class AgentExecutionMachine:
             raise AppException(message="plan step must be an object")
         return StepExecutionRequest(
             session_id=snapshot.state.session_id,
+            run_id=snapshot.state.run_id,
+            plan_revision=snapshot.state.plan_revision,
             plan=snapshot.plan,
             step=step,
             step_index=snapshot.state.step_index,

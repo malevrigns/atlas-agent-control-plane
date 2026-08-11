@@ -6,6 +6,7 @@ from uuid import UUID
 
 from app.application.agent_summary_types import AgentSummaryRequest, AgentSummaryResult
 from app.application.react_step_executor import StepExecutionOutcome, StepExecutionRequest
+from app.core.exceptions import AppException, ErrorSource
 from app.domain.agent_runtime.entities import (
     AgentRunState,
     Reflection,
@@ -17,6 +18,16 @@ from app.domain.sessions.entities import SessionEvent, SessionEventType
 
 
 StreamItem = SessionEvent | tuple[str, str]
+
+
+def plan_revision(plan: Mapping[str, object]) -> int:
+    value = plan.get("plan_revision", 0)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise AppException(
+            message="plan_revision must be a non-negative integer",
+            source=ErrorSource.agent,
+        )
+    return value
 
 
 @dataclass(frozen=True, slots=True)

@@ -76,6 +76,8 @@ class SelectedToolCaller:
 @dataclass(frozen=True, slots=True)
 class StepExecutionRequest:
     session_id: UUID
+    run_id: UUID
+    plan_revision: int
     plan: Mapping[str, object]
     step: Mapping[str, object]
     step_index: int
@@ -85,6 +87,14 @@ class StepExecutionRequest:
     step_history: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        if not isinstance(self.run_id, UUID):
+            raise TypeError("run_id must be a UUID")
+        if (
+            isinstance(self.plan_revision, bool)
+            or not isinstance(self.plan_revision, int)
+            or self.plan_revision < 0
+        ):
+            raise ValueError("plan_revision must be a non-negative integer")
         if self.step_index < 0:
             raise ValueError("step_index must be zero-based and non-negative")
         if self.attempt < 1:
@@ -178,6 +188,8 @@ class ReActStepExecutor:
     def _step_identity(request: StepExecutionRequest) -> dict[str, object]:
         return {
             "plan_id": request.plan.get("id") or request.plan.get("plan_id"),
+            "plan_revision": request.plan_revision,
+            "run_id": str(request.run_id),
             "step_id": request.step.get("id"),
             "index": request.step_index + 1,
             "attempt": request.attempt,
@@ -193,7 +205,9 @@ class ReActStepExecutor:
             actor="react_agent",
             allowed_permissions=set(ALLOWED_TOOL_PERMISSIONS),
             idempotency_key=(
-                f"{request.session_id}:{plan_id}:{step_id}:attempt:{request.attempt}"
+                f"{request.session_id}:run:{request.run_id}:plan:{plan_id}:"
+                f"revision:{request.plan_revision}:step:{step_id}:"
+                f"attempt:{request.attempt}"
             ),
         )
 

@@ -14,19 +14,30 @@ from app.domain.context_engineering.entities import MemoryContext
 from app.domain.sessions.entities import SessionEvent, SessionEventType
 
 
-def build_tool_event(step_id: str, tool_name: str, output: str, arguments: dict | None = None) -> SessionEvent:
+def build_tool_event(
+    step_id: str,
+    tool_name: str,
+    output: str,
+    arguments: dict | None = None,
+    *,
+    attempt: int = 2,
+    plan_revision: int = 0,
+    run_id: str = "run-1",
+) -> SessionEvent:
     return SessionEvent(
         id=uuid4(),
         session_id=uuid4(),
         type=SessionEventType.tool_called,
         payload={
             "plan_id": "plan-1",
+            "plan_revision": plan_revision,
+            "run_id": run_id,
             "step_id": step_id,
             "tool_name": tool_name,
             "arguments": arguments or {},
             "output": output,
             "status": "succeeded",
-            "attempt": 2,
+            "attempt": attempt,
         },
         created_at=datetime.now(UTC),
     )
@@ -64,9 +75,50 @@ def summary_request(events: list[SessionEvent]) -> AgentSummaryRequest:
     return AgentSummaryRequest(
         session_id=uuid4(),
         plan={"id": "plan-1", "goal": "整理 AI 新闻并生成报告", "steps": []},
-        events=tuple(events),
+        events=tuple(accept_tool_events(events)),
         memory_context=MemoryContext("", [], 0, 0, 0, 0),
     )
+
+
+def build_reflection_event(
+    step_id: str,
+    attempt: int,
+    action: str = "accept",
+    *,
+    plan_revision: int = 0,
+    run_id: str = "run-1",
+) -> SessionEvent:
+    return SessionEvent(
+        id=uuid4(),
+        session_id=uuid4(),
+        type=SessionEventType.step_reflected,
+        payload={
+            "plan_id": "plan-1",
+            "plan_revision": plan_revision,
+            "run_id": run_id,
+            "step_id": step_id,
+            "attempt": attempt,
+            "action": action,
+        },
+        created_at=datetime.now(UTC),
+    )
+
+
+def accept_tool_events(events: list[SessionEvent]) -> list[SessionEvent]:
+    accepted = []
+    for event in events:
+        accepted.extend(
+            [
+                event,
+                build_reflection_event(
+                    str(event.payload["step_id"]),
+                    int(event.payload["attempt"]),
+                    plan_revision=int(event.payload["plan_revision"]),
+                    run_id=str(event.payload["run_id"]),
+                ),
+            ]
+        )
+    return accepted
 
 
 class FinalAnswerBuilderTest(unittest.IsolatedAsyncioTestCase):
@@ -100,7 +152,7 @@ class FinalAnswerBuilderTest(unittest.IsolatedAsyncioTestCase):
             },
             ensure_ascii=False,
         )
-        events = [
+        events = accept_tool_events([
             build_tool_event("search", "search_web", search_output, {"query": "AI news"}),
             build_tool_event(
                 "file",
@@ -112,7 +164,7 @@ class FinalAnswerBuilderTest(unittest.IsolatedAsyncioTestCase):
                 "shell_exec",
                 "命令：python build_report.py\n退出码：0\n输出文件：/workspace/report.md",
             ),
-        ]
+        ])
 
         evidence = service.build_evidence(plan, events)
 

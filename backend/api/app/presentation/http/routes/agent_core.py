@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.agent_core_service import AgentCoreService
+from app.application.llm_service import LLMService
 from app.application.tool_runtime import ToolExecutionContext, ToolRuntime
 from app.application.unit_of_work import UnitOfWork
 from app.domain.agent_core.memory import MemoryMessage
@@ -30,7 +31,8 @@ def build_agent_core_service() -> AgentCoreService:
     当前服务只依赖内置工具注册表，不需要数据库连接。
     """
 
-    return AgentCoreService()
+    model = LLMService()
+    return AgentCoreService(build_builtin_tool_registry(content_model=model))
 
 
 # ===================== 第2步：把领域对象转换成接口响应 =====================
@@ -109,7 +111,7 @@ async def invoke_tool(
     db_session: AsyncSession = Depends(get_db_session),
 ) -> ApiResponse[ToolCallResultResponse]:
     runtime = ToolRuntime(
-        build_builtin_tool_registry(),
+        build_builtin_tool_registry(content_model=LLMService()),
         uow=UnitOfWork(db_session),
     )
     result = await runtime.execute(

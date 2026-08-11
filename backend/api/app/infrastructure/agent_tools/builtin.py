@@ -1,4 +1,8 @@
-from app.domain.agent_core.tools import ToolRegistry, agent_tool
+from typing import Protocol
+
+from app.core.exceptions import AppException, ErrorSource
+from app.domain.agent_core.tools import AgentTool, ToolRegistry, agent_tool
+from app.domain.llm.entities import LLMChatResult, LLMMessage
 from app.infrastructure.agent_tools.a2a import register_a2a_tools
 from app.infrastructure.agent_tools.mcp import register_mcp_tools
 from app.infrastructure.agent_tools.multi_agent import register_multi_agent_tools
@@ -71,30 +75,31 @@ def draft_plan(task: str) -> str:
     )
 
 
-# ===================== 第3.5步：真实内容生成工具 =====================
-@agent_tool(
-    name="write_content",
-    description=(
-        "用大模型完成分析、推演、解释或撰写类步骤，产出真实的 Markdown 内容。"
-        "适用于不需要外部操作（沙箱/浏览器/搜索）的思考型步骤。"
-    ),
-    parameter_descriptions={
-        "task": "本步骤要产出的内容要求，包含必要的上下文与约束。",
-    },
-)
-async def write_content(task: str) -> str:
-    """调用配置的 LLM 真实生成内容；模型不可用时明确说明。
+class ContentModel(Protocol):
+    async def chat(
+        self,
+        messages: list[LLMMessage],
+        *,
+        provider: str | None = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> LLMChatResult: ...
 
-    draft_plan/summarize_text 是教学用的确定性工具，输出是无信息量的
-    模板文本；分析与撰写类步骤必须由这个工具产出真实内容。
-    """
 
-    from app.application.llm_service import LLMService
-    from app.core.exceptions import AppException
-    from app.domain.llm.entities import LLMMessage
-
-    try:
-        result = await LLMService().chat(
+def build_write_content_tool(content_model: ContentModel) -> AgentTool:
+    @agent_tool(
+        name="write_content",
+        description=(
+            "用大模型完成分析、推演、解释或撰写类步骤，产出真实的 Markdown 内容。"
+            "适用于不需要外部操作（沙箱/浏览器/搜索）的思考型步骤。"
+        ),
+        parameter_descriptions={
+            "task": "本步骤要产出的内容要求，包含必要的上下文与约束。",
+        },
+    )
+    async def write_content(task: str) -> str:
+        result = await content_model.chat(
             messages=[
                 LLMMessage(
                     role="system",
@@ -109,17 +114,23 @@ async def write_content(task: str) -> str:
             temperature=0.3,
             max_tokens=2500,
         )
-        return result.content.strip() or "（模型没有返回内容）"
-    except AppException as error:
-        return f"（内容生成失败：{error.message}）"
+        content = result.content.strip()
+        if not content:
+            raise AppException(
+                message="LLM returned empty content",
+                source=ErrorSource.llm,
+            )
+        return content
+
+    return write_content
 
 
 # ===================== 第4步：创建内置工具注册表 =====================
-def build_builtin_tool_registry() -> ToolRegistry:
+def build_builtin_tool_registry(*, content_model: ContentModel) -> ToolRegistry:
     """注册并返回本章可用的内置工具。"""
 
     registry = ToolRegistry()
-    registry.register(write_content)
+    registry.register(build_write_content_tool(content_model))
     registry.register(summarize_text)
     registry.register(extract_keywords)
     registry.register(draft_plan)

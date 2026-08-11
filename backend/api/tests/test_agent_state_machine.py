@@ -42,7 +42,9 @@ def observation(status: ToolInvocationStatus) -> StepObservation:
 class AgentStateRouterTest(unittest.TestCase):
     def setUp(self) -> None:
         self.router = AgentStateRouter()
-        self.state = AgentRunState.from_plan(uuid4(), plan_payload())
+        self.state = AgentRunState.from_plan(
+            uuid4(), plan_payload(), run_id=uuid4(), plan_revision=0
+        )
 
     def test_accept_advances_to_next_executing_step(self) -> None:
         reflecting = self.router.after_execution(
@@ -59,14 +61,18 @@ class AgentStateRouterTest(unittest.TestCase):
         self.assertEqual(next_step.phase, AgentPhase.executing)
 
     def test_from_plan_accepts_existing_planner_step_payload_shape(self) -> None:
-        state = AgentRunState.from_plan(uuid4(), plan_payload())
+        state = AgentRunState.from_plan(
+            uuid4(), plan_payload(), run_id=uuid4(), plan_revision=0
+        )
 
         self.assertEqual(state.plan.steps[0].title, "Search source")
         self.assertEqual(state.plan.steps[0].description, "Find the agent implementation.")
         self.assertEqual(state.plan.steps[0].expected_output, "Matching source files.")
 
     def test_last_step_accept_transitions_to_summarizing(self) -> None:
-        second_step = AgentRunState.from_plan(uuid4(), plan_payload())
+        second_step = AgentRunState.from_plan(
+            uuid4(), plan_payload(), run_id=uuid4(), plan_revision=0
+        )
         second_step = self.router.after_reflection(
             self.router.after_execution(second_step, observation(ToolInvocationStatus.succeeded)),
             Reflection(action=ReflectionAction.accept, reason="continue"),

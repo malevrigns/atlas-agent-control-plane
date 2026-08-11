@@ -87,6 +87,8 @@ class ReActStepExecutorTest(unittest.IsolatedAsyncioTestCase):
         executor = ReActStepExecutor(uow=uow, tool_caller=call_tool)
         request = StepExecutionRequest(
             session_id=uuid4(),
+            run_id=uuid4(),
+            plan_revision=0,
             plan={"id": "plan-1", "goal": "test goal"},
             step={"id": "step-1", "title": "test step"},
             step_index=0,

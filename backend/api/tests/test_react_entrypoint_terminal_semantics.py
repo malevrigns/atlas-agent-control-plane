@@ -47,27 +47,31 @@ class RaisingSummarizer:
         yield
 
 
+def build_terminal_service(status, action):
+    session_id = uuid4()
+    uow = FakeUnitOfWork([build_plan_event(session_id)])
+    order = []
+    critic = FakeCritic([action, action], order)
+    machine = AgentExecutionMachine(
+        executor=FakeExecutor([status, status], order),
+        critic=critic,
+        summarizer=FakeSummarizer(order),
+        event_sink=uow.session_events,
+        router=AgentStateRouter(),
+    )
+    sync = FakeFileSync()
+    service = ReActAgentService(
+        uow,
+        execution_machine=machine,
+        file_sync_service=sync,
+        context_service=FakeContextService(),
+    )
+    return session_id, service, uow, critic, sync
+
+
 class ReActEntryPointTerminalSemanticsTest(unittest.IsolatedAsyncioTestCase):
     def build_service(self, status, action):
-        session_id = uuid4()
-        uow = FakeUnitOfWork([build_plan_event(session_id)])
-        order = []
-        critic = FakeCritic([action], order)
-        machine = AgentExecutionMachine(
-            executor=FakeExecutor([status], order),
-            critic=critic,
-            summarizer=FakeSummarizer(order),
-            event_sink=uow.session_events,
-            router=AgentStateRouter(),
-        )
-        sync = FakeFileSync()
-        service = ReActAgentService(
-            uow,
-            execution_machine=machine,
-            file_sync_service=sync,
-            context_service=FakeContextService(),
-        )
-        return session_id, service, uow, critic, sync
+        return build_terminal_service(status, action)
 
     async def test_stream_failure_emits_task_error_and_sets_failed(self) -> None:
         session_id, service, uow, critic, sync = self.build_service(
@@ -86,7 +90,25 @@ class ReActEntryPointTerminalSemanticsTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(SessionEventType.step_completed, event_types)
         self.assertNotIn(SessionEventType.task_done, event_types)
 
-    async def test_step_failed_marks_session_failed_before_consumer_closes(self) -> None:
+    async def test_completed_summary_is_persisted_before_consumer_closes(self) -> None:
+        session_id, service, uow, _, _ = self.build_service(
+            ToolInvocationStatus.succeeded, ReflectionAction.accept
+        )
+        stream = service.stream_latest_plan(session_id)
+
+        async for item in stream:
+            if (
+                isinstance(item, SessionEvent)
+                and item.type is SessionEventType.message_created
+            ):
+                break
+        await stream.aclose()
+
+        event_types = [event.type for event in uow.session_events.events]
+        self.assertEqual(event_types[-1], SessionEventType.task_done)
+        self.assertEqual(uow.sessions.status, SessionStatus.idle)
+
+    async def test_failed_reflection_is_persisted_before_consumer_closes(self) -> None:
         session_id, service, uow, _, _ = self.build_service(
             ToolInvocationStatus.failed, ReflectionAction.fail
         )
@@ -95,11 +117,20 @@ class ReActEntryPointTerminalSemanticsTest(unittest.IsolatedAsyncioTestCase):
         async for item in stream:
             if (
                 isinstance(item, SessionEvent)
-                and item.type is SessionEventType.step_failed
+                and item.type is SessionEventType.step_reflected
             ):
                 break
         await stream.aclose()
 
+        event_types = [event.type for event in uow.session_events.events]
+        self.assertEqual(
+            event_types[-3:],
+            [
+                SessionEventType.step_reflected,
+                SessionEventType.step_failed,
+                SessionEventType.task_error,
+            ],
+        )
         self.assertEqual(uow.sessions.status, SessionStatus.failed)
 
     async def test_stream_blocked_skips_critic_and_task_done(self) -> None:
@@ -199,7 +230,12 @@ class ReActEntryPointTerminalSemanticsTest(unittest.IsolatedAsyncioTestCase):
         service._execution_machine = RecordingMachine()
         await service.execute_latest_plan(session_id)
 
-        self.assertEqual(observed_plans, [replacement])
+        self.assertEqual(len(observed_plans), 1)
+        observed = observed_plans[0]
+        self.assertEqual(observed["id"], replacement["id"])
+        self.assertEqual(observed["steps"], replacement["steps"])
+        self.assertEqual(observed["plan_revision"], 1)
+        UUID(str(observed["run_id"]))
 
 
 if __name__ == "__main__":

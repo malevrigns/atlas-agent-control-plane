@@ -40,7 +40,7 @@ def compose_agent_runtime(
     context_service = ContextEngineeringService(uow)
     summary = AgentSummaryService(uow, model)
     selector = ModelToolSelectionService(
-        registry=build_builtin_tool_registry(),
+        registry=build_builtin_tool_registry(content_model=model),
         llm_service=model,
         uow=uow,
     )

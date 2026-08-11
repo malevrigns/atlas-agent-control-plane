@@ -72,6 +72,8 @@ async def add_failure_event(
         step_index=state.step_index + 1,
     )
     payload["phase"] = AgentPhase.failed.value
+    payload["run_id"] = str(state.run_id)
+    payload["plan_revision"] = state.plan_revision
     return await sink.add(
         session_id=state.session_id,
         event_type=SessionEventType.task_error,
@@ -91,6 +93,8 @@ async def add_done_event(
         event_type=SessionEventType.task_done,
         payload={
             "plan_id": plan_id(snapshot.plan),
+            "plan_revision": snapshot.state.plan_revision,
+            "run_id": str(snapshot.state.run_id),
             "final_answer": result.final_answer,
             "reasoning": result.reasoning,
             "message_id": str(result.message_id),
@@ -119,6 +123,8 @@ def step_identity(snapshot: MachineSnapshot) -> dict[str, object]:
     step = state.plan.steps[state.step_index]
     return {
         "plan_id": plan_id(snapshot.plan),
+        "plan_revision": state.plan_revision,
+        "run_id": str(state.run_id),
         "step_id": str(step.id),
         "index": state.step_index + 1,
     }

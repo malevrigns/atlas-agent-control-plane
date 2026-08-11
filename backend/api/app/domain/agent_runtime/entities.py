@@ -73,6 +73,8 @@ class Reflection:
 @dataclass(frozen=True, slots=True)
 class AgentRunState:
     session_id: UUID
+    run_id: UUID
+    plan_revision: int
     plan: RunPlan
     phase: AgentPhase
     step_index: int
@@ -83,10 +85,23 @@ class AgentRunState:
 
     @classmethod
     def from_plan(
-        cls, session_id: UUID, plan_payload: dict[str, object]
+        cls,
+        session_id: UUID,
+        plan_payload: dict[str, object],
+        *,
+        run_id: UUID,
+        plan_revision: int,
     ) -> "AgentRunState":
+        if (
+            isinstance(plan_revision, bool)
+            or not isinstance(plan_revision, int)
+            or plan_revision < 0
+        ):
+            raise ValueError("plan_revision must be non-negative")
         return cls(
             session_id=session_id,
+            run_id=run_id,
+            plan_revision=plan_revision,
             plan=RunPlan.from_payload(plan_payload),
             phase=AgentPhase.executing,
             step_index=0,

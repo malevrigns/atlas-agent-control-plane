@@ -7,9 +7,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.application.agent_runner_service import AgentRunnerService
 from app.application.unit_of_work import UnitOfWork
 from app.core.config import settings
-from app.domain.sessions.entities import SessionEventType
-from app.infrastructure.task_queue import AgentTaskStatus, RedisAgentTaskQueue
-from app.infrastructure.task_queue import QueuedTaskMessage
+from app.domain.sessions.entities import SessionEvent, SessionEventType
+from app.infrastructure.task_queue import (
+    AgentTask,
+    AgentTaskStatus,
+    QueuedTaskMessage,
+    RedisAgentTaskQueue,
+)
 
 
 class AgentTaskRunner:
@@ -137,40 +141,75 @@ class AgentTaskRunner:
             return True
 
         task = await self.queue.get_task(task_id)
-        if task is None or task.status in {AgentTaskStatus.stopped, AgentTaskStatus.cancelled}:
+        if task is None or self._is_stopped_or_cancelled(task):
             return True
 
         await self.queue.mark_running(task_id)
         try:
-            if task_type == "execute_plan":
-                execution_events = await self._execute_plan(UUID(session_id_text))
-                blocked_event = next(
-                    (event for event in execution_events if event.type is SessionEventType.step_blocked),
-                    None,
-                )
-                if blocked_event is not None:
-                    reason = str(blocked_event.payload.get("summary") or "approval required")
-                    await self.queue.mark_waiting(task_id, reason)
-                    return True
-                error_event = next(
-                    (event for event in execution_events if event.type is SessionEventType.task_error),
-                    None,
-                )
-                if error_event is not None:
-                    raise RuntimeError(str(error_event.payload.get("message") or "task failed"))
-            else:
-                raise ValueError(f"unsupported task type: {task_type}")
+            completed = await self._execute_task(
+                task_id=task_id,
+                task_type=task_type,
+                session_id_text=session_id_text,
+            )
         except asyncio.CancelledError:
             raise
         except Exception as error:
             await self.queue.mark_failed(task_id, str(error))
             return True
 
+        if not completed:
+            return True
         latest_task = await self.queue.get_task(task_id)
-        if latest_task and latest_task.status in {AgentTaskStatus.stopped, AgentTaskStatus.cancelled}:
+        if latest_task is not None and self._is_stopped_or_cancelled(latest_task):
             return True
         await self.queue.mark_succeeded(task_id)
         return True
+
+    async def _execute_task(
+        self,
+        *,
+        task_id: str,
+        task_type: str,
+        session_id_text: str,
+    ) -> bool:
+        if task_type != "execute_plan":
+            raise ValueError(f"unsupported task type: {task_type}")
+
+        execution_events = await self._execute_plan(UUID(session_id_text))
+        blocked_event = self._find_event(
+            execution_events,
+            SessionEventType.step_blocked,
+        )
+        if blocked_event is not None:
+            reason = str(blocked_event.payload.get("summary") or "approval required")
+            await self.queue.mark_waiting(task_id, reason)
+            return False
+
+        error_event = self._find_event(
+            execution_events,
+            SessionEventType.task_error,
+        )
+        if error_event is not None:
+            message = str(error_event.payload.get("message") or "task failed")
+            raise RuntimeError(message)
+        return True
+
+    @staticmethod
+    def _find_event(
+        events: list[SessionEvent],
+        event_type: SessionEventType,
+    ) -> SessionEvent | None:
+        for event in events:
+            if event.type is event_type:
+                return event
+        return None
+
+    @staticmethod
+    def _is_stopped_or_cancelled(task: AgentTask) -> bool:
+        return task.status in {
+            AgentTaskStatus.stopped,
+            AgentTaskStatus.cancelled,
+        }
 
     # ===================== 第6步：真正调用 ReActAgentService =====================
     async def _execute_plan(self, session_id: UUID):

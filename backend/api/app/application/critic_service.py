@@ -16,6 +16,7 @@ class CriticModel(Protocol):
     async def chat(
         self,
         messages: list[LLMMessage],
+        *,
         provider: str | None = None,
         model: str | None = None,
         temperature: float | None = None,

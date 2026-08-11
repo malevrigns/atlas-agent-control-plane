@@ -107,7 +107,11 @@ class FakeSummarizer:
             message_event=make_event(
                 request.session_id,
                 SessionEventType.message_created,
-                {"message_id": str(message.id), "content": message.content},
+                {
+                    "message_id": str(message.id),
+                    "role": MessageRole.assistant.value,
+                    "content": message.content,
+                },
             ),
             message_id=message.id,
         )
@@ -274,7 +278,7 @@ class AgentExecutionMachineTest(unittest.IsolatedAsyncioTestCase):
             and item.type is SessionEventType.plan_created
         ]
         self.assertEqual(len(replanned), 1)
-        self.assertEqual(replanned[0].payload, replacement)
+        self.assertEqual((replanned[0].payload["plan_revision"], replanned[0].payload["run_id"]), (1, str(replanner.states[0].run_id)))
         self.assertEqual(replanned[0].payload["id"], replacement["id"])
         self.assertIn(replanned[0], sink.events)
 
