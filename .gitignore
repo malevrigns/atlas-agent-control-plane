@@ -39,6 +39,8 @@ backend/api/runtime-config/
 .DS_Store
 .idea/
 .vscode/
+.worktrees/
+.superpowers/
 
 # Logs
 *.log
