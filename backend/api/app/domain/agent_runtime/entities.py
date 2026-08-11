@@ -20,6 +20,7 @@ class ReflectionAction(StrEnum):
     accept = "accept"
     retry = "retry"
     replan = "replan"
+    fail = "fail"
 
 
 @dataclass(frozen=True, slots=True)

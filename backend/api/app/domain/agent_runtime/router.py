@@ -26,16 +26,10 @@ class AgentStateRouter:
         self, state: AgentRunState, observation: StepObservation
     ) -> AgentRunState:
         self._require_phase(state, AgentPhase.executing)
-        if observation.status in SUCCESS_STATUSES:
+        if observation.status in SUCCESS_STATUSES | FINAL_FAILURE_STATUSES:
             return replace(
                 state,
                 phase=AgentPhase.reflecting,
-                observation=observation,
-            )
-        if observation.status in FINAL_FAILURE_STATUSES:
-            return replace(
-                state,
-                phase=AgentPhase.failed,
                 observation=observation,
             )
         if observation.status is ToolInvocationStatus.approval_required:
@@ -61,6 +55,8 @@ class AgentStateRouter:
             return replace(state, phase=AgentPhase.replanning, reflection=reflection)
         if reflection.action is ReflectionAction.accept:
             return self._accept(state, reflection)
+        if reflection.action is ReflectionAction.fail:
+            return replace(state, phase=AgentPhase.failed, reflection=reflection)
         raise ValueError(f"unsupported reflection action: {reflection.action}")
 
     def after_summary(self, state: AgentRunState, final_answer: str) -> AgentRunState:

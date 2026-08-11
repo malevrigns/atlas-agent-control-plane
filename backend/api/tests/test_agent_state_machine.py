@@ -106,9 +106,25 @@ class AgentStateRouterTest(unittest.TestCase):
 
         self.assertEqual(result.phase, AgentPhase.replanning)
 
-    def test_final_failure_transitions_to_failed(self) -> None:
-        result = self.router.after_execution(
+    def test_final_failure_observations_transition_to_reflecting(self) -> None:
+        for status in (
+            ToolInvocationStatus.failed,
+            ToolInvocationStatus.timed_out,
+            ToolInvocationStatus.denied,
+        ):
+            with self.subTest(status=status):
+                result = self.router.after_execution(self.state, observation(status))
+
+                self.assertEqual(result.phase, AgentPhase.reflecting)
+
+    def test_fail_reflection_transitions_to_failed(self) -> None:
+        reflecting = self.router.after_execution(
             self.state, observation(ToolInvocationStatus.failed)
+        )
+
+        result = self.router.after_reflection(
+            reflecting,
+            Reflection(action=ReflectionAction.fail, reason="permission denied"),
         )
 
         self.assertEqual(result.phase, AgentPhase.failed)
