@@ -82,4 +82,3 @@ Critic 接收计划步骤与真实 `ToolCallResult`，只输出以下 JSON：
 - Critic 测试验证严格 JSON 和非成功结果不可 accept。
 - 编排测试验证成功路径的事件顺序，以及失败路径不存在 `step_completed`、`task_done`。
 - 完整后端测试必须保持通过。
-
