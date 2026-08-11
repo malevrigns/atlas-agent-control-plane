@@ -144,6 +144,14 @@ class AgentTaskRunner:
         try:
             if task_type == "execute_plan":
                 execution_events = await self._execute_plan(UUID(session_id_text))
+                blocked_event = next(
+                    (event for event in execution_events if event.type is SessionEventType.step_blocked),
+                    None,
+                )
+                if blocked_event is not None:
+                    reason = str(blocked_event.payload.get("summary") or "approval required")
+                    await self.queue.mark_waiting(task_id, reason)
+                    return True
                 error_event = next(
                     (event for event in execution_events if event.type is SessionEventType.task_error),
                     None,

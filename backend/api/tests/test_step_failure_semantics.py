@@ -1,5 +1,6 @@
 import unittest
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from app.application.react_agent_service import ReActAgentService
@@ -9,12 +10,17 @@ from app.application.react_step_executor import (
 )
 from app.domain.agent_core.tools import ToolInvocationStatus
 from app.domain.context_engineering.entities import MemoryContext
-from app.domain.sessions.entities import SessionEvent, SessionEventType
+from app.domain.sessions.entities import (
+    MessageRole,
+    SessionEvent,
+    SessionEventType,
+    SessionStatus,
+)
 
 
 class FakeSessionEventRepository:
-    def __init__(self) -> None:
-        self.events: list[SessionEvent] = []
+    def __init__(self, events: list[SessionEvent] | None = None) -> None:
+        self.events = list(events or ())
 
     async def add(
         self,
@@ -33,18 +39,52 @@ class FakeSessionEventRepository:
         self.events.append(event)
         return event
 
+    async def list_by_session(self, session_id: UUID) -> list[SessionEvent]:
+        return [event for event in self.events if event.session_id == session_id]
+
+
+class FakeSessionRepository:
+    def __init__(self) -> None:
+        self.status = SessionStatus.idle
+
+    async def get(self, session_id: UUID) -> object:
+        return object()
+
+    async def update_status(self, session_id: UUID, status: str) -> None:
+        self.status = SessionStatus(status)
+
+    async def touch(self, session_id: UUID) -> None:
+        return None
+
+
+class FakeSessionMessageRepository:
+    async def add_assistant_message(self, *, session_id: UUID, content: str):
+        return SimpleNamespace(id=uuid4(), role=MessageRole.assistant, content=content)
+
 
 class FakeUnitOfWork:
-    def __init__(self) -> None:
-        self.session_events = FakeSessionEventRepository()
+    def __init__(self, events: list[SessionEvent] | None = None) -> None:
+        self.session_events = FakeSessionEventRepository(events)
+        self.sessions = FakeSessionRepository()
+        self.session_messages = FakeSessionMessageRepository()
+        self.commits = 0
+
+    async def commit(self) -> None:
+        self.commits += 1
 
 
 class StubReActAgentService(ReActAgentService):
-    def __init__(self, status: ToolInvocationStatus) -> None:
-        super().__init__(FakeUnitOfWork())
+    def __init__(
+        self,
+        status: ToolInvocationStatus,
+        uow: FakeUnitOfWork | None = None,
+    ) -> None:
+        super().__init__(uow or FakeUnitOfWork())
         self.status = status
+        self.tool_calls = 0
 
     async def _call_tool_for_step(self, **kwargs) -> dict:
+        self.tool_calls += 1
         return {
             "tool_name": "stub_tool",
             "arguments": {},
@@ -57,6 +97,29 @@ class StubReActAgentService(ReActAgentService):
             "audit": {},
         }
 
+    async def _sync_session_files_to_sandbox(self, session_id: UUID) -> None:
+        return None
+
+    async def _build_final_answer(self, plan: dict, events: list[SessionEvent]) -> str:
+        return "final answer"
+
+
+class FakeContextEngineeringService:
+    def __init__(self, uow: FakeUnitOfWork) -> None:
+        self.uow = uow
+
+    async def build_snapshot(self, session_id: UUID, task: str):
+        return SimpleNamespace(memory_context=empty_memory_context())
+
+    @staticmethod
+    def render_for_agent(snapshot: object) -> str:
+        return ""
+
+
+class FakeLLMService:
+    async def chat_stream(self, *args, **kwargs):
+        yield SimpleNamespace(kind="answer", text="final answer")
+
 
 def empty_memory_context() -> MemoryContext:
     return MemoryContext(
@@ -66,6 +129,23 @@ def empty_memory_context() -> MemoryContext:
         omitted_count=0,
         total_chars=0,
         max_chars=0,
+    )
+
+
+def build_plan_event(session_id: UUID) -> SessionEvent:
+    return SessionEvent(
+        id=uuid4(),
+        session_id=session_id,
+        type=SessionEventType.plan_created,
+        payload={
+            "id": "plan-1",
+            "goal": "test goal",
+            "steps": [
+                {"id": "step-1", "title": "first step"},
+                {"id": "step-2", "title": "second step"},
+            ],
+        },
+        created_at=datetime.now(UTC),
     )
 
 

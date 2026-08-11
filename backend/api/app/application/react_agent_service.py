@@ -26,12 +26,6 @@ from app.infrastructure.storage.factory import build_file_storage
 
 
 class ReActAgentService:
-    """第 19 章的 ReActAgent 同步执行服务。
-
-    本章先把计划步骤转成可观察事件，不引入后台队列。
-    第 20 章会把这里的执行过程迁移到 Redis Stream 和 TaskRunner。
-    """
-
     def __init__(
         self,
         uow: UnitOfWork,
@@ -104,6 +98,11 @@ class ReActAgentService:
                 # 每个步骤结束后提交一次，SSE 层才能把最新事件及时推给前端。
                 await self.uow.sessions.touch(session_id)
                 await self.uow.commit()
+                terminal_event = step_events[-1]
+                if terminal_event.type is SessionEventType.step_failed:
+                    raise RuntimeError(str(terminal_event.payload["summary"]))
+                if terminal_event.type is SessionEventType.step_blocked:
+                    return created_events
 
             final_answer = await self._build_final_answer(plan, created_events)
             answer_event = await self._persist_final_answer_message(
@@ -441,12 +440,7 @@ class ReActAgentService:
 
     # ===================== 第6步：以流式方式执行当前会话的最新计划 =====================
     async def stream_latest_plan(self, session_id: UUID):
-        """边执行计划边产出事件。
-
-        第 39 章开始，前端发送任务后不再手动点击“生成”和“执行”。
-        这个方法把 step_started、tool_called、step_completed、task_done
-        逐个 yield 给 HTTP SSE 层，让中间对话流可以实时更新。
-        """
+        """Execute a plan while yielding each observable event."""
 
         # 1. 确认会话存在，并读取当前会话全部事件。
         session = await self.uow.sessions.get(session_id)
@@ -504,6 +498,11 @@ class ReActAgentService:
                 await self.uow.commit()
                 for event in step_events:
                     yield event
+                terminal_event = step_events[-1]
+                if terminal_event.type is SessionEventType.step_failed:
+                    raise RuntimeError(str(terminal_event.payload["summary"]))
+                if terminal_event.type is SessionEventType.step_blocked:
+                    return
 
             # 6. 所有步骤完成后流式生成最终回答（GPT 式打字机），
             #    思考与正文增量实时推送；失败时回退到规则版总结。
