@@ -5,12 +5,19 @@ from urllib.parse import urlparse
 
 from app.application.context_engineering_service import ContextEngineeringService
 from app.application.llm_service import LLMService
+from app.application.react_step_executor import (
+    ReActStepExecutor,
+    StepExecutionOutcome,
+    StepExecutionRequest,
+)
 from app.application.tool_selection_service import ModelToolSelectionService
 from app.application.tool_runtime import ToolExecutionContext
 from app.application.unit_of_work import UnitOfWork
 from app.core.config import settings
 from app.core.exceptions import AppException, build_task_error_payload
+from app.domain.agent_core.tools import ToolInvocationStatus
 from app.domain.context_engineering.entities import MemoryContext
+from app.domain.agent_runtime.router import FINAL_FAILURE_STATUSES, SUCCESS_STATUSES
 from app.domain.llm.entities import LLMMessage
 from app.domain.sessions.entities import SessionEvent, SessionEventType, SessionStatus
 from app.infrastructure.agent_tools.builtin import build_builtin_tool_registry
@@ -25,11 +32,20 @@ class ReActAgentService:
     第 20 章会把这里的执行过程迁移到 Redis Stream 和 TaskRunner。
     """
 
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        step_executor: ReActStepExecutor | None = None,
+    ) -> None:
         # ===================== 第1步：保存数据库事务和工具注册表 =====================
         self.uow = uow
         self.registry = build_builtin_tool_registry()
         self.tool_selector = ModelToolSelectionService(registry=self.registry, uow=uow)
+        self.step_executor = step_executor or ReActStepExecutor(
+            uow=uow,
+            tool_caller=self._call_tool_for_step,
+            output_summarizer=self._summarize_tool_output,
+        )
 
     # ===================== 第2步：执行当前会话的最新计划 =====================
     async def execute_latest_plan(self, session_id: UUID) -> list[SessionEvent]:
@@ -139,106 +155,62 @@ class ReActAgentService:
         agent_context: str,
         step_history: list[str] | None = None,
     ) -> list[SessionEvent]:
-        """把一个计划步骤转换成 started/tool/completed 三类事件。
+        """Compatibility wrapper that appends the status-aware terminal event."""
 
-        step_history 是本轮已完成步骤的观察摘要：工具选择器必须知道
-        前面发生了什么，否则会重复做已完成的事（如反复打开同一页面）。
-        """
-
-        plan_id = plan.get("id") or plan.get("plan_id")
-        step_id = step.get("id")
-        started = await self.uow.session_events.add(
-            session_id=session_id,
-            event_type=SessionEventType.step_started,
-            payload={
-                "plan_id": plan_id,
-                "step_id": step_id,
-                "index": index,
-                "title": step.get("title", ""),
-            },
-        )
-
-        step_context = agent_context
-        if step_history:
-            history_text = "\n".join(step_history)
-            step_context = (
-                f"{agent_context}\n\n本轮已完成步骤的结果（不要重复做）：\n{history_text}"
-                if agent_context
-                else f"本轮已完成步骤的结果（不要重复做）：\n{history_text}"
-            )
-
-        tool_result = await self._call_tool_for_step(
+        request = StepExecutionRequest(
             session_id=session_id,
             plan=plan,
             step=step,
-            index=index,
+            step_index=index - 1,
             memory_context=memory_context,
-            agent_context=step_context,
+            agent_context=agent_context,
+            step_history=tuple(step_history or ()),
         )
-        tool_called = await self.uow.session_events.add(
-            session_id=session_id,
-            event_type=SessionEventType.tool_called,
-            payload={
-                "plan_id": plan_id,
-                "step_id": step_id,
-                "tool_name": tool_result["tool_name"],
-                "arguments": tool_result["arguments"],
-                "output": tool_result["output"],
-                "invocation_id": tool_result["invocation_id"],
-                "status": tool_result["status"],
-                "risk_level": tool_result["risk_level"],
-                "artifact_id": tool_result["artifact_id"],
-                "duration_ms": tool_result["duration_ms"],
-                "audit": tool_result["audit"],
-                "memory_ids": [str(item.id) for item in memory_context.items],
-                "memory_count": len(memory_context.items),
-            },
-        )
+        outcome = await self.step_executor.execute(request)
+        terminal = await self._add_step_terminal_event(request, outcome)
+        return [*outcome.events, terminal]
 
-        completed = await self.uow.session_events.add(
-            session_id=session_id,
-            event_type=SessionEventType.step_completed,
+    async def _add_step_terminal_event(
+        self,
+        request: StepExecutionRequest,
+        outcome: StepExecutionOutcome,
+    ) -> SessionEvent:
+        status = outcome.observation.status
+        if status in SUCCESS_STATUSES:
+            event_type = SessionEventType.step_completed
+        elif status in FINAL_FAILURE_STATUSES:
+            event_type = SessionEventType.step_failed
+        elif status is ToolInvocationStatus.approval_required:
+            event_type = SessionEventType.step_blocked
+        else:
+            raise ValueError(f"execution status is not terminal: {status}")
+        return await self.uow.session_events.add(
+            session_id=request.session_id,
+            event_type=event_type,
             payload={
-                "plan_id": plan_id,
-                "step_id": step_id,
-                "index": index,
-                "title": step.get("title", ""),
-                "summary": tool_result["output"],
+                "plan_id": request.plan.get("id") or request.plan.get("plan_id"),
+                "step_id": request.step.get("id"),
+                "index": request.step_index + 1,
+                "title": request.step.get("title", ""),
+                "summary": outcome.observation.output,
+                "status": status.value,
             },
         )
-        return [started, tool_called, completed]
 
     # ===================== 第4步：用教学工具模拟步骤执行 =====================
     async def _call_tool_for_step(
         self,
-        session_id: UUID,
-        plan: dict,
-        step: dict,
-        index: int,
-        memory_context: MemoryContext,
+        *,
+        request: StepExecutionRequest,
         agent_context: str,
+        execution_context: ToolExecutionContext,
     ) -> dict:
-        """通过模型工具选择服务调用一个内置工具。
-
-        第 43 章开始，ReAct 不再自己维护大段关键词分支。
-        它把计划、步骤和长期记忆交给 ModelToolSelectionService：
-        - 模型可用时，模型根据工具 schema 输出结构化 tool call。
-        - 模型不可用或输出异常时，服务内部使用确定性 fallback。
-        """
-
         result = await self.tool_selector.call_tool_for_step(
-            plan=plan,
-            step=step,
-            index=index,
-            agent_context=self._merge_agent_context(
-                agent_context=agent_context,
-                memory_context=memory_context,
-            ),
-            execution_context=self._tool_execution_context(
-                session_id=session_id,
-                plan=plan,
-                step=step,
-            ),
+            plan=dict(request.plan),
+            step=dict(request.step),
+            index=request.step_index + 1,
+            agent_context=agent_context,
+            execution_context=execution_context,
         )
         return {
             "tool_name": result.tool_name,
@@ -259,85 +231,13 @@ class ReActAgentService:
         step: dict,
         step_events: list[SessionEvent],
     ) -> None:
-        """把刚完成步骤的工具与观察摘要追加进历史，供后续步骤选择工具时参考。"""
-
-        for event in step_events:
-            if event.type is not SessionEventType.tool_called:
-                continue
-            tool_name = str(event.payload.get("tool_name") or "")
-            output = str(event.payload.get("output") or "")
-            summary = self._summarize_tool_output(tool_name, output)
-            # 失败信号显式标注（工具状态非成功，或 shell 非零退出码），
-            # 后续步骤的工具选择器会优先修复而不是机械推进。
-            failed = str(event.payload.get("status") or "") not in {"", "success", "succeeded"}
-            if tool_name.startswith("shell_"):
-                return_code = self._match_line_value(output, "退出码")
-                if return_code and return_code != "0":
-                    failed = True
-            prefix = "⚠️ 失败" if failed else "已完成"
-            step_history.append(
-                f"- 步骤{index}「{step.get('title', '')}」{prefix}（{tool_name}）："
-                f"{self._trim_text(summary, 200)}"
+        step_history.append(
+            self.step_executor.format_step_history(
+                step_index=index - 1,
+                step=step,
+                events=tuple(step_events),
             )
-
-    @staticmethod
-    def _tool_execution_context(
-        *,
-        session_id: UUID | None,
-        plan: dict,
-        step: dict,
-    ) -> ToolExecutionContext:
-        plan_id = str(plan.get("id") or plan.get("plan_id") or "plan")
-        step_id = str(step.get("id") or "step")
-        return ToolExecutionContext(
-            project_id=str(plan.get("project_id") or "default"),
-            session_id=session_id,
-            actor="react_agent",
-            allowed_permissions={
-                "filesystem:read",
-                "filesystem:write",
-                "browser:read",
-                "browser:navigate",
-                "browser:control",
-                "network:access",
-                "agent:delegate",
-                "shell:execute",
-                "shell:read",
-                "integration:mcp",
-                "integration:a2a",
-            },
-            idempotency_key=f"{session_id or 'session'}:{plan_id}:{step_id}",
         )
-
-    @staticmethod
-    def _render_memory_guidance(memory_context: MemoryContext) -> str:
-        """把已检索记忆压缩成工具可读的指导文本。
-
-        工具类型仍由当前任务文本决定，避免旧记忆中的“浏览器、搜索”等词
-        误触发工具；选中工具后，文本类工具会收到这些长期约束和偏好。
-        """
-
-        return "\n".join(
-            f"- [{item.kind.value}] {item.content}"
-            for item in memory_context.items
-        )
-
-    def _merge_agent_context(
-        self,
-        *,
-        agent_context: str,
-        memory_context: MemoryContext,
-    ) -> str:
-        """合并完整上下文和长期记忆兜底文本。
-
-        ContextEngineeringService 会输出最近消息、文件引用和长期记忆。
-        这里保留 memory_context 兜底，是为了兼容早期执行路径。
-        """
-
-        memory_guidance = self._render_memory_guidance(memory_context)
-        if agent_context and memory_guidance and memory_guidance not in agent_context:
-            return f"{agent_context}\n\n长期记忆补充：\n{memory_guidance}"
-        return agent_context or memory_guidance
 
     # ===================== 第5步：把会话附件同步到 Sandbox =====================
     async def _sync_session_files_to_sandbox(self, session_id: UUID) -> None:

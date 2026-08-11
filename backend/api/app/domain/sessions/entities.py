@@ -23,6 +23,9 @@ class SessionEventType(StrEnum):
     step_started = "step_started"
     tool_called = "tool_called"
     step_completed = "step_completed"
+    step_reflected = "step_reflected"
+    step_failed = "step_failed"
+    step_blocked = "step_blocked"
     task_done = "task_done"
     task_error = "task_error"
 
