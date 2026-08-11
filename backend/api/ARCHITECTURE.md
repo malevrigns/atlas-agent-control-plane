@@ -262,7 +262,7 @@ step_reflected(fail) -> step_failed -> task_error
 
 `AgentRunnerService.from_uow()` 是默认组合边界：它创建一个 `LLMService` 并将该实例传入 Planner、直接聊天、Critic、Summary 和工具选择器；执行机、Critic 和 Summary 都不自行创建模型。`ReActAgentService` 负责加载最新计划、构建 `ContextEngineeringService` 产生的 MemoryContext、同步文本附件到既有 Sandbox，并按状态机产出的顺序流式交付事件；状态机本身依赖 Protocol 形式的 executor、critic、summarizer、event sink 和可选 replanner。
 
-事件顺序描述的是流与回放中的可观察顺序，不代表每个事件都有独立事务。事件写入器可能在第一次 yield 前把同一节点的多个事件加入 Unit of Work：`step_started` 与 `tool_called` 共享一次有效提交边界，`step_failed` 与 `task_error` 也共享一次有效提交边界；随后对已 yield 事件触发的 commit 不会把这些事件拆成独立的 durable commit。
+事件顺序只保证流与回放中的可观察顺序。durable transaction boundary 取决于具体的 ToolRuntime 和 Unit of Work 执行路径；当前协议既不承诺每个事件独立提交，也不承诺任何固定事件批次原子提交。
 
 `StepExecutionRequest.attempt` 从 1 开始并进入 ToolRuntime 幂等键：同一步的 retry 使用不同键，确保重新调用工具而不会被上次尝试去重。`succeeded` 和 `deduplicated` 都是可由 Critic 接受的成功观察；失败、超时和拒绝仍会先作为观察交给 Critic 决策。ToolRuntime 继续拥有权限、风险、审批、超时和审计边界，状态机不绕过它。
 
