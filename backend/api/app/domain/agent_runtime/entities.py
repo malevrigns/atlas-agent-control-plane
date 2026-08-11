@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from enum import StrEnum
-from types import MappingProxyType
-from typing import Mapping
 from uuid import UUID
 
+from app.domain.agent_core.planner import PlanStepStatus
 from app.domain.agent_core.tools import ToolInvocationStatus
 
 
@@ -25,14 +24,20 @@ class ReflectionAction(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class RunPlanStep:
-    tool_name: str
-    arguments: Mapping[str, object]
+    id: UUID
+    title: str
+    description: str
+    expected_output: str
+    status: PlanStepStatus
 
     @classmethod
-    def from_payload(cls, payload: Mapping[str, object]) -> "RunPlanStep":
+    def from_payload(cls, payload: dict[str, object]) -> "RunPlanStep":
         return cls(
-            tool_name=str(payload["tool_name"]),
-            arguments=MappingProxyType(dict(payload.get("arguments", {}))),
+            id=UUID(str(payload["id"])),
+            title=str(payload["title"]),
+            description=str(payload["description"]),
+            expected_output=str(payload["expected_output"]),
+            status=PlanStepStatus(str(payload["status"])),
         )
 
 
@@ -42,7 +47,7 @@ class RunPlan:
     steps: tuple[RunPlanStep, ...]
 
     @classmethod
-    def from_payload(cls, payload: Mapping[str, object]) -> "RunPlan":
+    def from_payload(cls, payload: dict[str, object]) -> "RunPlan":
         raw_steps = payload["steps"]
         if not isinstance(raw_steps, (list, tuple)):
             raise ValueError("plan payload steps must be a sequence")

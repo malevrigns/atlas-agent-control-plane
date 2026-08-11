@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 from uuid import uuid4
 
 from app.domain.agent_core.tools import ToolInvocationStatus
@@ -16,8 +17,20 @@ def plan_payload() -> dict[str, object]:
     return {
         "goal": "inspect the repository",
         "steps": (
-            {"tool_name": "search", "arguments": {"query": "agent"}},
-            {"tool_name": "summarize", "arguments": {"format": "brief"}},
+            {
+                "id": uuid4(),
+                "title": "Search source",
+                "description": "Find the agent implementation.",
+                "expected_output": "Matching source files.",
+                "status": "pending",
+            },
+            {
+                "id": uuid4(),
+                "title": "Summarize findings",
+                "description": "Summarize the relevant files.",
+                "expected_output": "A concise summary.",
+                "status": "pending",
+            },
         ),
     }
 
@@ -44,6 +57,13 @@ class AgentStateRouterTest(unittest.TestCase):
         self.assertEqual(reflecting.phase, AgentPhase.reflecting)
         self.assertEqual(next_step.step_index, 1)
         self.assertEqual(next_step.phase, AgentPhase.executing)
+
+    def test_from_plan_accepts_existing_planner_step_payload_shape(self) -> None:
+        state = AgentRunState.from_plan(uuid4(), plan_payload())
+
+        self.assertEqual(state.plan.steps[0].title, "Search source")
+        self.assertEqual(state.plan.steps[0].description, "Find the agent implementation.")
+        self.assertEqual(state.plan.steps[0].expected_output, "Matching source files.")
 
     def test_last_step_accept_transitions_to_summarizing(self) -> None:
         second_step = AgentRunState.from_plan(uuid4(), plan_payload())
@@ -114,7 +134,16 @@ class AgentStateRouterTest(unittest.TestCase):
                     self.router.after_execution(self.state, observation(status))
 
     def test_summary_marks_state_completed_with_answer(self) -> None:
-        result = self.router.after_summary(self.state, "final answer")
+        summarizing = self.router.after_reflection(
+            self.router.after_execution(self.state, observation(ToolInvocationStatus.succeeded)),
+            Reflection(action=ReflectionAction.accept, reason="continue"),
+        )
+        summarizing = self.router.after_reflection(
+            self.router.after_execution(summarizing, observation(ToolInvocationStatus.succeeded)),
+            Reflection(action=ReflectionAction.accept, reason="complete"),
+        )
+
+        result = self.router.after_summary(summarizing, "final answer")
 
         self.assertEqual(result.phase, AgentPhase.completed)
         self.assertEqual(result.final_answer, "final answer")
@@ -126,6 +155,42 @@ class AgentStateRouterTest(unittest.TestCase):
         self.assertIsInstance(self.state.plan.steps, tuple)
         with self.assertRaises(AttributeError):
             self.state.step_index = 1
+
+    def test_after_execution_rejects_non_executing_source_phase(self) -> None:
+        for phase in (AgentPhase.completed, AgentPhase.failed, AgentPhase.blocked):
+            with self.subTest(phase=phase):
+                with self.assertRaises(ValueError):
+                    self.router.after_execution(
+                        replace(self.state, phase=phase),
+                        observation(ToolInvocationStatus.succeeded),
+                    )
+
+    def test_after_reflection_rejects_non_reflecting_source_phase(self) -> None:
+        for phase in (
+            AgentPhase.executing,
+            AgentPhase.completed,
+            AgentPhase.failed,
+            AgentPhase.blocked,
+        ):
+            with self.subTest(phase=phase):
+                with self.assertRaises(ValueError):
+                    self.router.after_reflection(
+                        replace(self.state, phase=phase),
+                        Reflection(action=ReflectionAction.accept, reason="invalid source phase"),
+                    )
+
+    def test_after_summary_rejects_non_summarizing_source_phase(self) -> None:
+        for phase in (
+            AgentPhase.executing,
+            AgentPhase.completed,
+            AgentPhase.failed,
+            AgentPhase.blocked,
+        ):
+            with self.subTest(phase=phase):
+                with self.assertRaises(ValueError):
+                    self.router.after_summary(
+                        replace(self.state, phase=phase), "final answer"
+                    )
 
 
 if __name__ == "__main__":

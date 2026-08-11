@@ -25,6 +25,7 @@ class AgentStateRouter:
     def after_execution(
         self, state: AgentRunState, observation: StepObservation
     ) -> AgentRunState:
+        self._require_phase(state, AgentPhase.executing)
         if observation.status in SUCCESS_STATUSES:
             return replace(
                 state,
@@ -48,6 +49,7 @@ class AgentStateRouter:
     def after_reflection(
         self, state: AgentRunState, reflection: Reflection
     ) -> AgentRunState:
+        self._require_phase(state, AgentPhase.reflecting)
         if reflection.action is ReflectionAction.retry:
             return replace(
                 state,
@@ -62,7 +64,15 @@ class AgentStateRouter:
         raise ValueError(f"unsupported reflection action: {reflection.action}")
 
     def after_summary(self, state: AgentRunState, final_answer: str) -> AgentRunState:
+        self._require_phase(state, AgentPhase.summarizing)
         return replace(state, phase=AgentPhase.completed, final_answer=final_answer)
+
+    @staticmethod
+    def _require_phase(state: AgentRunState, expected: AgentPhase) -> None:
+        if state.phase is not expected:
+            raise ValueError(
+                f"transition requires {expected.value} phase, got {state.phase.value}"
+            )
 
     @staticmethod
     def _accept(state: AgentRunState, reflection: Reflection) -> AgentRunState:
