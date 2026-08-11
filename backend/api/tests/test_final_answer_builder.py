@@ -1,9 +1,16 @@
 import json
 import unittest
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import uuid4
 
-from app.application.react_agent_service import ReActAgentService
+from app.application.agent_summary_service import (
+    AgentSummaryRequest,
+    AgentSummaryResult,
+    AgentSummaryService,
+)
+from app.core.exceptions import AppException
+from app.domain.context_engineering.entities import MemoryContext
 from app.domain.sessions.entities import SessionEvent, SessionEventType
 
 
@@ -18,15 +25,54 @@ def build_tool_event(step_id: str, tool_name: str, output: str, arguments: dict 
             "tool_name": tool_name,
             "arguments": arguments or {},
             "output": output,
+            "status": "succeeded",
+            "attempt": 2,
         },
         created_at=datetime.now(UTC),
     )
 
 
-class FinalAnswerBuilderTest(unittest.TestCase):
+class FakeMessages:
+    async def add_assistant_message(self, *, session_id, content):
+        return SimpleNamespace(id=uuid4(), role=SimpleNamespace(value="assistant"), content=content)
+
+
+class FakeEvents:
+    async def add(self, *, session_id, event_type, payload):
+        return SessionEvent(uuid4(), session_id, event_type, payload, datetime.now(UTC))
+
+
+class FakeUow:
+    def __init__(self) -> None:
+        self.session_messages = FakeMessages()
+        self.session_events = FakeEvents()
+
+
+class FakeModel:
+    def __init__(self, deltas=None, error: Exception | None = None) -> None:
+        self.deltas = deltas or []
+        self.error = error
+
+    async def chat_stream(self, *args, **kwargs):
+        if self.error:
+            raise self.error
+        for kind, text in self.deltas:
+            yield SimpleNamespace(kind=kind, text=text)
+
+
+def summary_request(events: list[SessionEvent]) -> AgentSummaryRequest:
+    return AgentSummaryRequest(
+        session_id=uuid4(),
+        plan={"id": "plan-1", "goal": "整理 AI 新闻并生成报告", "steps": []},
+        events=tuple(events),
+        memory_context=MemoryContext("", [], 0, 0, 0, 0),
+    )
+
+
+class FinalAnswerBuilderTest(unittest.IsolatedAsyncioTestCase):
     # ===================== 第1步：最终回答应从工具输出中整理证据 =====================
-    def test_rule_based_final_answer_contains_sources_files_and_artifacts(self) -> None:
-        service = ReActAgentService.__new__(ReActAgentService)
+    async def test_evidence_contains_sources_files_and_artifacts(self) -> None:
+        service = AgentSummaryService(FakeUow(), FakeModel())
         plan = {
             "goal": "整理 AI 新闻并生成报告",
             "steps": [
@@ -68,16 +114,51 @@ class FinalAnswerBuilderTest(unittest.TestCase):
             ),
         ]
 
-        answer = service._build_rule_based_final_answer(plan, events)
+        evidence = service.build_evidence(plan, events)
 
-        self.assertIn("## 总结", answer)
-        self.assertIn("## 证据与引用", answer)
-        self.assertIn("OpenAI releases agent update", answer)
-        self.assertIn("https://example.com/openai", answer)
-        self.assertIn("requirements.md", answer)
-        self.assertIn("## 产物", answer)
-        self.assertIn("/workspace/report.md", answer)
-        self.assertIn("## 下一步建议", answer)
+        self.assertIn("OpenAI releases agent update", evidence)
+        self.assertIn("https://example.com/openai", evidence)
+        self.assertIn("requirements.md", evidence)
+        self.assertIn("/workspace/report.md", evidence)
+        self.assertIn("状态：succeeded", evidence)
+        self.assertIn("尝试：2", evidence)
+
+    async def test_stream_preserves_deltas_and_returns_persisted_result(self) -> None:
+        event = build_tool_event("step", "shell_exec", "命令：pwd\n退出码：0")
+        service = AgentSummaryService(
+            FakeUow(),
+            FakeModel([("reasoning", "think"), ("content", "final answer")]),
+        )
+
+        items = [item async for item in service.stream(summary_request([event]))]
+
+        self.assertEqual(items[0], ("thinking_delta", "think"))
+        self.assertEqual(items[1], ("answer_delta", "final answer"))
+        self.assertIsInstance(items[2], AgentSummaryResult)
+        self.assertEqual(items[2].final_answer, "final answer")
+
+    async def test_stream_surfaces_model_errors_without_fallback(self) -> None:
+        event = build_tool_event("step", "shell_exec", "命令：pwd\n退出码：0")
+        service = AgentSummaryService(
+            FakeUow(), FakeModel(error=AppException(message="provider failed"))
+        )
+
+        with self.assertRaisesRegex(AppException, "provider failed"):
+            _ = [item async for item in service.stream(summary_request([event]))]
+
+    async def test_stream_rejects_empty_model_output(self) -> None:
+        event = build_tool_event("step", "shell_exec", "命令：pwd\n退出码：0")
+        service = AgentSummaryService(FakeUow(), FakeModel([]))
+
+        with self.assertRaisesRegex(AppException, "empty final answer"):
+            _ = [item async for item in service.stream(summary_request([event]))]
+
+    async def test_stream_rejects_non_string_delta_text(self) -> None:
+        event = build_tool_event("step", "shell_exec", "命令：pwd\n退出码：0")
+        service = AgentSummaryService(FakeUow(), FakeModel([("content", None)]))
+
+        with self.assertRaisesRegex(AppException, "text must be a string"):
+            _ = [item async for item in service.stream(summary_request([event]))]
 
 
 if __name__ == "__main__":

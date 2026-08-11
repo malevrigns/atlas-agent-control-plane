@@ -1,6 +1,8 @@
 import unittest
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import ANY, patch
 from uuid import UUID, uuid4
 
 from app.application.agent_runner_service import AgentRunnerService
@@ -120,6 +122,79 @@ class FakeReactService:
 
 
 class AgentRunnerServiceTest(unittest.IsolatedAsyncioTestCase):
+    def test_from_uow_injects_shared_model_into_default_planner(self) -> None:
+        uow = SimpleNamespace()
+        model = object()
+        planner = object()
+        react = object()
+        with (
+            patch("app.application.agent_runner_service.LLMService", return_value=model),
+            patch(
+                "app.application.agent_runner_service.PlannerService",
+                return_value=planner,
+            ) as planner_class,
+            patch(
+                "app.application.agent_runner_service._build_react_service",
+                return_value=react,
+            ),
+        ):
+            service = AgentRunnerService.from_uow(uow)
+
+        planner_class.assert_called_once_with(uow, llm_service=model)
+        self.assertIs(service.planner_service, planner)
+        self.assertIs(service.llm_service, model)
+
+    def test_from_uow_shares_one_model_across_direct_critic_and_summary(self) -> None:
+        uow = SimpleNamespace(session_events=object())
+        model = object()
+        critic = object()
+        summary = SimpleNamespace(summarize_tool_output=lambda tool, output: output)
+        react = object()
+        machine = object()
+        with (
+            patch("app.application.agent_runner_service.LLMService", return_value=model),
+            patch(
+                "app.application.agent_runner_service.CriticService",
+                return_value=critic,
+                create=True,
+            ) as critic_class,
+            patch(
+                "app.application.agent_runner_service.AgentSummaryService",
+                return_value=summary,
+                create=True,
+            ) as summary_class,
+            patch(
+                "app.application.agent_runner_service.AgentExecutionMachine",
+                return_value=machine,
+                create=True,
+            ) as machine_class,
+            patch(
+                "app.application.agent_runner_service.ReActAgentService",
+                return_value=react,
+            ) as react_class,
+        ):
+            service = AgentRunnerService.from_uow(
+                uow,
+                planner_service=FakePlannerService(),
+            )
+
+        self.assertIs(service.llm_service, model)
+        critic_class.assert_called_once_with(model)
+        summary_class.assert_called_once_with(uow, model)
+        machine_class.assert_called_once_with(
+            executor=ANY,
+            critic=critic,
+            summarizer=summary,
+            event_sink=uow.session_events,
+            router=ANY,
+        )
+        react_class.assert_called_once_with(
+            uow,
+            execution_machine=machine,
+            file_sync_service=ANY,
+            context_service=ANY,
+        )
+
     # ===================== 第1步：验证对话执行流由统一 Runner 串起来 =====================
     async def test_stream_user_message_yields_unified_runner_events(self) -> None:
         session = build_session()

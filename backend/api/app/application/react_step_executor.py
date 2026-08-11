@@ -1,11 +1,12 @@
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
+from typing import Protocol
 from uuid import UUID
 
 from app.application.tool_runtime import ToolExecutionContext
 from app.application.unit_of_work import UnitOfWork
-from app.domain.agent_core.tools import ToolInvocationStatus
+from app.domain.agent_core.tools import ToolCallResult, ToolInvocationStatus
 from app.domain.agent_runtime.entities import StepObservation
 from app.domain.agent_runtime.router import SUCCESS_STATUSES
 from app.domain.context_engineering.entities import MemoryContext
@@ -29,12 +30,56 @@ ToolCaller = Callable[..., Awaitable[Mapping[str, object]]]
 OutputSummarizer = Callable[[str, str], str]
 
 
+class ToolSelector(Protocol):
+    async def call_tool_for_step(
+        self,
+        *,
+        plan: dict,
+        step: dict,
+        index: int,
+        agent_context: str,
+        execution_context: ToolExecutionContext | None = None,
+    ) -> ToolCallResult: ...
+
+
+class SelectedToolCaller:
+    def __init__(self, selector: ToolSelector) -> None:
+        self._selector = selector
+
+    async def __call__(
+        self,
+        *,
+        request: "StepExecutionRequest",
+        agent_context: str,
+        execution_context: ToolExecutionContext,
+    ) -> Mapping[str, object]:
+        result = await self._selector.call_tool_for_step(
+            plan=dict(request.plan),
+            step=dict(request.step),
+            index=request.step_index + 1,
+            agent_context=agent_context,
+            execution_context=execution_context,
+        )
+        return {
+            "tool_name": result.tool_name,
+            "arguments": result.arguments,
+            "output": result.output,
+            "invocation_id": result.invocation_id,
+            "status": result.status.value,
+            "risk_level": result.risk_level.value,
+            "artifact_id": result.artifact_id,
+            "duration_ms": result.duration_ms,
+            "audit": result.audit or {},
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class StepExecutionRequest:
     session_id: UUID
     plan: Mapping[str, object]
     step: Mapping[str, object]
     step_index: int
+    attempt: int
     memory_context: MemoryContext
     agent_context: str
     step_history: tuple[str, ...]
@@ -42,6 +87,8 @@ class StepExecutionRequest:
     def __post_init__(self) -> None:
         if self.step_index < 0:
             raise ValueError("step_index must be zero-based and non-negative")
+        if self.attempt < 1:
+            raise ValueError("attempt must be positive")
         object.__setattr__(self, "plan", MappingProxyType(dict(self.plan)))
         object.__setattr__(self, "step", MappingProxyType(dict(self.step)))
         object.__setattr__(self, "step_history", tuple(self.step_history))
@@ -133,6 +180,7 @@ class ReActStepExecutor:
             "plan_id": request.plan.get("id") or request.plan.get("plan_id"),
             "step_id": request.step.get("id"),
             "index": request.step_index + 1,
+            "attempt": request.attempt,
         }
 
     @staticmethod
@@ -144,7 +192,9 @@ class ReActStepExecutor:
             session_id=request.session_id,
             actor="react_agent",
             allowed_permissions=set(ALLOWED_TOOL_PERMISSIONS),
-            idempotency_key=f"{request.session_id}:{plan_id}:{step_id}",
+            idempotency_key=(
+                f"{request.session_id}:{plan_id}:{step_id}:attempt:{request.attempt}"
+            ),
         )
 
     def _render_agent_context(self, request: StepExecutionRequest) -> str:
