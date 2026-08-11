@@ -110,6 +110,7 @@ class ToolRuntimeTest(unittest.IsolatedAsyncioTestCase):
         expected_statuses = (
             ToolInvocationStatus.denied,
             ToolInvocationStatus.failed,
+            ToolInvocationStatus.timed_out,
             ToolInvocationStatus.approval_required,
         )
         for expected_status in expected_statuses:

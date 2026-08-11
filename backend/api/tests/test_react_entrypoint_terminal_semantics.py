@@ -222,7 +222,8 @@ class ReActEntryPointTerminalSemanticsTest(unittest.IsolatedAsyncioTestCase):
         observed_plans = []
 
         class RecordingMachine:
-            async def stream(self, _session_id, plan, _context):
+            async def stream(self, _session_id, plan, _context, *, run_id=None):
+                del run_id
                 observed_plans.append(dict(plan))
                 if False:
                     yield None

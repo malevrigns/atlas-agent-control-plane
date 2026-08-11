@@ -62,12 +62,15 @@ class AgentExecutionMachine:
         session_id: UUID,
         plan_payload: Mapping[str, object],
         execution_context: AgentExecutionContext,
+        *,
+        run_id: UUID | None = None,
     ) -> AsyncIterator[StreamItem]:
         plan = dict(plan_payload)
+        execution_run_id = run_id if run_id is not None else uuid4()
         state = AgentRunState.from_plan(
             session_id,
             plan,
-            run_id=uuid4(),
+            run_id=execution_run_id,
             plan_revision=plan_revision(plan),
         )
         snapshot = MachineSnapshot(state, plan)

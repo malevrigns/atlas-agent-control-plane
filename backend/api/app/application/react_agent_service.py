@@ -1,10 +1,12 @@
 from collections.abc import AsyncIterator
-from uuid import UUID
+from dataclasses import dataclass
+from uuid import UUID, uuid4
 
 from app.application.agent_execution_machine import (
     AgentExecutionContext,
     AgentExecutionMachine,
 )
+from app.application.agent_execution_types import plan_revision
 from app.application.context_engineering_service import ContextEngineeringService
 from app.application.session_file_sync_service import SessionFileSyncService
 from app.application.unit_of_work import UnitOfWork
@@ -16,6 +18,13 @@ from app.domain.sessions.entities import (
     SessionEventType,
     SessionStatus,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionRunIdentity:
+    run_id: UUID
+    plan_id: str
+    plan_revision: int
 
 
 class ReActAgentService:
@@ -43,6 +52,11 @@ class ReActAgentService:
         self, session_id: UUID
     ) -> AsyncIterator[SessionEvent | tuple[str, str]]:
         plan, context = await self._prepare_execution(session_id)
+        identity = ExecutionRunIdentity(
+            uuid4(),
+            self._plan_id(plan),
+            plan_revision(plan),
+        )
         await self.uow.sessions.update_status(session_id, SessionStatus.running.value)
         await self.uow.commit()
         try:
@@ -50,12 +64,14 @@ class ReActAgentService:
                 session_id,
                 plan,
                 context,
+                run_id=identity.run_id,
             ):
                 if isinstance(item, SessionEvent):
+                    identity = self._event_identity(identity, item)
                     await self._commit_event(item)
                 yield item
         except Exception as error:
-            error_event = await self._persist_error(session_id, plan, error)
+            error_event = await self._persist_error(session_id, error, identity)
             yield error_event
 
     async def _prepare_execution(
@@ -113,22 +129,57 @@ class ReActAgentService:
     async def _persist_error(
         self,
         session_id: UUID,
-        plan: dict[str, object],
         error: Exception,
+        identity: ExecutionRunIdentity,
     ) -> SessionEvent:
-        plan_id = plan.get("id") or plan.get("plan_id")
+        payload = build_task_error_payload(
+            error,
+            session_id=session_id,
+            plan_id=identity.plan_id,
+        )
+        payload["run_id"] = str(identity.run_id)
+        payload["plan_revision"] = identity.plan_revision
         event = await self.uow.session_events.add(
             session_id=session_id,
             event_type=SessionEventType.task_error,
-            payload=build_task_error_payload(
-                error,
-                session_id=session_id,
-                plan_id=str(plan_id) if plan_id is not None else None,
-            ),
+            payload=payload,
         )
         await self.uow.sessions.update_status(session_id, SessionStatus.failed.value)
         await self.uow.commit()
         return event
+
+    @classmethod
+    def _event_identity(
+        cls,
+        current: ExecutionRunIdentity,
+        event: SessionEvent,
+    ) -> ExecutionRunIdentity:
+        if "run_id" not in event.payload:
+            return current
+        event_run_id = cls._run_id(event.payload["run_id"])
+        if event_run_id != current.run_id:
+            raise AppException(message="execution event run_id does not match current run")
+        if "plan_revision" not in event.payload:
+            raise AppException(message="execution event is missing plan_revision")
+        return ExecutionRunIdentity(
+            event_run_id,
+            cls._plan_id(event.payload),
+            plan_revision(event.payload),
+        )
+
+    @staticmethod
+    def _run_id(value: object) -> UUID:
+        try:
+            return UUID(str(value))
+        except (TypeError, ValueError) as error:
+            raise AppException(message="execution event run_id is invalid") from error
+
+    @staticmethod
+    def _plan_id(payload: dict[str, object]) -> str:
+        value = payload.get("plan_id") or payload.get("id")
+        if value is None:
+            raise AppException(message="execution plan_id is missing")
+        return str(value)
 
     @staticmethod
     def _find_latest_plan_event(events: list[SessionEvent]) -> SessionEvent:
