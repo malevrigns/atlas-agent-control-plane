@@ -76,11 +76,7 @@ def build_planner_service(
 def build_agent_runner_service(
     db_session: AsyncSession = Depends(get_db_session),
 ) -> AgentRunnerService:
-    uow = UnitOfWork(db_session)
-    return AgentRunnerService.from_uow(
-        uow,
-        planner_service=PlannerService(uow, LLMService()),
-    )
+    return AgentRunnerService.from_uow(UnitOfWork(db_session))
 
 
 def get_task_queue(request: Request) -> RedisAgentTaskQueue:

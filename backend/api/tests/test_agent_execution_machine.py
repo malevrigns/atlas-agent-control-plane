@@ -247,7 +247,9 @@ class AgentExecutionMachineTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_replan_invokes_injected_replanner_from_replanning_phase(self) -> None:
         order: list[str] = []
-        replanner = FakeReplanner(plan_payload(1))
+        replacement = plan_payload(1)
+        replanner = FakeReplanner(replacement)
+        sink = FakeEventSink(order)
         machine = AgentExecutionMachine(
             executor=FakeExecutor(
                 [ToolInvocationStatus.succeeded, ToolInvocationStatus.succeeded], order
@@ -256,15 +258,25 @@ class AgentExecutionMachineTest(unittest.IsolatedAsyncioTestCase):
                 [ReflectionAction.replan, ReflectionAction.accept], order
             ),
             summarizer=FakeSummarizer(order),
-            event_sink=FakeEventSink(order),
+            event_sink=sink,
             replanner=replanner,
             router=AgentStateRouter(),
         )
 
-        await self.collect(machine, plan_payload(1))
+        items = await self.collect(machine, plan_payload(1))
 
         self.assertEqual(len(replanner.states), 1)
         self.assertEqual(replanner.states[0].phase.value, "replanning")
+        replanned = [
+            item
+            for item in items
+            if isinstance(item, SessionEvent)
+            and item.type is SessionEventType.plan_created
+        ]
+        self.assertEqual(len(replanned), 1)
+        self.assertEqual(replanned[0].payload, replacement)
+        self.assertEqual(replanned[0].payload["id"], replacement["id"])
+        self.assertIn(replanned[0], sink.events)
 
     async def test_replan_without_replanner_raises_configuration_error(self) -> None:
         order: list[str] = []

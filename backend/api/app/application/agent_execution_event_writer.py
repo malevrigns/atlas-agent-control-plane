@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from uuid import UUID
 
 from app.application.agent_execution_types import (
     AgentExecutionContext,
@@ -97,6 +98,19 @@ async def add_done_event(
             "memory_ids": [str(item.id) for item in context.memory_context.items],
             "memory_count": len(context.memory_context.items),
         },
+    )
+
+
+async def add_plan_event(
+    sink: EventSink,
+    *,
+    session_id: UUID,
+    plan: Mapping[str, object],
+) -> SessionEvent:
+    return await sink.add(
+        session_id=session_id,
+        event_type=SessionEventType.plan_created,
+        payload=dict(plan),
     )
 
 

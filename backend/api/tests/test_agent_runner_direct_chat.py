@@ -1,12 +1,14 @@
 import unittest
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from app.application.agent_runner_service import (
     AgentRunnerService,
     needs_agent_pipeline,
 )
+from app.application.agent_direct_chat_service import AgentDirectChatService
 from app.core.exceptions import AppException
 from app.domain.llm.entities import LLMStreamDelta
 from app.domain.context_engineering.entities import (
@@ -296,6 +298,25 @@ class NeedsAgentPipelineTest(unittest.TestCase):
 
 
 class DirectChatStreamTest(unittest.IsolatedAsyncioTestCase):
+    def test_attachment_excerpt_reports_consumed_budget(self) -> None:
+        session_file = SimpleNamespace(
+            file=SimpleNamespace(
+                original_name="notes.txt",
+                size=7,
+                storage_path="notes.txt",
+                content_type="text/plain",
+            )
+        )
+        storage = SimpleNamespace(read_bytes=lambda path: b"(notes)")
+
+        name, excerpt, consumed = AgentDirectChatService._attachment_excerpt(
+            session_file, 100, storage
+        )
+
+        self.assertEqual(name, "notes.txt")
+        self.assertEqual(excerpt, "(notes)")
+        self.assertEqual(consumed, len(excerpt))
+
     def build_runner(self, question: str, llm: FakeLLMService):
         session = build_session()
         uow = FakeUow(
@@ -303,12 +324,16 @@ class DirectChatStreamTest(unittest.IsolatedAsyncioTestCase):
             sessions=FakeSessionRepo(),
         )
         session_service = FakeSessionService(session=session, uow=uow)
+        context_service = FakeContextService(question)
         runner = AgentRunnerService(
             session_service=session_service,  # type: ignore[arg-type]
             planner_service=UnusedPlannerService(),  # type: ignore[arg-type]
             react_service=UnusedReactService(),  # type: ignore[arg-type]
-            llm_service=llm,  # type: ignore[arg-type]
-            context_service=FakeContextService(question),  # type: ignore[arg-type]
+            direct_chat_service=AgentDirectChatService(
+                session_service,  # type: ignore[arg-type]
+                llm,  # type: ignore[arg-type]
+                context_service,  # type: ignore[arg-type]
+            ),
         )
         return runner, session, session_service, uow
 

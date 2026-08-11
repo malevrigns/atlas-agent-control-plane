@@ -4,6 +4,7 @@ from uuid import UUID
 from app.application.agent_execution_event_writer import (
     add_done_event,
     add_failure_event,
+    add_plan_event,
     add_reflected_event,
     add_terminal_event,
 )
@@ -68,14 +69,20 @@ class AgentExecutionMachine:
             transition = None
             async for item in self._dispatch(snapshot, execution_context):
                 if isinstance(item, NodeTransition):
-                    if transition is not None:
-                        raise AppException(message="machine node returned two transitions")
-                    transition = item
-                else:
-                    yield item
+                    transition = self._capture_transition(transition, item)
+                    continue
+                yield item
             if transition is None:
                 raise AppException(message="machine node did not return a transition")
             snapshot = transition.snapshot
+
+    @staticmethod
+    def _capture_transition(
+        current: NodeTransition | None, candidate: NodeTransition
+    ) -> NodeTransition:
+        if current is not None:
+            raise AppException(message="machine node returned two transitions")
+        return candidate
 
     async def _dispatch(
         self, snapshot: MachineSnapshot, context: AgentExecutionContext
@@ -163,7 +170,20 @@ class AgentExecutionMachine:
             )
         replacement = dict(await self._replanner.replan(snapshot.state))
         state = AgentRunState.from_plan(snapshot.state.session_id, replacement)
-        yield NodeTransition(MachineSnapshot(state, replacement, (), snapshot.events))
+        plan_event = await add_plan_event(
+            self._event_sink,
+            session_id=state.session_id,
+            plan=replacement,
+        )
+        yield plan_event
+        yield NodeTransition(
+            MachineSnapshot(
+                state,
+                replacement,
+                (),
+                snapshot.events + (plan_event,),
+            )
+        )
 
     async def _summarize_node(
         self, snapshot: MachineSnapshot, context: AgentExecutionContext

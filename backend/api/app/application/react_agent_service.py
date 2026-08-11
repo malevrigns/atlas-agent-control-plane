@@ -85,7 +85,10 @@ class ReActAgentService:
         status = None
         if event.type in {SessionEventType.task_done, SessionEventType.step_blocked}:
             status = SessionStatus.idle
-        elif event.type is SessionEventType.task_error:
+        elif event.type in {
+            SessionEventType.step_failed,
+            SessionEventType.task_error,
+        }:
             status = SessionStatus.failed
         if status is not None:
             await self.uow.sessions.update_status(event.session_id, status.value)

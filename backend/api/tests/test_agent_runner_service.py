@@ -1,8 +1,9 @@
 import unittest
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import ANY, patch
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 from app.application.agent_runner_service import AgentRunnerService
@@ -121,79 +122,58 @@ class FakeReactService:
         )
 
 
+class FakeDirectChatService:
+    model = object()
+    context_service = object()
+
+    async def stream(self, *, session_id: UUID, content: str):
+        raise AssertionError("tool task must not enter direct chat")
+        yield
+
+
 class AgentRunnerServiceTest(unittest.IsolatedAsyncioTestCase):
+    def test_runner_requires_composed_direct_chat_service(self) -> None:
+        with self.assertRaises(TypeError):
+            AgentRunnerService(
+                session_service=SimpleNamespace(uow=SimpleNamespace()),
+                planner_service=object(),
+                react_service=object(),
+            )
+
+    def assert_shared_model(self, service, model) -> None:
+        machine = service.react_service._execution_machine
+        selector = machine._executor._tool_caller._selector
+        self.assertIs(service.llm_service, model)
+        self.assertIs(service.direct_chat_service.model, model)
+        self.assertIs(service.planner_service.llm_service, model)
+        self.assertIs(machine._critic._model, model)
+        self.assertIs(machine._summarizer._model, model)
+        self.assertIs(selector.llm_service, model)
+
+    def test_agent_runner_module_stays_within_file_limit(self) -> None:
+        path = Path(__file__).parents[1] / "app/application/agent_runner_service.py"
+
+        self.assertLessEqual(len(path.read_text(encoding="utf-8").splitlines()), 300)
+
+    def test_from_uow_shares_explicit_model_across_production_graph(self) -> None:
+        model = object()
+        uow = SimpleNamespace(session_events=object())
+
+        service = AgentRunnerService.from_uow(uow, llm_service=model)
+
+        self.assert_shared_model(service, model)
+
     def test_from_uow_injects_shared_model_into_default_planner(self) -> None:
         uow = SimpleNamespace()
         model = object()
-        planner = object()
-        react = object()
-        with (
-            patch("app.application.agent_runner_service.LLMService", return_value=model),
-            patch(
-                "app.application.agent_runner_service.PlannerService",
-                return_value=planner,
-            ) as planner_class,
-            patch(
-                "app.application.agent_runner_service._build_react_service",
-                return_value=react,
-            ),
-        ):
+        uow.session_events = object()
+        with patch(
+            "app.application.agent_runtime_composition.LLMService", return_value=model
+        ) as model_class:
             service = AgentRunnerService.from_uow(uow)
 
-        planner_class.assert_called_once_with(uow, llm_service=model)
-        self.assertIs(service.planner_service, planner)
-        self.assertIs(service.llm_service, model)
-
-    def test_from_uow_shares_one_model_across_direct_critic_and_summary(self) -> None:
-        uow = SimpleNamespace(session_events=object())
-        model = object()
-        critic = object()
-        summary = SimpleNamespace(summarize_tool_output=lambda tool, output: output)
-        react = object()
-        machine = object()
-        with (
-            patch("app.application.agent_runner_service.LLMService", return_value=model),
-            patch(
-                "app.application.agent_runner_service.CriticService",
-                return_value=critic,
-                create=True,
-            ) as critic_class,
-            patch(
-                "app.application.agent_runner_service.AgentSummaryService",
-                return_value=summary,
-                create=True,
-            ) as summary_class,
-            patch(
-                "app.application.agent_runner_service.AgentExecutionMachine",
-                return_value=machine,
-                create=True,
-            ) as machine_class,
-            patch(
-                "app.application.agent_runner_service.ReActAgentService",
-                return_value=react,
-            ) as react_class,
-        ):
-            service = AgentRunnerService.from_uow(
-                uow,
-                planner_service=FakePlannerService(),
-            )
-
-        self.assertIs(service.llm_service, model)
-        critic_class.assert_called_once_with(model)
-        summary_class.assert_called_once_with(uow, model)
-        machine_class.assert_called_once_with(
-            executor=ANY,
-            critic=critic,
-            summarizer=summary,
-            event_sink=uow.session_events,
-            router=ANY,
-        )
-        react_class.assert_called_once_with(
-            uow,
-            execution_machine=machine,
-            file_sync_service=ANY,
-            context_service=ANY,
-        )
+        model_class.assert_called_once_with()
+        self.assert_shared_model(service, model)
 
     # ===================== 第1步：验证对话执行流由统一 Runner 串起来 =====================
     async def test_stream_user_message_yields_unified_runner_events(self) -> None:
@@ -202,6 +182,7 @@ class AgentRunnerServiceTest(unittest.IsolatedAsyncioTestCase):
             session_service=FakeSessionService(session),
             planner_service=FakePlannerService(),
             react_service=FakeReactService(),
+            direct_chat_service=FakeDirectChatService(),
         )
 
         items = [

@@ -4,7 +4,7 @@ from types import MappingProxyType
 from typing import Protocol
 from uuid import UUID
 
-from app.application.agent_summary_service import AgentSummaryRequest, AgentSummaryResult
+from app.application.agent_summary_types import AgentSummaryRequest, AgentSummaryResult
 from app.application.react_step_executor import StepExecutionOutcome, StepExecutionRequest
 from app.domain.agent_runtime.entities import (
     AgentRunState,

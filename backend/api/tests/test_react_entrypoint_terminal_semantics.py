@@ -12,7 +12,13 @@ from app.domain.agent_core.tools import ToolInvocationStatus
 from app.domain.agent_runtime.entities import ReflectionAction
 from app.domain.agent_runtime.router import AgentStateRouter
 from app.domain.sessions.entities import SessionEvent, SessionEventType, SessionStatus
-from tests.test_agent_execution_machine import FakeCritic, FakeExecutor, FakeSummarizer
+from tests.test_agent_execution_machine import (
+    FakeCritic,
+    FakeExecutor,
+    FakeReplanner,
+    FakeSummarizer,
+    plan_payload,
+)
 from tests.test_step_failure_semantics import FakeUnitOfWork, build_plan_event
 
 
@@ -80,6 +86,22 @@ class ReActEntryPointTerminalSemanticsTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(SessionEventType.step_completed, event_types)
         self.assertNotIn(SessionEventType.task_done, event_types)
 
+    async def test_step_failed_marks_session_failed_before_consumer_closes(self) -> None:
+        session_id, service, uow, _, _ = self.build_service(
+            ToolInvocationStatus.failed, ReflectionAction.fail
+        )
+        stream = service.stream_latest_plan(session_id)
+
+        async for item in stream:
+            if (
+                isinstance(item, SessionEvent)
+                and item.type is SessionEventType.step_failed
+            ):
+                break
+        await stream.aclose()
+
+        self.assertEqual(uow.sessions.status, SessionStatus.failed)
+
     async def test_stream_blocked_skips_critic_and_task_done(self) -> None:
         session_id, service, uow, critic, _ = self.build_service(
             ToolInvocationStatus.approval_required, ReflectionAction.accept
@@ -139,6 +161,45 @@ class ReActEntryPointTerminalSemanticsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(events[-1].type, SessionEventType.task_error)
         self.assertEqual(events[-1].payload["message"], "summary provider failed")
         self.assertNotIn(SessionEventType.task_done, [event.type for event in events])
+
+    async def test_replanned_payload_becomes_next_timeline_plan(self) -> None:
+        session_id = uuid4()
+        original_event = build_plan_event(session_id)
+        replacement = plan_payload(1)
+        uow = FakeUnitOfWork([original_event])
+        order = []
+        machine = AgentExecutionMachine(
+            executor=FakeExecutor(
+                [ToolInvocationStatus.succeeded, ToolInvocationStatus.succeeded], order
+            ),
+            critic=FakeCritic(
+                [ReflectionAction.replan, ReflectionAction.accept], order
+            ),
+            summarizer=FakeSummarizer(order),
+            event_sink=uow.session_events,
+            replanner=FakeReplanner(replacement),
+            router=AgentStateRouter(),
+        )
+        service = ReActAgentService(
+            uow,
+            execution_machine=machine,
+            file_sync_service=FakeFileSync(),
+            context_service=FakeContextService(),
+        )
+        await service.execute_latest_plan(session_id)
+
+        observed_plans = []
+
+        class RecordingMachine:
+            async def stream(self, _session_id, plan, _context):
+                observed_plans.append(dict(plan))
+                if False:
+                    yield None
+
+        service._execution_machine = RecordingMachine()
+        await service.execute_latest_plan(session_id)
+
+        self.assertEqual(observed_plans, [replacement])
 
 
 if __name__ == "__main__":
