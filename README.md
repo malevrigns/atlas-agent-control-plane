@@ -64,6 +64,23 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 4. 大输出转为内容寻址 Artifact，调用过程写入审计记录。
 5. 状态哈希、环境指纹和校验报告共同生成可恢复 Checkpoint。
 
+### Plan / Execute / Reflect / Summarize 执行机
+
+工具型对话使用项目内的、**不依赖工作流框架**的异步状态机推进；普通问答仍走直接流式回答。`AgentRunnerService` 在组合边界创建一个 `LLMService`，将它注入默认 Planner、直答、Critic 与 Summary，避免这些角色各自创建模型客户端。
+
+| 状态 | 职责 | 可观察结果 |
+| --- | --- | --- |
+| Plan | Planner 生成结构化计划并写入 `plan_created` | 规划思考增量与 `plan_created` |
+| Execute | `ReActStepExecutor` 为当前步骤构造请求并经 `ToolRuntime` 调用受治理工具 | `step_started`、`tool_called` |
+| Reflect | Critic 根据步骤目标和工具观察作出 `accept`、`retry`、`replan` 或 `fail` 决定 | `step_reflected`，随后路由到下一状态 |
+| Summarize | `AgentSummaryService` 仅依据已观察到的工具证据流式生成最终回答并持久化 assistant 消息 | 最终回答增量、`message_created`、`task_done` |
+
+常规事件顺序为 `plan_created -> step_started -> tool_called -> step_reflected -> step_completed`；全部步骤接受后才进入 Summary。`retry` 会返回同一步的 Execute，`fail` 依次产生 `step_failed -> task_error`，而审批等待产生 `step_blocked` 且不调用 Critic。`replan` 只委托已注入的规划适配器；当前没有生产 Replanner 时会显式报配置错误，而不会伪造重规划结果。
+
+每个 `StepExecutionRequest` 带有从 1 开始的 `attempt`。该值进入 ToolRuntime 的幂等键，因此 Critic 的 retry 会执行同一步的新尝试，而不是被前一次调用去重；`deduplicated` 仍是可被 Critic 接受的成功观察。执行前会构建会话记忆上下文，并将可同步的文本附件写入既有 Sandbox；工具选择继续通过受权限、风险、超时和审计约束的 ToolRuntime。
+
+本里程碑持久化的是 `SessionEvent` 中的可观察执行事件，不引入 durable Run Ledger。Prometheus、自动回滚、Prompt 自动调优，以及基于 Function Calling 的编排均不属于当前实现范围。
+
 <details>
 <summary><strong>展开完整系统拓扑</strong></summary>
 

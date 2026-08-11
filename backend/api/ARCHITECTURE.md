@@ -235,6 +235,39 @@ app/application/agent_task_runner.py
 
 这是后续最需要继续收敛的领域。最终 Runner 对齐时，会把任务执行循环、事件输出、工具调用和停止/恢复逻辑整理得更清楚。
 
+#### Plan / Execute / Reflect / Summarize 状态机
+
+当前 Agent 执行使用项目内的异步状态机，不依赖 LangGraph 或其他工作流框架。`AgentExecutionMachine` 只在 `state.phase` 指定的节点执行一次，并以不可变 `AgentRunState` 和 `MachineSnapshot` 返回下一状态；未知 phase、缺失 terminal result 或未配置的 replan adapter 都显式失败，不隐藏循环上限或规则化成功路径。
+
+| Phase | 所有者 | 输入 | 输出与迁移 |
+| --- | --- | --- | --- |
+| `executing` | `ReActStepExecutor` | 当前计划步骤、记忆上下文、步骤历史、attempt | 经 ToolRuntime 执行，写出 `step_started`、`tool_called`；成功/失败观察进入 `reflecting`，`approval_required` 进入 `blocked` |
+| `reflecting` | `CriticService` + `AgentStateRouter` | `RunPlanStep` 与 `StepObservation` | 先写 `step_reflected`；`accept` 前进或进入 `summarizing`，`retry` 回到同一步骤，`replan` 进入 `replanning`，`fail` 进入 `failed` |
+| `replanning` | 注入的 Replanner adapter | 当前运行状态 | 用替换计划开始新的执行状态；当前生产组合未提供 adapter，触发时明确报告配置错误 |
+| `summarizing` | `AgentSummaryService` | 计划、已观察的事件、MemoryContext | 流式输出最终回答、持久化 assistant message，随后写 `task_done` 并进入 `completed` |
+
+可观察事件的基本顺序是：
+
+```text
+plan_created -> step_started -> tool_called -> step_reflected
+step_reflected(accept) -> step_completed
+step_reflected(retry) -> same step_started
+step_reflected(replan) -> planning adapter
+step_reflected(fail) -> step_failed -> task_error
+```
+
+`approval_required` 产生 `step_blocked`，不会调用 Critic，也不会产生 `step_completed` 或 `task_done`。对于 `accept`、`retry`、`replan` 和 `fail`，`step_reflected` 先于后续路由或终态事件持久化。同步 API `execute_latest_plan()` 只从 `stream_latest_plan()` 收集 `SessionEvent`，SSE 和同步调用因此共享同一条状态机路径。
+
+#### 依赖注入与执行上下文
+
+`AgentRunnerService.from_uow()` 是默认组合边界：它创建一个 `LLMService` 并将该实例传入 Planner、直接聊天、Critic、Summary 和工具选择器；执行机、Critic 和 Summary 都不自行创建模型。`ReActAgentService` 负责加载最新计划、构建 `ContextEngineeringService` 产生的 MemoryContext、同步文本附件到既有 Sandbox，并将事件逐个提交；状态机本身依赖 Protocol 形式的 executor、critic、summarizer、event sink 和可选 replanner。
+
+`StepExecutionRequest.attempt` 从 1 开始并进入 ToolRuntime 幂等键：同一步的 retry 使用不同键，确保重新调用工具而不会被上次尝试去重。`succeeded` 和 `deduplicated` 都是可由 Critic 接受的成功观察；失败、超时和拒绝仍会先作为观察交给 Critic 决策。ToolRuntime 继续拥有权限、风险、审批、超时和审计边界，状态机不绕过它。
+
+#### 当前里程碑边界
+
+本里程碑将可观察执行历史持久化为 `SessionEvent`，尚未实现 durable Run Ledger。它也没有实现生产 Replanner、Function Calling 编排、Prometheus 指标、自动回滚或 Prompt 自动调优；这些能力不能被当前事件或状态机文档暗示为已交付。
+
 ### Tool Domain
 
 对应当前：
