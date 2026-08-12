@@ -375,6 +375,7 @@ function WorkspaceHome() {
                 onSelectFile={workspace.selectFile}
                 onStop={workspace.stopSession}
                 onUploadFile={workspace.uploadAttachment}
+                onDeleteFile={workspace.deleteAttachment}
                 executingPlan={workspace.executingPlan}
                 plan={workspace.latestPlan}
                 planning={workspace.planning}
@@ -385,6 +386,7 @@ function WorkspaceHome() {
                 sending={workspace.sendingMessage}
                 stopping={workspace.stoppingSession}
                 uploadingFile={workspace.uploadingFile}
+                deletingFileId={workspace.deletingFileId}
               />
             ) : null}
             {activeView === "settings" ? (

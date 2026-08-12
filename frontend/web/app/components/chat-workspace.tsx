@@ -40,6 +40,7 @@ type ChatWorkspaceProps = {
   onSelectFile: (file: SessionFileItem | null) => void;
   onStop: () => void;
   onUploadFile: (file: File) => void;
+  onDeleteFile: (file: SessionFileItem) => void;
   selectedFile: SessionFileItem | null;
   vnc: LoadState<VncStatusData>;
   selectedSession: SessionItem | null;
@@ -50,6 +51,7 @@ type ChatWorkspaceProps = {
   sending: boolean;
   stopping: boolean;
   uploadingFile: boolean;
+  deletingFileId: string | null;
 };
 
 export function ChatWorkspace({
@@ -72,6 +74,7 @@ export function ChatWorkspace({
   onSelectFile,
   onStop,
   onUploadFile,
+  onDeleteFile,
   selectedFile,
   vnc,
   selectedSession,
@@ -82,6 +85,7 @@ export function ChatWorkspace({
   sending,
   stopping,
   uploadingFile,
+  deletingFileId,
 }: ChatWorkspaceProps) {
   const [selectedToolEventId, setSelectedToolEventId] = useState<string | null>(
     null,
@@ -147,7 +151,12 @@ export function ChatWorkspace({
                   onUpload={onUploadFile}
                   uploading={uploadingFile}
                 />
-                <AttachmentList files={attachments} onSelectFile={openFilePreview} />
+                <AttachmentList
+                  deletingId={deletingFileId}
+                  files={attachments}
+                  onDeleteFile={onDeleteFile}
+                  onSelectFile={openFilePreview}
+                />
               </div>
             </div>
           </div>

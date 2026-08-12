@@ -93,6 +93,15 @@ export async function uploadSessionFile(
   return payload.data;
 }
 
+export async function deleteSessionFile(
+  sessionId: string,
+  sessionFileId: string,
+): Promise<void> {
+  return requestApi<void>(`/api/sessions/${sessionId}/files/${sessionFileId}`, {
+    method: "DELETE",
+  });
+}
+
 // 本地开发时 Next 的 rewrite 代理会把 SSE 整体缓冲，逐字流会退化成
 // “憋很久然后一次性弹出”。设置 NEXT_PUBLIC_STREAM_BASE（如
 // http://127.0.0.1:8000）让流式端点直连后端绕过代理；后端 CORS 已放行
