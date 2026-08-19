@@ -157,6 +157,32 @@ class FileService:
             )
         return await self.uow.session_files.list_by_session(session_id)
 
+    async def delete_session_file(self, session_id: UUID, session_file_id: UUID) -> None:
+        # ===================== 第1步：确认会话和附件归属 =====================
+        # 删除接口不允许跨会话操作：session_file 必须确实属于路径里的会话。
+        session = await self.uow.sessions.get(session_id)
+        if session is None:
+            raise AppException(
+                message="session not found",
+                code=404,
+                status_code=404,
+            )
+        session_file = await self.uow.session_files.get(session_file_id)
+        if session_file is None or session_file.session_id != session_id:
+            raise AppException(
+                message="file not found",
+                code=404,
+                status_code=404,
+            )
+
+        # ===================== 第2步：先删数据库记录，再清理磁盘内容 =====================
+        # 归属关系和文件元数据在同一事务里删除；提交成功后再删磁盘文件，
+        # 避免磁盘删除失败导致接口反复报错而记录已消失。
+        await self.uow.session_files.delete(session_file)
+        await self.uow.files.delete(session_file.file)
+        await self.uow.commit()
+        self.storage.delete(session_file.file.storage_path)
+
     async def get_file(self, file_id: UUID) -> FileObject:
         file_object = await self.uow.files.get(file_id)
         if file_object is None:

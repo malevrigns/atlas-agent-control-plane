@@ -39,6 +39,11 @@ class SqlAlchemyFileRepository(FileRepository):
         model = result.scalar_one_or_none()
         return model.to_entity() if model else None
 
+    async def delete(self, file_object: FileObject) -> None:
+        model = await self.db_session.get(FileObjectModel, file_object.id)
+        if model is not None:
+            await self.db_session.delete(model)
+
 
 class SqlAlchemySessionFileRepository(SessionFileRepository):
     def __init__(self, db_session: AsyncSession) -> None:
@@ -54,6 +59,12 @@ class SqlAlchemySessionFileRepository(SessionFileRepository):
         created = result.scalar_one()
         return created.to_entity()
 
+    async def get(self, session_file_id: UUID) -> SessionFile | None:
+        stmt = select(SessionFileModel).where(SessionFileModel.id == session_file_id)
+        result = await self.db_session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return model.to_entity() if model else None
+
     async def list_by_session(self, session_id: UUID) -> list[SessionFile]:
         stmt = (
             select(SessionFileModel)
@@ -62,3 +73,8 @@ class SqlAlchemySessionFileRepository(SessionFileRepository):
         )
         result = await self.db_session.execute(stmt)
         return [model.to_entity() for model in result.scalars()]
+
+    async def delete(self, session_file: SessionFile) -> None:
+        model = await self.db_session.get(SessionFileModel, session_file.id)
+        if model is not None:
+            await self.db_session.delete(model)

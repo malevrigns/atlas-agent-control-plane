@@ -550,6 +550,16 @@ async def list_session_files(
     )
 
 
+@router.delete("/{session_id}/files/{session_file_id}", status_code=204)
+async def delete_session_file(
+    session_id: UUID,
+    session_file_id: UUID,
+    service: FileService = Depends(build_file_service),
+) -> Response:
+    await service.delete_session_file(session_id, session_file_id)
+    return Response(status_code=204)
+
+
 @router.delete("/{session_id}", status_code=204)
 async def delete_session(
     session_id: UUID,

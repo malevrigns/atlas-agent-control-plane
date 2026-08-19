@@ -6,6 +6,7 @@ import {
   clearUnread,
   createSession,
   deleteSession,
+  deleteSessionFile,
   fetchEvents,
   fetchMessages,
   fetchSessionContext,
@@ -54,6 +55,7 @@ type SessionState = {
   submitting: boolean;
   title: string;
   uploadingFile: boolean;
+  deletingFileId: string | null;
 };
 
 type SessionActions = {
@@ -72,6 +74,7 @@ type SessionActions = {
   sendMessage: () => Promise<void>;
   stopSession: () => Promise<void>;
   uploadAttachment: (file: File) => Promise<void>;
+  deleteAttachment: (file: SessionFileItem) => Promise<void>;
   setActionError: (message: string | null) => void;
   setDraft: (draft: string) => void;
   setTitle: (title: string) => void;
@@ -331,6 +334,7 @@ export const useSessionStore = create<SessionState & SessionActions>(
     submitting: false,
     title: "",
     uploadingFile: false,
+    deletingFileId: null,
 
     setActionError: (message) => set({ actionError: message }),
     setDraft: (draft) => set({ draft }),
@@ -685,6 +689,41 @@ export const useSessionStore = create<SessionState & SessionActions>(
         set({ actionError: getErrorMessage(error) });
       } finally {
         set({ uploadingFile: false });
+      }
+    },
+
+    deleteAttachment: async (file) => {
+      const sessionId = get().selectedSessionId;
+      if (!sessionId) {
+        set({ actionError: "请先选择一个会话" });
+        return;
+      }
+
+      set({ actionError: null, deletingFileId: file.id });
+      try {
+        await deleteSessionFile(sessionId, file.id);
+        set((state) => ({
+          attachments: state.attachments.filter((item) => item.id !== file.id),
+          files:
+            state.files.type === "ready"
+              ? {
+                  type: "ready",
+                  data: state.files.data.filter((item) => item.id !== file.id),
+                }
+              : state.files,
+          // 正在预览的文件被删除时，同步关闭预览面板，避免展示失效内容。
+          filePreview:
+            state.selectedFile?.id === file.id
+              ? { type: "ready", data: null }
+              : state.filePreview,
+          selectedFile:
+            state.selectedFile?.id === file.id ? null : state.selectedFile,
+        }));
+        await get().loadSessionContext(sessionId);
+      } catch (error) {
+        set({ actionError: getErrorMessage(error) });
+      } finally {
+        set({ deletingFileId: null });
       }
     },
   }),
