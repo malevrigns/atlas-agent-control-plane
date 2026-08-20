@@ -5,20 +5,20 @@
 ​        笔者第一次部署 OpenClaw 时，它带给我的体验是前所未有的。但问题也随之而来：这些通用 Agent 已经这么强大了，我们还有没有必要从零开发一个新的智能体？这个问题困扰了笔者很久。后来笔者慢慢有了答案：做自己领域的垂类 Agent，和使用通用 Agent，并不冲突。通用 Agent 像一把通用刀，而垂类 Agent 更像一台已经按业务流程装配好的机器。前者解决广泛问题，后者解决稳定场景。
 ​        也正因如此，才有了这次实践记录。笔者很少写文档，不过这次还是想把开发过程中的问题、架构取舍和一些不成熟的技术思考记录下来。纵使这个时代资料多如繁星，我也希望自己的思考能在这个时代留下痕迹。
 ​        项目开始之前，笔者先简要说一下技术栈。笔者素来推崇前沿技术，当然这多少有点激进，因为前沿技术在生态完备性和工程成熟度上总会有所欠缺。笔者喜欢 Rust 给人的安全感，也喜欢 Go 天然高并发的通畅。可惜这次实践并不以炫技为目的，而是要把一个完整的 AI Agent 工作台从零搭出来，所以笔者会更看重工程闭环：后端、前端、数据库、消息流、沙箱、工具、部署，都要能跑起来。
-​        本项目可以概括为一个全栈 AI Agent 工作台。它不是一个只接 LLM 接口的聊天壳，也不是一个提示词页面，而是一个能围绕任务进行规划、执行、调用工具、观察结果、形成最终回答的系统。它包含 FastAPI、SQLAlchemy、Alembic、PostgreSQL、Redis、Next.js、Electron、Textual、Nginx、Docker Compose、Sandbox、Playwright、VNC、MCP、A2A、多 Agent 编排、类型化长期记忆、RAG 知识库、Skill 注册中心、Checkpoint DAG 以及可审计 Tool Runtime。
+​        本项目可以概括为一个全栈 AI Agent 工作台。它不是一个只接 LLM 接口的聊天壳，也不是一个提示词页面，而是一个能围绕任务进行规划、执行、调用工具、观察结果、形成最终回答的系统。它包含 FastAPI、SQLAlchemy、Alembic、PostgreSQL、Redis、Next.js、Textual、Nginx、Docker Compose、Sandbox、Playwright、VNC、MCP、A2A、多 Agent 编排、类型化长期记忆、RAG 知识库、Skill 注册中心、Checkpoint DAG 以及可审计 Tool Runtime。
 ​        言归正传，下面进入真正的项目初始化。本文后续统一把项目称为 AtlasAgent，名字不重要，重要的是我们要亲手把它从一堆目录变成一个能执行任务的 Agent 产品。
 ![全栈多 Agent 架构图](assets/agent-workbench-architecture.png)
 
 ## 如何使用本教程
 
-​        本教程共 57 章（第 0 章到第五十六章），建议按顺序阅读。每一章的结构基本一致：
+​        本教程共 55 章（第 0 章到第五十六章，其中桌面客户端章节已随 Electron 移除），建议按顺序阅读。每一章的结构基本一致：
 
 - **本章目标**：读完这一章你能做到什么。
 - **为什么需要这一章**：设计动机、架构取舍与常见坑。
 - **实现步骤**：分步给出后端 / 前端 / 配置的完整可运行代码。
 - **本章小结 / 验收**：如何确认这一章确实跑通。
 
-​        只要跟着 57 章走完，你就能从一个空目录，亲手搭出一个能规划任务、调用工具、观察结果并生成带证据最终回答的全栈 AI Agent 工作台，并学会把它升级为有认证、可恢复、可追溯、可审计，并且带 RAG 知识库与技能注册中心的 Control Plane。
+​        只要跟着 55 章走完，你就能从一个空目录，亲手搭出一个能规划任务、调用工具、观察结果并生成带证据最终回答的全栈 AI Agent 工作台，并学会把它升级为有认证、可恢复、可追溯、可审计，并且带 RAG 知识库与技能注册中心的 Control Plane。
 
 ​        最后四章（第五十三章到第五十六章）是一次面向真实使用的体验补完：把"什么都往流水线塞"的对话改造成能直接流式回答、能实时直播推理过程的 GPT 式体验，让知识库在每一轮问答里自动召回并带来源引用，给 Agent 补上读取真实网页正文并据此作答的能力，最后重塑对话界面的任务卡片、锚定滚动与主题体系。这四章的每一个改动都来自真实使用中被吐槽的问题，坑也都是踩过之后才写下来的。
 
@@ -49,7 +49,7 @@ atlas-agent/
 | 层 | 技术 |
 | --- | --- |
 | 后端 API | FastAPI · SQLAlchemy · Alembic · PostgreSQL + pgvector · Redis · Qdrant（可选） |
-| 客户端 | Next.js Web · Electron 桌面端 · Textual TUI |
+| 客户端 | Next.js Web（PWA） · Textual TUI |
 | 沙箱 | FastAPI · Playwright · Xvfb + noVNC 远程桌面 |
 | Agent 能力 | 规划 / ReAct · 直答分流 · 流式推理直播 · 类型化记忆 · RAG 知识库与自动召回 · 网页正文读取 · Skill 注册中心 · Checkpoint DAG · 可审计 Tool Runtime · MCP / A2A |
 | 部署 | Nginx 网关 · Docker Compose · 私有化交付 |
@@ -138,12 +138,10 @@ CLEAN_VOLUMES=true ./scripts/stop.sh # 连同数据库、Redis、上传文件一
 - [第四十四章. 项目简历落笔](chapters/44-项目简历落笔.md)
 - [第四十五章. Memory Control Plane 与 Checkpoint DAG](chapters/45-Memory%20Control%20Plane%20与%20Checkpoint%20DAG.md)
 - [第四十六章. Tool Runtime 权限、幂等与审计](chapters/46-Tool%20Runtime%20权限、幂等与审计.md)
-- [第四十七章. Electron 多主题桌面客户端](chapters/47-Electron%20多主题桌面客户端.md)
 - [第四十八章. 键盘优先 TUI 客户端](chapters/48-键盘优先%20TUI%20客户端.md)
 - [第四十九章. 迁移、测试与交付验收](chapters/49-迁移、测试与交付验收.md)
 - [第五十章. RAG 检索增强生成与知识库](chapters/50-RAG%20检索增强生成与知识库.md)
 - [第五十一章. Skill 注册中心与上下文注入](chapters/51-Skill%20注册中心与上下文注入.md)
-- [第五十二章. 桌面客户端重构与管理工作台](chapters/52-桌面客户端重构与管理工作台.md)
 - [第五十三章. 直答路由与推理流直播](chapters/53-直答路由与推理流直播.md)
 - [第五十四章. 知识库自动召回与带引用作答](chapters/54-知识库自动召回与带引用作答.md)
 - [第五十五章. 浏览器读页作答与工具自愈](chapters/55-浏览器读页作答与工具自愈.md)

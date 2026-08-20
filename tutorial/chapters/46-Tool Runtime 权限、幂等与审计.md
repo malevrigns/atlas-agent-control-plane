@@ -124,4 +124,4 @@ uv run python -m unittest tests.test_tool_runtime tests.test_tool_selection_serv
 
 ---
 
-[← 第四十五章. Memory Control Plane 与 Checkpoint DAG](45-Memory%20Control%20Plane%20与%20Checkpoint%20DAG.md) · [返回目录](../README.md) · [第四十七章. Electron 多主题桌面客户端 →](47-Electron%20多主题桌面客户端.md)
+[← 第四十五章. Memory Control Plane 与 Checkpoint DAG](45-Memory%20Control%20Plane%20与%20Checkpoint%20DAG.md) · [返回目录](../README.md) · [第四十八章. 键盘优先 TUI 客户端 →](48-键盘优先%20TUI%20客户端.md)

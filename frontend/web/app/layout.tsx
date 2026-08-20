@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 
 import { PwaRegister } from "./components/pwa-register";
@@ -8,12 +8,15 @@ export const metadata: Metadata = {
   title: "AtlasAgent",
   description: "AtlasAgent workspace",
   manifest: "/manifest.webmanifest",
-  themeColor: "#050506",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "AtlasAgent",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#050506",
 };
 
 // 首帧前从 localStorage 恢复主题，避免亮色用户看到暗色闪烁。
