@@ -77,7 +77,7 @@ export function RunningBlock({ text }: RunningBlockProps) {
     <div className="flex gap-4">
       <AgentAvatar loading />
       <div className="rounded-2xl border border-(--accent)/20 bg-(--accent)/10 px-5 py-4 text-base font-semibold text-(--accent) shadow-2xl shadow-blue-950/20">
-        {text}
+        <span className="shimmer-text">{text}</span>
       </div>
     </div>
   );

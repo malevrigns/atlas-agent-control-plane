@@ -117,6 +117,7 @@ async def stream_message(
         async for item in runner.stream_user_message(
             session_id=session_id,
             content=payload.content,
+            skill_ids=payload.skill_ids,
         ):
             yield encode_sse(item.name, to_runner_stream_payload(item))
 

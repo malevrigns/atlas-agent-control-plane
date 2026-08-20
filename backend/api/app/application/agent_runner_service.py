@@ -61,19 +61,28 @@ class AgentRunnerService:
         )
 
     async def stream_user_message(
-        self, *, session_id: UUID, content: str
+        self,
+        *,
+        session_id: UUID,
+        content: str,
+        skill_ids: list[UUID] | None = None,
     ) -> AsyncIterator[AgentRunnerStreamItem]:
         try:
             async for item in self._stream_user_message_inner(
                 session_id=session_id,
                 content=content,
+                skill_ids=skill_ids,
             ):
                 yield item
         finally:
             await self._reset_running_session(session_id)
 
     async def _stream_user_message_inner(
-        self, *, session_id: UUID, content: str
+        self,
+        *,
+        session_id: UUID,
+        content: str,
+        skill_ids: list[UUID] | None = None,
     ) -> AsyncIterator[AgentRunnerStreamItem]:
         running = await self.session_service.mark_running(session_id)
         yield AgentRunnerStreamItem("session_status", running)
@@ -84,12 +93,29 @@ class AgentRunnerService:
                 content=content,
             )
             yield AgentRunnerStreamItem(message_event.type.value, message_event)
+
+            # 用户显式调用的技能（/ 触发）：流水线拼进规划任务，直答注入 system 上下文。
+            invoked_skills = await self._load_invoked_skills(skill_ids)
+
             if needs_agent_pipeline(content):
-                stream = self._stream_pipeline(session_id=session_id, content=content)
+                task_text = content
+                if invoked_skills:
+                    skill_blocks = "\n\n".join(
+                        f"《{label}》：\n{instructions}"
+                        for label, instructions in invoked_skills
+                    )
+                    task_text = (
+                        f"{content}\n\n[用户显式调用的技能指引，规划与执行时必须遵循]\n"
+                        f"{skill_blocks}"
+                    )
+                stream = self._stream_pipeline(
+                    session_id=session_id, content=task_text
+                )
             else:
                 stream = self.direct_chat_service.stream(
                     session_id=session_id,
                     content=content,
+                    invoked_skills=invoked_skills,
                 )
             async for item in stream:
                 yield item
@@ -135,6 +161,42 @@ class AgentRunnerService:
                 )
             else:
                 yield AgentRunnerStreamItem(item.type.value, item)
+
+    async def _load_invoked_skills(
+        self,
+        skill_ids: list[UUID] | None,
+    ) -> list[tuple[str, str]]:
+        """加载用户显式调用（/ 触发）的技能指引。
+
+        只接受 published 且启用的技能；查询失败静默降级为空，
+        与 RAG 自动召回一致——增强项不阻断问答主链路。
+        """
+
+        if not skill_ids:
+            return []
+        try:
+            from app.application.skill_service import SkillService
+            from app.domain.skills.entities import SkillStatus
+            from app.infrastructure.database.session import AsyncSessionLocal
+
+            async with AsyncSessionLocal() as db_session:
+                service = SkillService(UnitOfWork(db_session))
+                loaded: list[tuple[str, str]] = []
+                for skill_id in skill_ids[:4]:
+                    try:
+                        skill = await service.get_skill(skill_id)
+                    except Exception:  # noqa: BLE001 —— 单个技能失效不影响其余。
+                        continue
+                    if skill.status is not SkillStatus.published or not skill.enabled:
+                        continue
+                    if not skill.instructions.strip():
+                        continue
+                    loaded.append(
+                        (f"{skill.name} v{skill.version}", skill.instructions.strip())
+                    )
+                return loaded
+        except Exception:  # noqa: BLE001
+            return []
 
     async def _persist_error(
         self, session_id: UUID, error: Exception

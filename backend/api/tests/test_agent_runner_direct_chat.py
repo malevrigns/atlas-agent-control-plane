@@ -337,6 +337,31 @@ class DirectChatStreamTest(unittest.IsolatedAsyncioTestCase):
         )
         return runner, session, session_service, uow
 
+    async def test_direct_answer_injects_invoked_skills(self) -> None:
+        """/ 显式调用的技能指引必须进入 system 上下文。"""
+
+        question = "什么是幂等接口？"
+        llm = FakeLLMService(deltas=content_deltas("幂等接口重复调用结果一致。"))
+        runner, session, _session_service, _uow = self.build_runner(question, llm)
+
+        async def fake_skills(skill_ids):
+            self.assertEqual([str(item) for item in skill_ids], ["skill-1"])
+            return [("回答签名 v1.0.0", "回答末尾必须追加固定署名行。")]
+
+        runner._load_invoked_skills = fake_skills
+
+        async for _item in runner.stream_user_message(
+            session_id=session.id,
+            content=question,
+            skill_ids=["skill-1"],
+        ):
+            pass
+
+        system_text = llm.received_messages[0].content
+        self.assertIn("显式调用了以下技能", system_text)
+        self.assertIn("回答签名 v1.0.0", system_text)
+        self.assertIn("回答末尾必须追加固定署名行。", system_text)
+
     async def test_direct_answer_streams_and_persists_assistant_message(self) -> None:
         question = "Python 的 GIL 是什么？"
         llm = FakeLLMService(deltas=content_deltas("GIL 是全局", "解释器锁。"))

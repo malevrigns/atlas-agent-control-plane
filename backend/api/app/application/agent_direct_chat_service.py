@@ -27,7 +27,11 @@ class AgentDirectChatService:
         self.context_service = context_service
 
     async def stream(
-        self, *, session_id: UUID, content: str
+        self,
+        *,
+        session_id: UUID,
+        content: str,
+        invoked_skills: list[tuple[str, str]] | None = None,
     ) -> AsyncIterator[AgentRunnerStreamItem]:
         payload = {"session_id": str(session_id), "mode": "chat"}
         yield AgentRunnerStreamItem("answer_started", payload)
@@ -39,6 +43,7 @@ class AgentDirectChatService:
             content=content,
             attachment_excerpts=attachments,
             rag_context=rag_context,
+            invoked_skills=invoked_skills,
         )
         result = None
         async for item in self._stream_model(session_id, messages):
@@ -227,8 +232,10 @@ class AgentDirectChatService:
         content: str,
         attachment_excerpts: list[tuple[str, str]],
         rag_context: str,
+        invoked_skills: list[tuple[str, str]] | None = None,
     ) -> list[LLMMessage]:
         sections = self._build_system_sections(snapshot, rag_context)
+        self._append_invoked_skills(sections, invoked_skills)
         self._append_attachment_context(sections, snapshot, attachment_excerpts)
         messages = [LLMMessage(role="system", content="\n\n".join(sections))]
         messages.extend(
@@ -267,6 +274,21 @@ class AgentDirectChatService:
                 "也不要编造知识库里没有的内容。"
             )
         return sections
+
+    @staticmethod
+    def _append_invoked_skills(
+        sections: list[str],
+        invoked_skills: list[tuple[str, str]] | None,
+    ) -> None:
+        if invoked_skills:
+            skill_blocks = "\n\n".join(
+                f"《{label}》：\n{instructions}"
+                for label, instructions in invoked_skills
+            )
+            sections.append(
+                "用户本轮通过 / 显式调用了以下技能，回答时必须遵循其中的操作指引：\n"
+                f"{skill_blocks}"
+            )
 
     @staticmethod
     def _append_attachment_context(

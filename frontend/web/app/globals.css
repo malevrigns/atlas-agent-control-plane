@@ -36,9 +36,10 @@
   /* 背景网格与滚动条 */
   --grid-line: rgba(80, 96, 130, 0.13);
   --grid-line-soft: rgba(255, 255, 255, 0.035);
-  --scrollbar: rgba(122, 135, 162, 0.38);
-  --scrollbar-hover: rgba(150, 162, 190, 0.55);
-  --scrollbar-active: rgba(165, 178, 208, 0.72);
+  --sb-from: rgba(96, 165, 250, 0.4);
+  --sb-to: rgba(139, 92, 246, 0.4);
+  --sb-from-hover: rgba(96, 165, 250, 0.78);
+  --sb-to-hover: rgba(139, 92, 246, 0.78);
 }
 
 :root[data-theme="light"] {
@@ -66,9 +67,10 @@
   --accent-strong: #1d4ed8;
   --grid-line: rgba(30, 41, 59, 0.07);
   --grid-line-soft: rgba(15, 23, 42, 0.045);
-  --scrollbar: rgba(71, 85, 105, 0.35);
-  --scrollbar-hover: rgba(71, 85, 105, 0.55);
-  --scrollbar-active: rgba(51, 65, 85, 0.7);
+  --sb-from: rgba(59, 130, 246, 0.32);
+  --sb-to: rgba(124, 58, 237, 0.32);
+  --sb-from-hover: rgba(59, 130, 246, 0.6);
+  --sb-to-hover: rgba(124, 58, 237, 0.6);
 }
 
 * {
@@ -120,10 +122,249 @@ body {
     );
 }
 
+/* ===== 动效组件层 =====
+   入场（Ghosty reveal）、微光文字（Shimmer）、流动光边（Glow border）、
+   极光底晕（Aurora veil）、数字滚动（Number ticker）、按钮光泽（Sheen）。
+   全部纯 CSS：颜色走主题变量，reduced-motion 统一降级。 */
+
+/* 云雾入场：大羽化 mask 自下而上扫过 + 轻微模糊退散。 */
 @keyframes stream-in {
   from {
     opacity: 0;
     transform: translateY(10px);
+    filter: blur(5px);
+    mask-position: 0 100%;
+    -webkit-mask-position: 0 100%;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+    mask-position: 0 0;
+    -webkit-mask-position: 0 0;
+  }
+}
+
+.stream-in {
+  mask-image: linear-gradient(180deg, #000 55%, transparent 85%);
+  mask-size: 100% 300%;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 85%);
+  -webkit-mask-size: 100% 300%;
+  animation: stream-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 微光文字：以 currentColor 为基调的高光带循环扫过，
+   用于"正在思考…/正在执行"这类进行时状态。 */
+@keyframes shimmer-sweep {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+.shimmer-text {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in oklab, currentColor 45%, transparent) 38%,
+    currentColor 50%,
+    color-mix(in oklab, currentColor 45%, transparent) 62%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-sweep 1.9s linear infinite;
+}
+
+/* 流动光边：蓝紫双色弧沿卡片边缘巡游，外圈拖出柔光。
+   挂在包裹层上，卡片本体的背景负责遮住中心。 */
+@property --glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes glow-rotate {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+
+.glow-wrap {
+  position: relative;
+  border-radius: 16px;
+}
+
+.glow-wrap::before,
+.glow-wrap::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--glow-angle),
+    transparent 0%,
+    var(--accent) 14%,
+    #a78bfa 24%,
+    transparent 36%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.glow-wrap::after {
+  inset: -2px;
+  filter: blur(12px);
+}
+
+.glow-wrap.glow-active::before,
+.glow-wrap.glow-active::after {
+  opacity: 1;
+  animation: glow-rotate 3.2s linear infinite;
+}
+
+.glow-wrap.glow-active::after {
+  opacity: 0.35;
+}
+
+.glow-wrap > * {
+  position: relative;
+}
+
+/* 极光底晕：输入框聚焦时，底部浮起一条彩色模糊光带。 */
+.aurora-shell {
+  position: relative;
+}
+
+.aurora-veil {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -7px;
+  height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #2563eb,
+    #7c3aed 32%,
+    #db2777 55%,
+    #f59e0b 78%,
+    #2563eb
+  );
+  filter: blur(16px);
+  opacity: 0;
+  transform: scaleY(0.15);
+  transform-origin: bottom;
+  transition:
+    opacity 0.5s ease,
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.aurora-shell:focus-within .aurora-veil,
+.aurora-shell.aurora-active .aurora-veil {
+  opacity: var(--aurora-strength, 0.5);
+  transform: scaleY(1);
+}
+
+:root[data-theme="light"] .aurora-shell {
+  --aurora-strength: 0.32;
+}
+
+/* 数字滚动：key 变化时新值自下而上顶入。 */
+@keyframes ticker-in {
+  from {
+    transform: translateY(0.9em);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.ticker {
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.ticker-value {
+  display: inline-block;
+  animation: ticker-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ===== 侧栏 =====
+   底色跟随主题（亮色下是白色系，与主区协调），只在顶部留一层
+   淡淡的蓝紫极光和向下渐隐的细网格作为品牌点缀；浓淡按主题分档。 */
+.cockpit {
+  --cockpit-glow-a: 0.3;
+  --cockpit-glow-b: 0.22;
+  --cockpit-grid: rgba(255, 255, 255, 0.035);
+
+  position: relative;
+  background:
+    radial-gradient(
+      420px 260px at 16% -6%,
+      rgba(59, 130, 246, var(--cockpit-glow-a)),
+      transparent 62%
+    ),
+    radial-gradient(
+      380px 250px at 96% 2%,
+      rgba(139, 92, 246, var(--cockpit-glow-b)),
+      transparent 60%
+    ),
+    var(--surface);
+}
+
+:root[data-theme="light"] .cockpit {
+  --cockpit-glow-a: 0.12;
+  --cockpit-glow-b: 0.08;
+  --cockpit-grid: rgba(15, 23, 42, 0.045);
+}
+
+/* 顶部细网格纹理，与主区网格底呼应，向下渐隐。 */
+.cockpit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--cockpit-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cockpit-grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(180deg, #000, transparent 68%);
+  -webkit-mask-image: linear-gradient(180deg, #000, transparent 68%);
+  pointer-events: none;
+}
+
+.cockpit > * {
+  position: relative;
+}
+
+/* 品牌渐变：徽标底与标题文字共用 favicon 同款蓝紫。
+   标题渐变按主题分档——深底用亮渐变，白底用饱和渐变，保证对比度。 */
+.brand-gradient {
+  background-image: linear-gradient(135deg, #4e8cff, #7c5cfc);
+}
+
+.brand-title {
+  background-image: linear-gradient(90deg, #9db9ff, #c3b2ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+:root[data-theme="light"] .brand-title {
+  background-image: linear-gradient(90deg, #2f6bf0, #7146ec);
+}
+
+/* 会话卡片逐项入场。 */
+@keyframes cockpit-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -131,13 +372,181 @@ body {
   }
 }
 
-.stream-in {
-  animation: stream-in 260ms ease-out both;
+.cockpit-item {
+  animation: cockpit-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 会话状态呼吸点。 */
+@keyframes dot-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0);
+  }
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.status-dot.live {
+  background: #34d399;
+  animation: dot-breathe 1.6s ease-in-out infinite;
+}
+
+.status-dot.idle {
+  background: var(--text-5);
+}
+
+.status-dot.bad {
+  background: #fb7185;
+}
+
+/* ===== 登录场景 =====
+   独立的深色科技底：极光光斑缓慢漂移 + 渐隐网格，与主题无关。 */
+.login-scene {
+  background: linear-gradient(210deg, #0b1122 0%, #070a14 52%, #05070f 100%);
+}
+
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, 6%, 0) scale(1.08);
+  }
+}
+
+.login-aurora {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(90px);
+  pointer-events: none;
+  animation: aurora-drift 14s ease-in-out infinite;
+}
+
+.login-aurora-a {
+  left: -8%;
+  top: -12%;
+  height: 420px;
+  width: 520px;
+  background: rgba(59, 130, 246, 0.28);
+}
+
+.login-aurora-b {
+  right: -10%;
+  bottom: -16%;
+  height: 420px;
+  width: 520px;
+  background: rgba(139, 92, 246, 0.22);
+  animation-delay: -7s;
+}
+
+.login-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(560px 420px at 50% 42%, #000, transparent 78%);
+  -webkit-mask-image: radial-gradient(560px 420px at 50% 42%, #000, transparent 78%);
+  pointer-events: none;
+}
+
+/* 命令面板入场。 */
+@keyframes palette-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.palette-in {
+  animation: palette-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 工作区切换的滑动指示器：渐变胶囊平滑滑向激活按钮。 */
+.nav-pill {
+  position: absolute;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.35);
+  transition:
+    left 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 超椭圆圆角（Apple squircle）：支持 corner-shape 的浏览器渐进增强。 */
+@supports (corner-shape: squircle) {
+  .squircle {
+    corner-shape: squircle;
+  }
+}
+
+/* 按钮光泽：悬停时一道斜向高光扫过。 */
+.sheen-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheen-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 32%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 68%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+
+.sheen-btn:hover:not(:disabled)::after {
+  transform: translateX(130%);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stream-in {
+  .stream-in,
+  .shimmer-text,
+  .ticker-value,
+  .cockpit-item,
+  .status-dot.live,
+  .login-aurora,
+  .glow-wrap.glow-active::before,
+  .glow-wrap.glow-active::after {
     animation: none;
+  }
+
+  .stream-in {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+
+  .palette-in {
+    animation: none;
+  }
+
+  .aurora-veil,
+  .sheen-btn::after,
+  .nav-pill {
+    transition: none;
   }
 }
 
@@ -155,10 +564,48 @@ a {
 
 /* ===================== 滚动条 ===================== */
 
-/* Chromium：细圆角滑块悬浮在透明轨道上，隐藏两端箭头按钮。 */
+/* Chromium：纤细的蓝紫渐变滑块悬浮在透明轨道上。
+   滚动条伪元素本身不支持 transition，动画走的是「可插值变量」通道：
+   用 @property 把滑块两端颜色和光晕注册成可过渡的自定义属性，
+   全局脚本在滚动时给容器加 .is-scrolling，变量平滑切换 →
+   滑块随滚动点亮发光、停止后温和熄灭。 */
+@property --sb-live-a {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+@property --sb-live-b {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+@property --sb-glow {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+* {
+  --sb-live-a: var(--sb-from);
+  --sb-live-b: var(--sb-to);
+  --sb-glow: 0px;
+  transition:
+    --sb-live-a 0.45s ease,
+    --sb-live-b 0.45s ease,
+    --sb-glow 0.45s ease;
+}
+
+.is-scrolling {
+  --sb-live-a: var(--sb-from-hover);
+  --sb-live-b: var(--sb-to-hover);
+  --sb-glow: 7px;
+}
+
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -166,22 +613,29 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  min-height: 32px;
-  background: var(--scrollbar);
+  min-height: 40px;
+  background: linear-gradient(180deg, var(--sb-live-a), var(--sb-live-b));
   background-clip: padding-box;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   border-radius: 999px;
+  box-shadow: 0 0 var(--sb-glow) var(--sb-live-a);
+}
+
+::-webkit-scrollbar-thumb:horizontal {
+  background: linear-gradient(90deg, var(--sb-live-a), var(--sb-live-b));
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-hover);
+  background: linear-gradient(180deg, var(--sb-from-hover), var(--sb-to-hover));
   background-clip: padding-box;
-  border-width: 2px;
+  border-width: 1px;
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: var(--scrollbar-active);
+  background: linear-gradient(180deg, var(--sb-from-hover), var(--sb-to-hover));
   background-clip: padding-box;
+  border-width: 1px;
 }
 
 ::-webkit-scrollbar-button {
@@ -199,6 +653,6 @@ a {
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar) transparent;
+    scrollbar-color: var(--sb-from-hover) transparent;
   }
 }

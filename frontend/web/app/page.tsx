@@ -1,11 +1,12 @@
 "use client";
 
-import { CheckCircle2, Clock3, PanelLeftOpen, Wifi } from "lucide-react";
+import { Bot, CheckCircle2, Clock3, PanelLeftOpen, Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AppSidebar } from "./components/app-sidebar";
 import type { MainView } from "./components/app-sidebar";
 import { ChatWorkspace } from "./components/chat-workspace";
+import { CommandPalette } from "./components/command-palette";
 import { KnowledgeWorkspace } from "./components/knowledge-workspace";
 import { SettingsWorkspace } from "./components/settings-workspace";
 import { SkillsWorkspace } from "./components/skills-workspace";
@@ -77,38 +78,69 @@ function AccessGate({ onAuthenticated }: { onAuthenticated: () => void }) {
   }
 
   return (
-    <main className="grid h-[100dvh] place-items-center bg-(--page) px-5 text-(--text-1)">
-      <form className="w-full max-w-md rounded-3xl border border-(--line) bg-(--fill-1) p-8 shadow-2xl" onSubmit={submit}>
-        <div className="text-xs font-medium uppercase tracking-[0.22em] text-(--accent)">AtlasAgent</div>
-        <h1 className="mt-3 text-3xl font-semibold">进入控制平面</h1>
-        <p className="mt-3 text-sm leading-6 text-(--text-4)">
-          输入启动脚本生成的 API Key。密钥只用于换取 HttpOnly 会话，不会保存在浏览器存储中。
-        </p>
-        <label className="mt-6 block text-xs font-medium text-(--text-3)">
-          API Key
-          <input
-            autoComplete="current-password"
-            autoFocus
-            className="mt-2 h-12 w-full rounded-xl border border-(--line) bg-(--field) px-4 font-mono text-sm outline-none focus:border-(--accent)/70"
-            onChange={(event) => setApiKey(event.target.value)}
-            type="password"
-            value={apiKey}
-          />
-        </label>
-        {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
-        <button
-          className="mt-5 h-11 w-full rounded-xl bg-blue-500 text-sm font-semibold transition hover:bg-blue-400 disabled:opacity-50"
-          disabled={!apiKey || submitting}
-          type="submit"
+    <main className="login-scene relative grid h-[100dvh] place-items-center overflow-hidden px-5">
+      {/* 背景：极光光斑 + 渐隐网格，纯装饰。 */}
+      <div aria-hidden="true" className="login-aurora login-aurora-a" />
+      <div aria-hidden="true" className="login-aurora login-aurora-b" />
+      <div aria-hidden="true" className="login-grid" />
+
+      <div className="relative w-full max-w-md">
+        <form
+          className="palette-in rounded-[28px] border border-white/12 bg-white/6 p-8 shadow-2xl shadow-black/50 backdrop-blur-2xl"
+          onSubmit={submit}
         >
-          {submitting ? "验证中…" : "验证并进入"}
-        </button>
-      </form>
+          <div className="flex items-center gap-3">
+            <div className="brand-gradient squircle flex h-12 w-12 items-center justify-center rounded-2xl border border-white/25 text-white shadow-lg shadow-blue-500/40">
+              <Bot size={26} aria-hidden="true" />
+            </div>
+            <div>
+              <div className="text-lg font-bold tracking-wide text-white">
+                AtlasAgent
+              </div>
+              <div className="mt-0.5 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                Agent Control Plane
+              </div>
+            </div>
+          </div>
+
+          <h1 className="mt-7 text-2xl font-semibold text-white">进入控制平面</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            输入启动脚本打印的 API Key。密钥只用于换取 HttpOnly
+            会话，不会保存在浏览器存储中。
+          </p>
+
+          <label className="mt-6 block text-xs font-medium text-slate-300">
+            API Key
+            <input
+              autoComplete="current-password"
+              autoFocus
+              className="mt-2 h-12 w-full rounded-xl border border-white/12 bg-black/30 px-4 font-mono text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400/60 focus:shadow-[0_0_0_3px_rgba(96,165,250,0.15)]"
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder="sk-••••••••"
+              type="password"
+              value={apiKey}
+            />
+          </label>
+          {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
+          <button
+            className="brand-gradient sheen-btn mt-6 h-12 w-full rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+            disabled={!apiKey || submitting}
+            type="submit"
+          >
+            {submitting ? "验证中…" : "验证并进入"}
+          </button>
+        </form>
+        <p className="mt-5 text-center text-xs text-slate-500">
+          可追溯记忆 · 受治理工具 · 可验证恢复
+        </p>
+      </div>
     </main>
   );
 }
 
 function WorkspaceHome() {
+  // 命令面板（⌘K）：搜索会话、快速跳转、创建任务。
+  const [paletteOpen, setPaletteOpen] = useState(false);
   // 左侧导航可隐藏：隐藏时对话区自动铺满整个宽度，偏好持久化。
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -290,6 +322,22 @@ function WorkspaceHome() {
 
   return (
     <main className="relative h-[100dvh] overflow-hidden bg-(--page) text-(--text-1)">
+      <CommandPalette
+        onClose={() => setPaletteOpen(false)}
+        onCreateSession={(title) => {
+          workspace.setTitle(title);
+          workspace.createSession();
+          setActiveView("workspace");
+        }}
+        onSelectSession={(sessionId) => {
+          workspace.selectSession(sessionId);
+          setActiveView("workspace");
+        }}
+        onToggle={() => setPaletteOpen((open) => !open)}
+        onViewChange={setActiveView}
+        open={paletteOpen}
+        sessions={workspace.sessionItems}
+      />
       {!sidebarOpen ? (
         <button
           aria-label="展开侧边栏"
@@ -313,6 +361,7 @@ function WorkspaceHome() {
             actionError={workspace.actionError}
             activeView={activeView}
             onCollapse={toggleSidebar}
+            onOpenPalette={() => setPaletteOpen(true)}
             onCreateSession={workspace.createSession}
             onDeleteSession={workspace.deleteSession}
             onRefresh={refreshAll}

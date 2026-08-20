@@ -271,8 +271,8 @@ export function KnowledgeWorkspace() {
         </div>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[300px_1fr] max-lg:grid-cols-1">
-        <aside className="min-h-0 overflow-y-auto border-r border-(--line) p-4 max-lg:border-b max-lg:border-r-0">
+      <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)] max-lg:grid-cols-1">
+        <aside className="min-h-0 min-w-0 overflow-y-auto border-r border-(--line) p-4 max-lg:border-b max-lg:border-r-0">
           {knowledgeBases.length === 0 && !loading ? (
             <p className="px-2 text-sm leading-6 text-(--text-4)">
               还没有知识库。创建一个，把团队文档变成 Agent 可检索的证据。
@@ -290,11 +290,13 @@ export function KnowledgeWorkspace() {
                 onClick={() => setSelectedId(kb.id)}
                 type="button"
               >
-                <div className="text-sm font-semibold text-(--text-1)">{kb.name}</div>
-                <div className="mt-1 truncate text-xs text-(--text-4)">
+                <div className="break-words text-sm font-semibold text-(--text-1)">
+                  {kb.name}
+                </div>
+                <div className="mt-1 line-clamp-2 break-words text-xs leading-5 text-(--text-4)">
                   {kb.description || "（无描述）"}
                 </div>
-                <div className="mt-2 flex gap-2 text-[11px] text-(--text-4)">
+                <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-(--text-4)">
                   <span className="rounded-full border border-(--line) px-2 py-0.5">
                     {kb.document_count} 文档
                   </span>
@@ -310,15 +312,20 @@ export function KnowledgeWorkspace() {
           </div>
         </aside>
 
-        <section className="min-h-0 overflow-y-auto p-5">
+        <section className="min-h-0 min-w-0 overflow-y-auto p-5">
           {selected ? (
-            <div className="grid gap-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-semibold text-(--text-1)">{selected.name}</h3>
-                  <p className="mt-1 text-xs text-(--text-4)">
-                    {selected.embedding_model} · {selected.embedding_dim} 维 · chunk{" "}
-                    {selected.chunk_size}/{selected.chunk_overlap}
+            <div className="grid gap-5 [&>*]:min-w-0">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="break-words text-base font-semibold text-(--text-1)">
+                    {selected.name}
+                  </h3>
+                  <p className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs text-(--text-4)">
+                    <span className="break-all">{selected.embedding_model}</span>
+                    <span>· {selected.embedding_dim} 维</span>
+                    <span>
+                      · chunk {selected.chunk_size}/{selected.chunk_overlap}
+                    </span>
                   </p>
                 </div>
                 <button

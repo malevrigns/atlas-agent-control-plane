@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { NumberTicker } from "./number-ticker";
 import type { StepView } from "./types";
 import { getStepDisplaySummary } from "./view-model";
 
@@ -44,7 +45,9 @@ export function TaskRunCard({
       : "任务已完成";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface) shadow-xl shadow-black/10">
+    // 运行中点亮流动光边（glow-active），完成后光边淡出。
+    <div className={`glow-wrap ${running ? "glow-active" : ""}`}>
+      <div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface) shadow-xl shadow-black/10">
       <button
         aria-expanded={expanded}
         className="flex min-h-14 w-full items-center justify-between gap-3 px-5 py-3.5 text-left"
@@ -60,7 +63,7 @@ export function TaskRunCard({
         </div>
         <div className="flex shrink-0 items-center gap-3 text-sm text-(--text-3)">
           <span>
-            {completedCount} / {steps.length}
+            <NumberTicker value={completedCount} /> / {steps.length}
           </span>
           <ChevronDown
             aria-hidden="true"
@@ -70,8 +73,8 @@ export function TaskRunCard({
         </div>
       </button>
 
-      {expanded ? (
-        <div className="grid gap-4 border-t border-(--line-soft) px-5 py-4">
+        {expanded ? (
+          <div className="grid gap-4 border-t border-(--line-soft) px-5 py-4">
           {steps.map((step, index) => {
             const toolEventId = step.toolEvent?.id ?? null;
             const selected = Boolean(toolEventId) && toolEventId === selectedToolEventId;
@@ -103,8 +106,9 @@ export function TaskRunCard({
               </button>
             );
           })}
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

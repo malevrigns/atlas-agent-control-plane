@@ -37,7 +37,11 @@ export function ReasoningBlock({ reasoning, streaming = false }: ReasoningBlockP
           className={streaming ? "animate-pulse text-(--accent)" : "text-(--text-4)"}
           size={14}
         />
-        <span>{streaming ? "正在思考…" : "推理过程"}</span>
+        {streaming ? (
+          <span className="shimmer-text text-(--accent)">正在思考…</span>
+        ) : (
+          <span>推理过程</span>
+        )}
         <span className="text-(--text-5)">{reasoning.length} 字</span>
         <ChevronDown
           aria-hidden="true"
