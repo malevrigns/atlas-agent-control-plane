@@ -1,3 +1,4 @@
+import hashlib
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -204,11 +205,12 @@ class ReActStepExecutor:
             session_id=request.session_id,
             actor="react_agent",
             allowed_permissions=set(ALLOWED_TOOL_PERMISSIONS),
-            idempotency_key=(
-                f"{request.session_id}:run:{request.run_id}:plan:{plan_id}:"
-                f"revision:{request.plan_revision}:step:{step_id}:"
-                f"attempt:{request.attempt}"
-            ),
+            idempotency_key=hashlib.sha256(
+                (
+                    f"{request.session_id}:{request.run_id}:{plan_id}:"
+                    f"{request.plan_revision}:{step_id}:{request.attempt}"
+                ).encode("utf-8")
+            ).hexdigest(),
         )
 
     def _render_agent_context(self, request: StepExecutionRequest) -> str:
