@@ -10,6 +10,7 @@ from app.application.react_agent_service import ReActAgentService
 from app.application.session_service import SessionService
 from app.application.unit_of_work import UnitOfWork
 from app.core.exceptions import build_task_error_payload
+from app.domain.llm.entities import LLMMessage
 from app.domain.sessions.entities import SessionEvent, SessionEventType, SessionStatus
 
 if TYPE_CHECKING:
@@ -122,6 +123,7 @@ class AgentRunnerService:
         except Exception as error:
             event = await self._persist_error(session_id, error)
             yield AgentRunnerStreamItem(event.type.value, event)
+        await self._auto_title(session_id, content)
         final = await self.session_service.get_session(session_id)
         yield AgentRunnerStreamItem("session_status", final)
         yield AgentRunnerStreamItem(
@@ -197,6 +199,37 @@ class AgentRunnerService:
                 return loaded
         except Exception:  # noqa: BLE001
             return []
+
+    async def _auto_title(self, session_id: UUID, content: str) -> None:
+        """首条消息自动生成会话标题（仅当会话还是默认标题时）。
+
+        标题生成放在回答之后，不阻塞用户看到正文；失败静默降级，
+        保留「新工作区」占位标题。
+        """
+
+        session = await self.session_service.get_session(session_id)
+        if session.title != "新工作区":
+            return
+        try:
+            result = await self.llm_service.chat(
+                messages=[
+                    LLMMessage(
+                        role="system",
+                        content=(
+                            "你是会话标题生成器。根据用户的任务或问题，生成一个不超过 12 个字的"
+                            "简短中文标题。只输出标题本身，不要引号、标点或解释。"
+                        ),
+                    ),
+                    LLMMessage(role="user", content=content[:200]),
+                ],
+                temperature=0.2,
+                max_tokens=32,
+            )
+        except Exception:  # noqa: BLE001 —— 标题是增强项，失败不影响主链路。
+            return
+        title = result.content.strip().strip('\"\'“”「」').strip()[:24]
+        if title:
+            await self.session_service.update_title(session_id, title)
 
     async def _persist_error(
         self, session_id: UUID, error: Exception

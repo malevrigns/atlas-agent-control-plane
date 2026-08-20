@@ -1,7 +1,7 @@
 "use client";
 
 import { Brain, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { MarkdownContent } from "../markdown-content";
 
@@ -18,7 +18,15 @@ type ReasoningBlockProps = {
  */
 export function ReasoningBlock({ reasoning, streaming = false }: ReasoningBlockProps) {
   const [expanded, setExpanded] = useState<boolean | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const open = expanded ?? streaming;
+
+  // 流式时始终滚到底部，让最新思考持续可见，而不是框铺满后就停住。
+  useEffect(() => {
+    if (streaming && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [reasoning, streaming]);
 
   if (!reasoning) {
     return null;
@@ -50,7 +58,10 @@ export function ReasoningBlock({ reasoning, streaming = false }: ReasoningBlockP
         />
       </button>
       {open ? (
-        <div className="max-h-64 overflow-y-auto border-t border-(--line-soft) px-4 py-3">
+        <div
+          ref={scrollRef}
+          className="max-h-64 overflow-y-auto border-t border-(--line-soft) px-4 py-3"
+        >
           <MarkdownContent compact content={reasoning} />
         </div>
       ) : null}

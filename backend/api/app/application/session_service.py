@@ -16,15 +16,16 @@ class SessionService:
         self.uow = uow
 
     async def create_session(self, title: str) -> Session:
+        clean_title = title.strip() or "新工作区"
+        session = await self.uow.sessions.add(title=clean_title)
+        await self.uow.commit()
+        return session
+
+    async def update_title(self, session_id: UUID, title: str) -> Session | None:
         clean_title = title.strip()
         if not clean_title:
-            raise AppException(
-                message="session title is required",
-                code=400,
-                status_code=400,
-            )
-
-        session = await self.uow.sessions.add(title=clean_title)
+            return None
+        session = await self.uow.sessions.update_title(session_id, clean_title)
         await self.uow.commit()
         return session
 

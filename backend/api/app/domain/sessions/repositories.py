@@ -28,6 +28,9 @@ class SessionRepository(Protocol):
     async def update_status(self, session_id: UUID, status: str) -> Session | None:
         raise NotImplementedError
 
+    async def update_title(self, session_id: UUID, title: str) -> Session | None:
+        raise NotImplementedError
+
     async def increment_unread(self, session_id: UUID) -> None:
         raise NotImplementedError
 

@@ -324,8 +324,7 @@ function WorkspaceHome() {
     <main className="relative h-[100dvh] overflow-hidden bg-(--page) text-(--text-1)">
       <CommandPalette
         onClose={() => setPaletteOpen(false)}
-        onCreateSession={(title) => {
-          workspace.setTitle(title);
+        onCreateSession={() => {
           workspace.createSession();
           setActiveView("workspace");
         }}
@@ -367,11 +366,9 @@ function WorkspaceHome() {
             onRefresh={refreshAll}
             onSelectSession={workspace.selectSession}
             onViewChange={setActiveView}
-            onTitleChange={workspace.setTitle}
             selectedSessionId={workspace.selectedSessionId}
             sessions={workspace.sessions}
             submitting={workspace.submitting}
-            title={workspace.title}
           />
         ) : null}
 

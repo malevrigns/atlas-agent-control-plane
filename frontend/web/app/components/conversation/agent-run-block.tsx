@@ -6,6 +6,7 @@ import { MarkdownContent } from "../markdown-content";
 import { AgentAvatar } from "./agent-avatar";
 import { ReasoningBlock } from "./reasoning-block";
 import { TaskRunCard } from "./task-run-card";
+import { ToolCallLog } from "./tool-call-log";
 import type { StepView } from "./types";
 import {
   buildStepViews,
@@ -99,6 +100,8 @@ export function AgentRunBlock({
           />
         </div>
       </div>
+
+      <ToolCallLog events={events} running={running} />
 
       {finalEvent ? <FinalAnswer event={finalEvent} steps={steps} /> : null}
     </div>

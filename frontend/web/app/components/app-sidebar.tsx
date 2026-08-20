@@ -33,8 +33,6 @@ type AppSidebarProps = {
   selectedSessionId: string | null;
   sessions: LoadState<SessionItem[]>;
   submitting: boolean;
-  title: string;
-  onTitleChange: (value: string) => void;
 };
 
 export function AppSidebar({
@@ -50,8 +48,6 @@ export function AppSidebar({
   selectedSessionId,
   sessions,
   submitting,
-  title,
-  onTitleChange,
 }: AppSidebarProps) {
   // 工作区切换的滑动指示器：测量激活按钮的位置，让渐变胶囊平滑滑过去。
   const railRef = useRef<HTMLDivElement | null>(null);
@@ -203,36 +199,16 @@ export function AppSidebar({
         </div>
       </div>
 
-      <form
-        className="mt-6 shrink-0 rounded-2xl border border-(--line) bg-(--fill-1) p-3 max-sm:mt-4 max-sm:p-2.5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onCreateSession();
-        }}
+      <button
+        className="brand-gradient sheen-btn mt-6 flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 max-sm:mt-4"
+        disabled={submitting}
+        onClick={onCreateSession}
+        title="新建工作区"
+        type="button"
       >
-        <label className="text-xs font-medium text-(--text-4)" htmlFor="title">
-          新建任务
-        </label>
-        <div className="flex gap-2">
-          <input
-            className="h-10 min-w-0 flex-1 rounded-xl border border-(--line) bg-(--field) px-3 text-sm text-(--text-1) outline-none transition placeholder:text-(--text-5) focus:border-(--accent)/60"
-            id="title"
-            maxLength={200}
-            onChange={(event) => onTitleChange(event.target.value)}
-            placeholder="输入任务标题"
-            value={title}
-          />
-          <button
-            aria-label="创建会话"
-            className="brand-gradient sheen-btn flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-lg shadow-blue-500/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={submitting}
-            title="创建会话"
-            type="submit"
-          >
-            <Plus size={18} aria-hidden="true" />
-          </button>
-        </div>
-      </form>
+        <Plus size={18} aria-hidden="true" />
+        新建工作区
+      </button>
 
       <div className="mt-6 flex shrink-0 items-center justify-between max-sm:mt-4">
         <div className="flex items-center gap-2">

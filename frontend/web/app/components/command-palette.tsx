@@ -34,7 +34,7 @@ type CommandPaletteProps = {
   onToggle: () => void;
   sessions: SessionItem[];
   onSelectSession: (sessionId: string) => void;
-  onCreateSession: (title: string) => void;
+  onCreateSession: () => void;
   onViewChange: (view: MainView) => void;
 };
 
@@ -79,9 +79,9 @@ export function CommandPalette({
       matched.push({
         id: "create-session",
         group: "操作",
-        label: `新建任务：“${query.trim()}”`,
+        label: "新建工作区",
         icon: <Plus size={15} aria-hidden="true" />,
-        run: () => onCreateSession(query.trim()),
+        run: () => onCreateSession(),
       });
     }
 

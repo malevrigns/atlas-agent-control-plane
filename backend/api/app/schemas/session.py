@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 
 
 class SessionCreateRequest(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
+    # 标题允许留空：留空时服务端落「新工作区」，首条消息后由模型自动命名。
+    title: str = Field(default="", max_length=200)
 
 
 class SessionResponse(BaseModel):

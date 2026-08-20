@@ -53,7 +53,6 @@ type SessionState = {
   sessions: LoadState<SessionItem[]>;
   stoppingSession: boolean;
   submitting: boolean;
-  title: string;
   uploadingFile: boolean;
   deletingFileId: string | null;
 };
@@ -77,7 +76,6 @@ type SessionActions = {
   deleteAttachment: (file: SessionFileItem) => Promise<void>;
   setActionError: (message: string | null) => void;
   setDraft: (draft: string) => void;
-  setTitle: (title: string) => void;
 };
 
 const initialDetailState = {
@@ -332,13 +330,11 @@ export const useSessionStore = create<SessionState & SessionActions>(
     sessions: { type: "loading" },
     stoppingSession: false,
     submitting: false,
-    title: "",
     uploadingFile: false,
     deletingFileId: null,
 
     setActionError: (message) => set({ actionError: message }),
     setDraft: (draft) => set({ draft }),
-    setTitle: (title) => set({ title }),
 
     selectFile: (file) => {
       set({
@@ -452,19 +448,10 @@ export const useSessionStore = create<SessionState & SessionActions>(
     },
 
     createSession: async () => {
-      const cleanTitle = get().title.trim();
-      if (!cleanTitle) {
-        set({ actionError: "请输入会话标题" });
-        return;
-      }
-
       set({ actionError: null, submitting: true });
       try {
-        const created = await createSession(cleanTitle);
-        set({
-          title: "",
-          selectedSessionId: created.id,
-        });
+        const created = await createSession("新工作区");
+        set({ selectedSessionId: created.id });
         await get().refreshSessions();
       } catch (error) {
         set({ actionError: getErrorMessage(error) });

@@ -74,6 +74,18 @@ class SqlAlchemySessionRepository(SessionRepository):
         await self.db_session.refresh(model)
         return model.to_entity()
 
+    async def update_title(self, session_id: UUID, title: str) -> Session | None:
+        stmt = self._active_stmt().where(SessionModel.id == session_id)
+        result = await self.db_session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        model.title = title
+        model.updated_at = datetime.now(UTC)
+        await self.db_session.flush()
+        await self.db_session.refresh(model)
+        return model.to_entity()
+
     async def increment_unread(self, session_id: UUID) -> None:
         stmt = self._active_stmt().where(SessionModel.id == session_id)
         result = await self.db_session.execute(stmt)
