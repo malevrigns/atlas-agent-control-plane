@@ -91,6 +91,7 @@ class AgentRunState:
         *,
         run_id: UUID,
         plan_revision: int,
+        start_step_index: int = 0,
     ) -> "AgentRunState":
         if (
             isinstance(plan_revision, bool)
@@ -104,6 +105,6 @@ class AgentRunState:
             plan_revision=plan_revision,
             plan=RunPlan.from_payload(plan_payload),
             phase=AgentPhase.executing,
-            step_index=0,
+            step_index=start_step_index,
             attempt=1,
         )

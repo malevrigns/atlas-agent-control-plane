@@ -70,7 +70,7 @@ type SessionActions = {
   clearUnread: () => Promise<void>;
   selectSession: (sessionId: string | null) => void;
   selectFile: (file: SessionFileItem | null) => void;
-  sendMessage: (skillIds?: string[]) => Promise<void>;
+  sendMessage: (skillIds?: string[], resume?: boolean) => Promise<void>;
   retryLastMessage: () => Promise<void>;
   stopSession: () => Promise<void>;
   uploadAttachment: (file: File) => Promise<void>;
@@ -523,7 +523,7 @@ export const useSessionStore = create<SessionState & SessionActions>(
       }
     },
 
-    sendMessage: async (skillIds = []) => {
+    sendMessage: async (skillIds = [], resume = false) => {
       const sessionId = get().selectedSessionId;
       const content = get().draft.trim();
       if (!sessionId) {
@@ -639,6 +639,7 @@ export const useSessionStore = create<SessionState & SessionActions>(
           });
           },
           skillIds,
+          resume,
         );
         await Promise.all([
           get().loadSessionDetail(sessionId, { silent: true }),
@@ -670,7 +671,8 @@ export const useSessionStore = create<SessionState & SessionActions>(
         return;
       }
       set({ draft: lastUser.content });
-      await get().sendMessage();
+      // 从上次失败处续跑：不重新规划、不重复已完成的步骤。
+      await get().sendMessage([], true);
     },
 
     uploadAttachment: async (file) => {

@@ -64,6 +64,8 @@ class AgentExecutionMachine:
         execution_context: AgentExecutionContext,
         *,
         run_id: UUID | None = None,
+        start_step_index: int = 0,
+        step_history: tuple[str, ...] = (),
     ) -> AsyncIterator[StreamItem]:
         plan = dict(plan_payload)
         execution_run_id = run_id if run_id is not None else uuid4()
@@ -72,8 +74,9 @@ class AgentExecutionMachine:
             plan,
             run_id=execution_run_id,
             plan_revision=plan_revision(plan),
+            start_step_index=start_step_index,
         )
-        snapshot = MachineSnapshot(state, plan)
+        snapshot = MachineSnapshot(state, plan, step_history)
         while snapshot.state.phase not in self._TERMINAL_PHASES:
             transition = None
             async for item in self._dispatch(snapshot, execution_context):

@@ -67,12 +67,14 @@ class AgentRunnerService:
         session_id: UUID,
         content: str,
         skill_ids: list[UUID] | None = None,
+        resume: bool = False,
     ) -> AsyncIterator[AgentRunnerStreamItem]:
         try:
             async for item in self._stream_user_message_inner(
                 session_id=session_id,
                 content=content,
                 skill_ids=skill_ids,
+                resume=resume,
             ):
                 yield item
         finally:
@@ -84,46 +86,51 @@ class AgentRunnerService:
         session_id: UUID,
         content: str,
         skill_ids: list[UUID] | None = None,
+        resume: bool = False,
     ) -> AsyncIterator[AgentRunnerStreamItem]:
         running = await self.session_service.mark_running(session_id)
         yield AgentRunnerStreamItem("session_status", running)
         message = None
         try:
-            message, message_event = await self.session_service.create_user_message(
-                session_id=session_id,
-                content=content,
-            )
-            yield AgentRunnerStreamItem(message_event.type.value, message_event)
-
-            # 用户显式调用的技能（/ 触发）：流水线拼进规划任务，直答注入 system 上下文。
-            invoked_skills = await self._load_invoked_skills(skill_ids)
-
-            if needs_agent_pipeline(content):
-                task_text = content
-                if invoked_skills:
-                    skill_blocks = "\n\n".join(
-                        f"《{label}》：\n{instructions}"
-                        for label, instructions in invoked_skills
-                    )
-                    task_text = (
-                        f"{content}\n\n[用户显式调用的技能指引，规划与执行时必须遵循]\n"
-                        f"{skill_blocks}"
-                    )
-                stream = self._stream_pipeline(
-                    session_id=session_id, content=task_text
-                )
+            if resume:
+                stream = self._stream_resume(session_id=session_id)
             else:
-                stream = self.direct_chat_service.stream(
+                message, message_event = await self.session_service.create_user_message(
                     session_id=session_id,
                     content=content,
-                    invoked_skills=invoked_skills,
                 )
+                yield AgentRunnerStreamItem(message_event.type.value, message_event)
+
+                # 用户显式调用的技能（/ 触发）：流水线拼进规划任务，直答注入 system 上下文。
+                invoked_skills = await self._load_invoked_skills(skill_ids)
+
+                if needs_agent_pipeline(content):
+                    task_text = content
+                    if invoked_skills:
+                        skill_blocks = "\n\n".join(
+                            f"《{label}》：\n{instructions}"
+                            for label, instructions in invoked_skills
+                        )
+                        task_text = (
+                            f"{content}\n\n[用户显式调用的技能指引，规划与执行时必须遵循]\n"
+                            f"{skill_blocks}"
+                        )
+                    stream = self._stream_pipeline(
+                        session_id=session_id, content=task_text
+                    )
+                else:
+                    stream = self.direct_chat_service.stream(
+                        session_id=session_id,
+                        content=content,
+                        invoked_skills=invoked_skills,
+                    )
             async for item in stream:
                 yield item
         except Exception as error:
             event = await self._persist_error(session_id, error)
             yield AgentRunnerStreamItem(event.type.value, event)
-        await self._auto_title(session_id, content)
+        if not resume:
+            await self._auto_title(session_id, content)
         final = await self.session_service.get_session(session_id)
         yield AgentRunnerStreamItem("session_status", final)
         yield AgentRunnerStreamItem(
@@ -151,6 +158,25 @@ class AgentRunnerService:
             _, plan_event = value
             yield AgentRunnerStreamItem(plan_event.type.value, plan_event)
         async for item in self.react_service.stream_latest_plan(session_id):
+            if isinstance(item, tuple):
+                kind, text = item
+                yield AgentRunnerStreamItem(
+                    kind,
+                    {
+                        "session_id": str(session_id),
+                        "delta": text,
+                        "phase": "final_answer",
+                    },
+                )
+            else:
+                yield AgentRunnerStreamItem(item.type.value, item)
+
+    async def _stream_resume(
+        self, *, session_id: UUID
+    ) -> AsyncIterator[AgentRunnerStreamItem]:
+        """从上次失败处续跑：不重新规划、不重复创建用户消息。"""
+
+        async for item in self.react_service.stream_latest_plan(session_id, resume=True):
             if isinstance(item, tuple):
                 kind, text = item
                 yield AgentRunnerStreamItem(

@@ -41,15 +41,17 @@ class ReActAgentService:
         self._file_sync_service = file_sync_service
         self._context_service = context_service
 
-    async def execute_latest_plan(self, session_id: UUID) -> list[SessionEvent]:
+    async def execute_latest_plan(
+        self, session_id: UUID, *, resume: bool = False
+    ) -> list[SessionEvent]:
         return [
             item
-            async for item in self.stream_latest_plan(session_id)
+            async for item in self.stream_latest_plan(session_id, resume=resume)
             if isinstance(item, SessionEvent)
         ]
 
     async def stream_latest_plan(
-        self, session_id: UUID
+        self, session_id: UUID, *, resume: bool = False
     ) -> AsyncIterator[SessionEvent | tuple[str, str]]:
         plan, context = await self._prepare_execution(session_id)
         identity = ExecutionRunIdentity(
@@ -57,6 +59,10 @@ class ReActAgentService:
             self._plan_id(plan),
             plan_revision(plan),
         )
+        start_step_index = 0
+        step_history: tuple[str, ...] = ()
+        if resume:
+            start_step_index, step_history = await self._resume_context(session_id, plan)
         await self.uow.sessions.update_status(session_id, SessionStatus.running.value)
         await self.uow.commit()
         try:
@@ -65,6 +71,8 @@ class ReActAgentService:
                 plan,
                 context,
                 run_id=identity.run_id,
+                start_step_index=start_step_index,
+                step_history=step_history,
             ):
                 if isinstance(item, SessionEvent):
                     identity = self._event_identity(identity, item)
@@ -102,6 +110,42 @@ class ReActAgentService:
             snapshot.memory_context,
             self._context_service.render_for_agent(snapshot),
         )
+
+    async def _resume_context(
+        self, session_id: UUID, plan: dict[str, object]
+    ) -> tuple[int, tuple[str, ...]]:
+        """从事件里定位上次失败 run 已完成的步骤，返回断点与步骤历史。"""
+
+        del plan
+        events = await self.uow.session_events.list_by_session(session_id)
+        last_run_id: str | None = None
+        for event in reversed(events):
+            run_id = event.payload.get("run_id")
+            if event.type is SessionEventType.task_error and run_id:
+                last_run_id = str(run_id)
+                break
+        if last_run_id is None:
+            return 0, ()
+        completed = [
+            event
+            for event in events
+            if event.type is SessionEventType.step_completed
+            and str(event.payload.get("run_id")) == last_run_id
+        ]
+        step_history = tuple(
+            f"- 步骤{int(event.payload.get('index') or 0)}"
+            f"《{event.payload.get('title') or ''}》已完成："
+            f"{self._trim_history(str(event.payload.get('summary') or ''), 200)}"
+            for event in completed
+        )
+        return len(completed), step_history
+
+    @staticmethod
+    def _trim_history(value: str, limit: int) -> str:
+        clean = " ".join(value.split())
+        if len(clean) <= limit:
+            return clean
+        return f"{clean[:limit]}..."
 
     async def _commit_event(self, event: SessionEvent) -> None:
         status = None

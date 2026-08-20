@@ -156,7 +156,8 @@ class ReActEntryPointTerminalSemanticsTest(unittest.IsolatedAsyncioTestCase):
             uuid4(), session_id, SessionEventType.step_started, {}, SimpleNamespace()
         )
 
-        async def stream(_session_id: UUID):
+        async def stream(_session_id: UUID, *, resume: bool = False):
+            del resume
             yield ("answer_delta", "ignored")
             yield expected
 
@@ -222,8 +223,17 @@ class ReActEntryPointTerminalSemanticsTest(unittest.IsolatedAsyncioTestCase):
         observed_plans = []
 
         class RecordingMachine:
-            async def stream(self, _session_id, plan, _context, *, run_id=None):
-                del run_id
+            async def stream(
+                self,
+                _session_id,
+                plan,
+                _context,
+                *,
+                run_id=None,
+                start_step_index=0,
+                step_history=(),
+            ):
+                del run_id, start_step_index, step_history
                 observed_plans.append(dict(plan))
                 if False:
                     yield None
