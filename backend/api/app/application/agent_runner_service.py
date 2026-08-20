@@ -292,13 +292,24 @@ class AgentRunnerService:
         }
 
     async def _reset_running_session(self, session_id: UUID) -> None:
+        """把中断后仍停留在 running 的会话重置回 idle。
+
+        客户端断开时，原 UOW 的数据库连接可能已被取消/终止，
+        这里改用独立的短连接，避免静默失败留下脏的 running 状态。
+        """
+
         try:
-            uow = self.session_service.uow
-            session = await uow.sessions.get(session_id)
-            if session is not None and session.status is SessionStatus.running:
-                await uow.sessions.update_status(session_id, SessionStatus.idle.value)
-                await uow.commit()
-        except Exception:
+            from app.infrastructure.database.session import AsyncSessionLocal
+
+            async with AsyncSessionLocal() as db_session:
+                uow = UnitOfWork(db_session)
+                session = await uow.sessions.get(session_id)
+                if session is not None and session.status is SessionStatus.running:
+                    await uow.sessions.update_status(
+                        session_id, SessionStatus.idle.value
+                    )
+                    await uow.commit()
+        except Exception:  # noqa: BLE001 —— 清理失败不阻断主流程。
             return
 
     async def execute_latest_plan(self, session_id: UUID) -> list[SessionEvent]:

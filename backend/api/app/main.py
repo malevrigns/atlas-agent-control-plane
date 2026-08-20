@@ -14,6 +14,25 @@ from app.infrastructure.task_queue import RedisAgentTaskQueue, create_redis_clie
 from app.presentation.http.router import api_router
 
 
+async def _reset_stale_running_sessions() -> None:
+    """启动时把上次异常退出遗留的 running 会话重置回 idle。"""
+
+    try:
+        from sqlalchemy import update
+
+        from app.infrastructure.database.models.session import SessionModel
+
+        async with AsyncSessionLocal() as db_session:
+            await db_session.execute(
+                update(SessionModel)
+                .where(SessionModel.status == "running")
+                .values(status="idle")
+            )
+            await db_session.commit()
+    except Exception:  # noqa: BLE001 —— 清理失败不阻断启动。
+        return
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ===================== 第1步：创建 Redis 连接和任务队列 =====================
@@ -26,6 +45,7 @@ async def lifespan(app: FastAPI):
     app.state.task_runner = runner
     await redis.ping()
     runner.start()
+    await _reset_stale_running_sessions()
 
     try:
         yield
