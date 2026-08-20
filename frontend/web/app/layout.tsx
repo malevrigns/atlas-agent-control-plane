@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 
+import { PwaRegister } from "./components/pwa-register";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AtlasAgent",
   description: "AtlasAgent workspace",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#050506",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AtlasAgent",
+  },
 };
 
 // 首帧前从 localStorage 恢复主题，避免亮色用户看到暗色闪烁。
@@ -30,6 +38,7 @@ export default function RootLayout({
         <Script id="atlas-scroll-glow" strategy="afterInteractive">
           {scrollGlowScript}
         </Script>
+        <PwaRegister />
         {children}
       </body>
     </html>

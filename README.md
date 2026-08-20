@@ -248,7 +248,6 @@ docker compose up -d postgres redis
 | --- | --- | --- |
 | API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` | `http://localhost:8000` |
 | Web | `cd frontend/web && pnpm install && pnpm dev` | `http://localhost:3000` |
-| Desktop | `cd frontend/desktop && npm install && npm run electron:dev` | Electron 桌面窗口 |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` | 后端不可达时自动进入演示模式 |
 | Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 8100:8100 -p 6080:6080 -e SANDBOX_AUTH_ENABLED=false atlas-sandbox` | Agent 的虚拟电脑：`http://localhost:8100`；API 侧设 `SANDBOX_API_BASE_URL=http://localhost:8100/api` 与 `TOOL_AUTO_APPROVE_RISK=high` 后，对话即可真实执行代码/浏览器任务 |
 
@@ -257,8 +256,7 @@ docker compose up -d postgres redis
 ```text
 atlas-agent-control-plane/
 ├── frontend/
-│   ├── web/       Next.js Web 客户端
-│   ├── desktop/   Electron 桌面客户端
+│   ├── web/       Next.js Web 客户端（PWA）
 │   └── tui/       Textual 终端客户端
 ├── backend/
 │   ├── api/       FastAPI、数据库迁移、Control Plane 与测试

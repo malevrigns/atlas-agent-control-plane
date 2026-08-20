@@ -11,8 +11,7 @@
 ```text
 atlas-agents/
 ├── frontend/
-│   ├── web/                 # Next.js 浏览器工作台
-│   ├── desktop/             # Electron Checkpoint 时间线客户端
+│   ├── web/                 # Next.js 浏览器工作台（PWA）
 │   └── tui/                 # Textual 键盘优先终端客户端
 ├── backend/
 │   ├── api/                 # FastAPI 主服务
