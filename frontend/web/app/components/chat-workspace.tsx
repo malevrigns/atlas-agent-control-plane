@@ -52,6 +52,7 @@ type ChatWorkspaceProps = {
   stopping: boolean;
   uploadingFile: boolean;
   deletingFileId: string | null;
+  onRetry: () => void;
 };
 
 export function ChatWorkspace({
@@ -86,6 +87,7 @@ export function ChatWorkspace({
   stopping,
   uploadingFile,
   deletingFileId,
+  onRetry,
 }: ChatWorkspaceProps) {
   const [selectedToolEventId, setSelectedToolEventId] = useState<string | null>(
     null,
@@ -140,6 +142,7 @@ export function ChatWorkspace({
           planning={planning}
           selectedToolEventId={selectedToolEventId}
           task={task}
+          onRetry={onRetry}
         />
         <div className="mt-auto shrink-0 bg-(--page)/85 px-8 py-4 backdrop-blur-2xl max-md:px-4 max-sm:py-2">
           <div className="mx-auto mb-3 h-px w-[220px] bg-gradient-to-r from-transparent via-blue-500/30 to-transparent max-sm:mb-2" />

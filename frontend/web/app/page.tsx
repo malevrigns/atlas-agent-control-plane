@@ -422,6 +422,7 @@ function WorkspaceHome() {
                 onStop={workspace.stopSession}
                 onUploadFile={workspace.uploadAttachment}
                 onDeleteFile={workspace.deleteAttachment}
+                onRetry={workspace.retryLastMessage}
                 executingPlan={workspace.executingPlan}
                 plan={workspace.latestPlan}
                 planning={workspace.planning}

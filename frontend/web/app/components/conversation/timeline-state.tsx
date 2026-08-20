@@ -44,7 +44,7 @@ export function TimelineLoadingState() {
 export function ErrorBlock({ message }: ErrorBlockProps) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-8 max-sm:p-5">
-      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+      <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-(--error-text)">
         {message}
       </div>
     </div>

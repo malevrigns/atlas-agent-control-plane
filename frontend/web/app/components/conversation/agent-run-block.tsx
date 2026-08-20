@@ -1,5 +1,5 @@
 import { ClipboardCheck } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import type { AgentPlan, SessionEventItem } from "../../types";
 import { MarkdownContent } from "../markdown-content";
@@ -27,6 +27,7 @@ type AgentRunBlockProps = {
   planEvent: SessionEventItem;
   planning: boolean;
   selectedToolEventId: string | null;
+  onRetry?: () => void;
 };
 
 export function AgentRunBlock({
@@ -37,6 +38,7 @@ export function AgentRunBlock({
   planEvent,
   planning,
   selectedToolEventId,
+  onRetry,
 }: AgentRunBlockProps) {
   const plan = useMemo(() => {
     const parsed = parsePlanPayload(planEvent.payload);
@@ -103,7 +105,7 @@ export function AgentRunBlock({
 
       <ToolCallLog events={events} running={running} />
 
-      {finalEvent ? <FinalAnswer event={finalEvent} steps={steps} /> : null}
+      {finalEvent ? <FinalAnswer event={finalEvent} steps={steps} onRetry={onRetry} /> : null}
     </div>
   );
 }
@@ -111,11 +113,14 @@ export function AgentRunBlock({
 function FinalAnswer({
   event,
   steps,
+  onRetry,
 }: {
   event: SessionEventItem;
   steps: StepView[];
+  onRetry?: () => void;
 }) {
   const failed = event.type === "task_error";
+  const [copied, setCopied] = useState(false);
   const eventAnswer = getString(event.payload.final_answer);
   const answerReasoning = getString(event.payload.reasoning);
   const userMessage = getString(event.payload.user_message);
@@ -144,20 +149,44 @@ function FinalAnswer({
           ) : null}
           {failed ? (
             <div className="grid gap-3">
-              <p className="font-semibold text-rose-100">
+              <p className="font-semibold text-(--error-text)">
                 {userMessage || getString(event.payload.message) || "任务执行失败。"}
               </p>
               {suggestion ? (
-                <p className="text-base leading-7 text-rose-200/80">
+                <p className="text-base leading-7 text-(--text-3)">
                   建议：{suggestion}
                 </p>
               ) : null}
               {requestId || taskId ? (
-                <p className="text-sm leading-6 text-(--text-4)">
-                  {requestId ? `request_id：${requestId}` : ""}
-                  {requestId && taskId ? " / " : ""}
-                  {taskId ? `task_id：${taskId}` : ""}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 text-sm leading-6 text-(--text-3)">
+                  <span>
+                    {requestId ? `request_id：${requestId}` : ""}
+                    {requestId && taskId ? " / " : ""}
+                    {taskId ? `task_id：${taskId}` : ""}
+                  </span>
+                  <button
+                    className="rounded-md border border-(--line) px-2 py-0.5 text-xs text-(--text-3) transition hover:border-(--accent)/50 hover:text-(--text-1)"
+                    onClick={() => {
+                      const id = [requestId, taskId].filter(Boolean).join(" / ");
+                      navigator.clipboard?.writeText(id).then(() => {
+                        setCopied(true);
+                        window.setTimeout(() => setCopied(false), 1500);
+                      });
+                    }}
+                    type="button"
+                  >
+                    {copied ? "已复制" : "复制"}
+                  </button>
+                </div>
+              ) : null}
+              {onRetry ? (
+                <button
+                  className="mt-1 w-fit rounded-lg border border-(--accent)/40 bg-(--accent)/10 px-4 py-2 text-sm font-medium text-(--accent) transition hover:bg-(--accent)/20"
+                  onClick={onRetry}
+                  type="button"
+                >
+                  重新执行
+                </button>
               ) : null}
             </div>
           ) : eventAnswer ? (

@@ -35,6 +35,7 @@ type ConversationTimelineProps = {
   executing: boolean;
   selectedToolEventId: string | null;
   task: AgentTaskItem | null;
+  onRetry: () => void;
 };
 
 export function ConversationTimeline({
@@ -48,6 +49,7 @@ export function ConversationTimeline({
   executing,
   selectedToolEventId,
   task,
+  onRetry,
 }: ConversationTimelineProps) {
   const readyMessages = messages.type === "ready" ? messages.data : [];
   // 会话标识与最新用户消息：驱动“切会话跳底部 / 追问锚定到顶部”的滚动策略。
@@ -126,6 +128,7 @@ export function ConversationTimeline({
                     planEvent={item.event}
                     planning={planning && item.id === lastPlanItemId}
                     selectedToolEventId={selectedToolEventId}
+                    onRetry={onRetry}
                   />
                 </div>
               ),

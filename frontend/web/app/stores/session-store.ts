@@ -71,6 +71,7 @@ type SessionActions = {
   selectSession: (sessionId: string | null) => void;
   selectFile: (file: SessionFileItem | null) => void;
   sendMessage: (skillIds?: string[]) => Promise<void>;
+  retryLastMessage: () => Promise<void>;
   stopSession: () => Promise<void>;
   uploadAttachment: (file: File) => Promise<void>;
   deleteAttachment: (file: SessionFileItem) => Promise<void>;
@@ -655,6 +656,21 @@ export const useSessionStore = create<SessionState & SessionActions>(
           sendingMessage: false,
         });
       }
+    },
+
+    retryLastMessage: async () => {
+      const messages = get().messages;
+      if (messages.type !== "ready") {
+        return;
+      }
+      const lastUser = [...messages.data].reverse().find(
+        (message) => message.role === "user",
+      );
+      if (!lastUser) {
+        return;
+      }
+      set({ draft: lastUser.content });
+      await get().sendMessage();
     },
 
     uploadAttachment: async (file) => {
