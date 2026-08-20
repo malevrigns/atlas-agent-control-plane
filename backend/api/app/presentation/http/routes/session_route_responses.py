@@ -30,6 +30,8 @@ def to_session_response(session: Session) -> SessionResponse:
         unread_count=session.unread_count,
         created_at=session.created_at,
         updated_at=session.updated_at,
+        workspace_dir=session.workspace_dir,
+        full_access=session.full_access,
     )
 
 

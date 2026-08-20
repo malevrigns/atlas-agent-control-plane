@@ -15,9 +15,18 @@ class SessionService:
     def __init__(self, uow: UnitOfWork) -> None:
         self.uow = uow
 
-    async def create_session(self, title: str) -> Session:
+    async def create_session(
+        self,
+        title: str,
+        workspace_dir: str = "",
+        full_access: bool = False,
+    ) -> Session:
         clean_title = title.strip() or "新工作区"
-        session = await self.uow.sessions.add(title=clean_title)
+        session = await self.uow.sessions.add(
+            title=clean_title,
+            workspace_dir=workspace_dir.strip(),
+            full_access=full_access,
+        )
         await self.uow.commit()
         return session
 

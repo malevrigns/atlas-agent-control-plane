@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field
 class SessionCreateRequest(BaseModel):
     # 标题允许留空：留空时服务端落「新工作区」，首条消息后由模型自动命名。
     title: str = Field(default="", max_length=200)
+    # 本地工作区目录（相对沙箱挂载根）；full_access 为 True 时可访问整个挂载根。
+    workspace_dir: str = Field(default="", max_length=512)
+    full_access: bool = False
 
 
 class SessionResponse(BaseModel):
@@ -16,6 +19,8 @@ class SessionResponse(BaseModel):
     unread_count: int
     created_at: datetime
     updated_at: datetime
+    workspace_dir: str
+    full_access: bool
 
 
 class SessionListResponse(BaseModel):

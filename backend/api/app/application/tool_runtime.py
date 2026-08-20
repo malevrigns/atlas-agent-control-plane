@@ -12,6 +12,8 @@ from app.application.tool_runtime_support import (
     ToolPolicyDecision,
     ToolPolicyEngine,
     invoke_tool,
+    reset_current_context,
+    set_current_context,
     store_tool_output,
 )
 from app.application.unit_of_work import UnitOfWork
@@ -71,7 +73,11 @@ class ToolRuntime:
                 definition=definition,
             )
 
-        outcome = await invoke_tool(tool, checked_arguments)
+        token = set_current_context(context)
+        try:
+            outcome = await invoke_tool(tool, checked_arguments)
+        finally:
+            reset_current_context(token)
         stored = await store_tool_output(
             self.uow,
             outcome.output,

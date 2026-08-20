@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,6 +16,8 @@ class SessionModel(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default=SessionStatus.idle.value)
     unread_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    workspace_dir: Mapped[str] = mapped_column(String(512), nullable=False, default="", server_default="")
+    full_access: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -38,4 +40,6 @@ class SessionModel(Base):
             created_at=self.created_at,
             updated_at=self.updated_at,
             deleted_at=self.deleted_at,
+            workspace_dir=self.workspace_dir,
+            full_access=self.full_access,
         )

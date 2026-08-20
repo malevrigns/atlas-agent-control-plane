@@ -10,7 +10,12 @@ from app.domain.sessions.entities import (
 
 
 class SessionRepository(Protocol):
-    async def add(self, title: str) -> Session:
+    async def add(
+        self,
+        title: str,
+        workspace_dir: str = "",
+        full_access: bool = False,
+    ) -> Session:
         raise NotImplementedError
 
     async def get(self, session_id: UUID) -> Session | None:

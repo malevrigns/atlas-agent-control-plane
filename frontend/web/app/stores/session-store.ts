@@ -58,7 +58,7 @@ type SessionState = {
 };
 
 type SessionActions = {
-  createSession: () => Promise<void>;
+  createSession: (workspaceDir?: string, fullAccess?: boolean) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   loadSessionDetail: (
     sessionId: string,
@@ -236,6 +236,8 @@ function toSessionItem(event: StreamEvent): SessionItem | null {
     unread_count: Number(data.unread_count),
     created_at: String(data.created_at),
     updated_at: String(data.updated_at),
+    workspace_dir: String(data.workspace_dir ?? ""),
+    full_access: Boolean(data.full_access),
   };
 }
 
@@ -448,10 +450,10 @@ export const useSessionStore = create<SessionState & SessionActions>(
       }
     },
 
-    createSession: async () => {
+    createSession: async (workspaceDir = "", fullAccess = false) => {
       set({ actionError: null, submitting: true });
       try {
-        const created = await createSession("新工作区");
+        const created = await createSession("新工作区", workspaceDir, fullAccess);
         set({ selectedSessionId: created.id });
         await get().refreshSessions();
       } catch (error) {

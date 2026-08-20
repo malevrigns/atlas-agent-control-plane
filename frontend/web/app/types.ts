@@ -299,6 +299,8 @@ export type SessionItem = {
   unread_count: number;
   created_at: string;
   updated_at: string;
+  workspace_dir: string;
+  full_access: boolean;
 };
 
 export type SessionListData = {

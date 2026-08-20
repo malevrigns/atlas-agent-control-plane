@@ -19,10 +19,18 @@ export function fetchSessions(): Promise<SessionItem[]> {
   return requestApi<SessionListData>("/api/sessions").then((data) => data.items);
 }
 
-export function createSession(title: string): Promise<SessionItem> {
+export function createSession(
+  title: string,
+  workspaceDir = "",
+  fullAccess = false,
+): Promise<SessionItem> {
   return requestApi<SessionItem>("/api/sessions", {
     method: "POST",
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({
+      title,
+      workspace_dir: workspaceDir,
+      full_access: fullAccess,
+    }),
   });
 }
 

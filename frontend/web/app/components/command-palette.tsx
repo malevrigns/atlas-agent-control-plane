@@ -34,7 +34,7 @@ type CommandPaletteProps = {
   onToggle: () => void;
   sessions: SessionItem[];
   onSelectSession: (sessionId: string) => void;
-  onCreateSession: () => void;
+  onCreateSession: (workspaceDir: string, fullAccess: boolean) => void;
   onViewChange: (view: MainView) => void;
 };
 
@@ -81,7 +81,7 @@ export function CommandPalette({
         group: "操作",
         label: "新建工作区",
         icon: <Plus size={15} aria-hidden="true" />,
-        run: () => onCreateSession(),
+        run: () => onCreateSession("", false),
       });
     }
 

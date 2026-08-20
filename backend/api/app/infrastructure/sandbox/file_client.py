@@ -6,6 +6,10 @@ from app.core.config import settings
 from app.core.exceptions import AppException
 
 
+def _flag(value: bool) -> str:
+    return "true" if value else "false"
+
+
 class SandboxFileClient:
     """主 API 访问 Sandbox 文件接口的同步客户端。"""
 
@@ -20,12 +24,24 @@ class SandboxFileClient:
         self.headers = self._auth_headers()
 
     # ===================== 第1步：封装文件列表 =====================
-    def list_files(self, path: str = ".") -> dict[str, Any]:
-        return self._request("GET", "/files", params={"path": path})
+    def list_files(
+        self, path: str = ".", workspace: str = "", full_access: bool = False
+    ) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            "/files",
+            params={"path": path, "workspace": workspace, "full_access": _flag(full_access)},
+        )
 
     # ===================== 第2步：封装文件读取 =====================
-    def read_file(self, path: str) -> dict[str, Any]:
-        return self._request("GET", "/files/read", params={"path": path})
+    def read_file(
+        self, path: str, workspace: str = "", full_access: bool = False
+    ) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            "/files/read",
+            params={"path": path, "workspace": workspace, "full_access": _flag(full_access)},
+        )
 
     # ===================== 第3步：封装文件写入 =====================
     def write_file(
@@ -33,10 +49,13 @@ class SandboxFileClient:
         path: str,
         content: str,
         create_parent: bool = True,
+        workspace: str = "",
+        full_access: bool = False,
     ) -> dict[str, Any]:
         return self._request(
             "POST",
             "/files/write",
+            params={"workspace": workspace, "full_access": _flag(full_access)},
             json={
                 "path": path,
                 "content": content,
@@ -50,10 +69,13 @@ class SandboxFileClient:
         path: str,
         old_text: str,
         new_text: str,
+        workspace: str = "",
+        full_access: bool = False,
     ) -> dict[str, Any]:
         return self._request(
             "POST",
             "/files/replace",
+            params={"workspace": workspace, "full_access": _flag(full_access)},
             json={
                 "path": path,
                 "old_text": old_text,
@@ -62,8 +84,14 @@ class SandboxFileClient:
         )
 
     # ===================== 第5步：封装文件删除 =====================
-    def delete_path(self, path: str) -> dict[str, Any]:
-        return self._request("DELETE", "/files", params={"path": path})
+    def delete_path(
+        self, path: str, workspace: str = "", full_access: bool = False
+    ) -> dict[str, Any]:
+        return self._request(
+            "DELETE",
+            "/files",
+            params={"path": path, "workspace": workspace, "full_access": _flag(full_access)},
+        )
 
     # ===================== 第6步：统一处理 Sandbox 响应 =====================
     def _request(

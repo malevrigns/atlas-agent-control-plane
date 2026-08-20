@@ -26,23 +26,28 @@ def build_file_service() -> SandboxFileService:
 @router.get("", response_model=ApiResponse[FileListResponse])
 async def list_files(
     path: str = Query(default="."),
+    workspace: str = Query(default=""),
+    full_access: bool = Query(default=False),
     service: SandboxFileService = Depends(build_file_service),
 ) -> ApiResponse[FileListResponse]:
-    # 列表接口只允许浏览 workspace 里的相对路径。
-    return ApiResponse(data=service.list_files(path))
+    return ApiResponse(data=service.list_files(path, workspace, full_access))
 
 
 @router.get("/read", response_model=ApiResponse[FileReadResponse])
 async def read_file(
     path: str = Query(min_length=1),
+    workspace: str = Query(default=""),
+    full_access: bool = Query(default=False),
     service: SandboxFileService = Depends(build_file_service),
 ) -> ApiResponse[FileReadResponse]:
-    return ApiResponse(data=service.read_file(path))
+    return ApiResponse(data=service.read_file(path, workspace, full_access))
 
 
 @router.post("/write", response_model=ApiResponse[FileWriteResponse])
 async def write_file(
     payload: FileWriteRequest,
+    workspace: str = Query(default=""),
+    full_access: bool = Query(default=False),
     service: SandboxFileService = Depends(build_file_service),
 ) -> ApiResponse[FileWriteResponse]:
     return ApiResponse(
@@ -50,6 +55,8 @@ async def write_file(
             path=payload.path,
             content=payload.content,
             create_parent=payload.create_parent,
+            workspace=workspace,
+            full_access=full_access,
         )
     )
 
@@ -57,6 +64,8 @@ async def write_file(
 @router.post("/replace", response_model=ApiResponse[FileReplaceResponse])
 async def replace_text(
     payload: FileReplaceRequest,
+    workspace: str = Query(default=""),
+    full_access: bool = Query(default=False),
     service: SandboxFileService = Depends(build_file_service),
 ) -> ApiResponse[FileReplaceResponse]:
     return ApiResponse(
@@ -64,6 +73,8 @@ async def replace_text(
             path=payload.path,
             old_text=payload.old_text,
             new_text=payload.new_text,
+            workspace=workspace,
+            full_access=full_access,
         )
     )
 
@@ -71,9 +82,11 @@ async def replace_text(
 @router.delete("", response_model=ApiResponse[FileDeleteResponse])
 async def delete_path(
     path: str = Query(min_length=1),
+    workspace: str = Query(default=""),
+    full_access: bool = Query(default=False),
     service: SandboxFileService = Depends(build_file_service),
 ) -> ApiResponse[FileDeleteResponse]:
-    return ApiResponse(data=service.delete_path(path))
+    return ApiResponse(data=service.delete_path(path, workspace, full_access))
 
 
 @router.post("/upload", response_model=ApiResponse[FileUploadResponse])

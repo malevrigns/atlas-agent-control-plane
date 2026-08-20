@@ -25,7 +25,7 @@ type AppSidebarProps = {
   activeView: MainView;
   onCollapse: () => void;
   onOpenPalette: () => void;
-  onCreateSession: () => void;
+  onCreateSession: (workspaceDir: string, fullAccess: boolean) => void;
   onDeleteSession: (sessionId: string) => void;
   onRefresh: () => void;
   onViewChange: (view: MainView) => void;
@@ -58,6 +58,9 @@ export function AppSidebar({
     width: number;
     height: number;
   } | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [workspaceDir, setWorkspaceDir] = useState("");
+  const [fullAccess, setFullAccess] = useState(false);
 
   useLayoutEffect(() => {
     function measure() {
@@ -199,16 +202,64 @@ export function AppSidebar({
         </div>
       </div>
 
-      <button
-        className="brand-gradient sheen-btn mt-6 flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 max-sm:mt-4"
-        disabled={submitting}
-        onClick={onCreateSession}
-        title="新建工作区"
-        type="button"
-      >
-        <Plus size={18} aria-hidden="true" />
-        新建工作区
-      </button>
+      {showCreateForm ? (
+        <div className="mt-6 flex flex-col gap-2 rounded-xl border border-(--line) bg-(--fill-1) p-3">
+          <label className="text-xs font-medium text-(--text-3)">
+            本地工作区目录（相对 D 盘，留空则使用整个挂载盘）
+          </label>
+          <input
+            className="rounded-lg border border-(--line) bg-(--field) px-3 py-2 text-sm text-(--text-1) outline-none placeholder:text-(--text-5) focus:border-(--accent)"
+            placeholder="例如 projects/myapp"
+            value={workspaceDir}
+            onChange={(event) => setWorkspaceDir(event.target.value)}
+          />
+          <label className="flex items-center gap-2 text-xs text-(--text-3)">
+            <input
+              type="checkbox"
+              checked={fullAccess}
+              onChange={(event) => setFullAccess(event.target.checked)}
+            />
+            最高权限（可访问整个挂载盘，忽略工作区）
+          </label>
+          <div className="flex gap-2">
+            <button
+              className="brand-gradient flex-1 rounded-lg py-2 text-sm font-semibold text-white disabled:opacity-50"
+              disabled={submitting}
+              onClick={() => {
+                onCreateSession(workspaceDir.trim(), fullAccess);
+                setShowCreateForm(false);
+                setWorkspaceDir("");
+                setFullAccess(false);
+              }}
+              type="button"
+            >
+              创建
+            </button>
+            <button
+              className="rounded-lg border border-(--line) px-3 py-2 text-sm text-(--text-3)"
+              onClick={() => {
+                setShowCreateForm(false);
+                setWorkspaceDir("");
+                setFullAccess(false);
+              }}
+              type="button"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          className="brand-gradient sheen-btn mt-6 flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 max-sm:mt-4"
+          disabled={submitting}
+          onClick={() => setShowCreateForm(true)}
+          title="新建工作区"
+          type="button"
+        >
+          <Plus size={18} aria-hidden="true" />
+          新建工作区
+        </button>
+      )}
 
       <div className="mt-6 flex shrink-0 items-center justify-between max-sm:mt-4">
         <div className="flex items-center gap-2">

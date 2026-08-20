@@ -361,7 +361,7 @@ function WorkspaceHome() {
             activeView={activeView}
             onCollapse={toggleSidebar}
             onOpenPalette={() => setPaletteOpen(true)}
-            onCreateSession={workspace.createSession}
+            onCreateSession={(dir, full) => workspace.createSession(dir, full)}
             onDeleteSession={workspace.deleteSession}
             onRefresh={refreshAll}
             onSelectSession={workspace.selectSession}

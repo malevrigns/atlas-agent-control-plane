@@ -1,6 +1,7 @@
 import asyncio
 import re
 from collections.abc import Awaitable, Callable
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any, cast
@@ -34,6 +35,32 @@ class ToolExecutionContext:
     approved: bool = False
     approval_reason: str = ""
     idempotency_key: str | None = None
+    # 本地工作区：文件/Shell 工具据此限域；full_access 放行整个挂载根。
+    workspace_dir: str = ""
+    full_access: bool = False
+
+
+# 当前工具执行的上下文：工具 handler 通过它拿到工作区限域。
+_current_context: ContextVar[ToolExecutionContext | None] = ContextVar(
+    "atlas_tool_context", default=None
+)
+
+
+def current_workspace() -> tuple[str, bool]:
+    """返回当前工具执行的 (workspace_dir, full_access)。"""
+    ctx = _current_context.get()
+    if ctx is None:
+        return "", False
+    return ctx.workspace_dir, ctx.full_access
+
+
+def set_current_context(context: ToolExecutionContext):
+    """设置当前工具执行上下文，返回 reset token。"""
+    return _current_context.set(context)
+
+
+def reset_current_context(token) -> None:
+    _current_context.reset(token)
 
 
 @dataclass(slots=True)

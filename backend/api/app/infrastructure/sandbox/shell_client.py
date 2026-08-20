@@ -20,10 +20,17 @@ class SandboxShellClient:
         self.headers = self._auth_headers()
 
     # ===================== 第1步：启动 Shell 会话 =====================
-    def execute(self, command: str, cwd: str = ".") -> dict[str, Any]:
+    def execute(
+        self,
+        command: str,
+        cwd: str = ".",
+        workspace: str = "",
+        full_access: bool = False,
+    ) -> dict[str, Any]:
         return self._request(
             "POST",
             "/shell/sessions",
+            params={"workspace": workspace, "full_access": "true" if full_access else "false"},
             json={"command": command, "cwd": cwd},
         )
 

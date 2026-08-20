@@ -29,17 +29,36 @@ class ShellSession:
 
 
 class SandboxShellService:
-    """管理沙箱里的 Shell 进程会话。"""
+    """管理沙箱里的 Shell 进程会话；工作目录限域在挂载根内。"""
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.workspace = Path(settings.workspace_dir).resolve()
-        self.workspace.mkdir(parents=True, exist_ok=True)
+        self.mount_root = Path(settings.workspace_dir).resolve()
+        self.mount_root.mkdir(parents=True, exist_ok=True)
         self._sessions: dict[str, ShellSession] = {}
 
+    def _root(self, workspace: str, full_access: bool) -> Path:
+        if full_access:
+            return self.mount_root
+        clean = workspace.strip().strip("/")
+        if not clean:
+            return self.mount_root
+        target = (self.mount_root / clean).resolve()
+        if target != self.mount_root and self.mount_root not in target.parents:
+            raise SandboxException(message="workspace escapes mount root")
+        target.mkdir(parents=True, exist_ok=True)
+        return target
+
     # ===================== 第1步：启动命令 =====================
-    async def execute(self, command: str, cwd: str = ".") -> ShellSessionResponse:
-        workdir = self._resolve_workdir(cwd)
+    async def execute(
+        self,
+        command: str,
+        cwd: str = ".",
+        workspace: str = "",
+        full_access: bool = False,
+    ) -> ShellSessionResponse:
+        root = self._root(workspace, full_access)
+        workdir = self._resolve_workdir(cwd, root)
         process = await asyncio.create_subprocess_shell(
             command,
             cwd=workdir,
@@ -50,7 +69,7 @@ class SandboxShellService:
         session = ShellSession(
             id=str(uuid4()),
             command=command,
-            cwd=self._to_relative_path(workdir),
+            cwd=self._to_relative_path(workdir, root),
             process=process,
         )
         self._sessions[session.id] = session
@@ -143,13 +162,14 @@ class SandboxShellService:
         session.output_chunks = [truncated.decode("utf-8", errors="replace")]
 
     # ===================== 第7步：路径和会话辅助方法 =====================
-    def _resolve_workdir(self, cwd: str) -> Path:
+    @staticmethod
+    def _resolve_workdir(cwd: str, root: Path) -> Path:
         clean_cwd = cwd.strip() or "."
         if Path(clean_cwd).is_absolute():
             raise SandboxException(message="absolute cwd is not allowed")
 
-        target = (self.workspace / clean_cwd).resolve()
-        if target != self.workspace and self.workspace not in target.parents:
+        target = (root / clean_cwd).resolve()
+        if target != root and root not in target.parents:
             raise SandboxException(message="cwd escapes workspace")
         target.mkdir(parents=True, exist_ok=True)
         return target
@@ -164,8 +184,9 @@ class SandboxShellService:
             )
         return session
 
-    def _to_relative_path(self, path: Path) -> str:
-        relative = path.resolve().relative_to(self.workspace)
+    @staticmethod
+    def _to_relative_path(path: Path, root: Path) -> str:
+        relative = path.resolve().relative_to(root)
         return "." if str(relative) == "." else relative.as_posix()
 
     def _to_response(self, session: ShellSession) -> ShellSessionResponse:

@@ -39,6 +39,9 @@ class Session:
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
+    # 本地工作区目录（相对沙箱挂载根）；full_access 为 True 时可访问整个挂载根。
+    workspace_dir: str = ""
+    full_access: bool = False
 
 
 @dataclass(slots=True)

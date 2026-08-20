@@ -1,3 +1,6 @@
+from typing import Any
+
+from app.application.tool_runtime_support import current_workspace
 from app.core.config import settings
 from app.domain.agent_core.tools import (
     AgentTool,
@@ -7,6 +10,12 @@ from app.domain.agent_core.tools import (
     ToolRiskLevel,
 )
 from app.infrastructure.sandbox.file_client import SandboxFileClient
+
+
+def _ws_kwargs() -> dict[str, Any]:
+    """把当前工具执行的工作区限域转成传给沙箱的关键字参数。"""
+    workspace, full_access = current_workspace()
+    return {"workspace": workspace, "full_access": full_access}
 
 
 def build_sandbox_file_client() -> SandboxFileClient:
@@ -41,7 +50,9 @@ def register_sandbox_file_tools(
                     )
                 ],
             ),
-            handler=lambda path=".": _format_file_list(file_client.list_files(path or ".")),
+            handler=lambda path=".": _format_file_list(
+                file_client.list_files(path or ".", **_ws_kwargs())
+            ),
         )
     )
 
@@ -59,7 +70,9 @@ def register_sandbox_file_tools(
                     )
                 ],
             ),
-            handler=lambda path: _format_file_content(file_client.read_file(path)),
+            handler=lambda path: _format_file_content(
+                file_client.read_file(path, **_ws_kwargs())
+            ),
         )
     )
 
@@ -85,7 +98,7 @@ def register_sandbox_file_tools(
                 ],
             ),
             handler=lambda path, content: _format_write_result(
-                file_client.write_file(path=path, content=content)
+                file_client.write_file(path=path, content=content, **_ws_kwargs())
             ),
         )
     )
@@ -121,6 +134,7 @@ def register_sandbox_file_tools(
                     path=path,
                     old_text=old_text,
                     new_text=new_text,
+                    **_ws_kwargs(),
                 )
             ),
         )
@@ -142,7 +156,9 @@ def register_sandbox_file_tools(
                     )
                 ],
             ),
-            handler=lambda path: _format_delete_result(file_client.delete_path(path)),
+            handler=lambda path: _format_delete_result(
+                file_client.delete_path(path, **_ws_kwargs())
+            ),
         )
     )
 

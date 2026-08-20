@@ -39,7 +39,11 @@ async def create_session(
     payload: SessionCreateRequest,
     service: SessionService = Depends(build_session_service),
 ) -> ApiResponse[SessionResponse]:
-    session = await service.create_session(payload.title)
+    session = await service.create_session(
+        payload.title,
+        workspace_dir=payload.workspace_dir,
+        full_access=payload.full_access,
+    )
     return ApiResponse(data=to_session_response(session))
 
 

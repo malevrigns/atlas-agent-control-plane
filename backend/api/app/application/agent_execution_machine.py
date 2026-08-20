@@ -258,6 +258,8 @@ class AgentExecutionMachine:
             memory_context=context.memory_context,
             agent_context=context.agent_context,
             step_history=snapshot.step_history,
+            workspace_dir=context.workspace_dir,
+            full_access=context.full_access,
         )
 
     async def _reflection_events(

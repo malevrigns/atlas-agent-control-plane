@@ -26,11 +26,18 @@ class SqlAlchemySessionRepository(SessionRepository):
     def __init__(self, db_session: AsyncSession) -> None:
         self.db_session = db_session
 
-    async def add(self, title: str) -> Session:
+    async def add(
+        self,
+        title: str,
+        workspace_dir: str = "",
+        full_access: bool = False,
+    ) -> Session:
         model = SessionModel(
             title=title,
             status=SessionStatus.idle.value,
             unread_count=0,
+            workspace_dir=workspace_dir,
+            full_access=full_access,
         )
         self.db_session.add(model)
         await self.db_session.flush()

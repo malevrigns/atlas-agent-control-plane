@@ -87,6 +87,8 @@ class StepExecutionRequest:
     memory_context: MemoryContext
     agent_context: str
     step_history: tuple[str, ...]
+    workspace_dir: str = ""
+    full_access: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.run_id, UUID):
@@ -267,6 +269,8 @@ class ReActStepExecutor:
                     f"{request.plan_revision}:{step_id}:{request.attempt}"
                 ).encode("utf-8")
             ).hexdigest(),
+            workspace_dir=request.workspace_dir,
+            full_access=request.full_access,
         )
 
     def _render_agent_context(self, request: StepExecutionRequest) -> str:

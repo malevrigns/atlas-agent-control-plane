@@ -109,6 +109,8 @@ class ReActAgentService:
         return plan, AgentExecutionContext(
             snapshot.memory_context,
             self._context_service.render_for_agent(snapshot),
+            workspace_dir=getattr(session, "workspace_dir", ""),
+            full_access=getattr(session, "full_access", False),
         )
 
     async def _resume_context(

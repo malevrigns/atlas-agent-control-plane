@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.core.config import settings
 from app.schemas.common import ApiResponse
@@ -26,9 +26,13 @@ def get_shell_service() -> SandboxShellService:
 @router.post("/sessions", response_model=ApiResponse[ShellSessionResponse])
 async def execute_command(
     payload: ShellExecuteRequest,
+    workspace: str = Query(default=""),
+    full_access: bool = Query(default=False),
     service: SandboxShellService = Depends(get_shell_service),
 ) -> ApiResponse[ShellSessionResponse]:
-    return ApiResponse(data=await service.execute(payload.command, payload.cwd))
+    return ApiResponse(
+        data=await service.execute(payload.command, payload.cwd, workspace, full_access)
+    )
 
 
 @router.get("/sessions", response_model=ApiResponse[ShellSessionListResponse])

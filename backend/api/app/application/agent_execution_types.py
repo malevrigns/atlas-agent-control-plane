@@ -34,6 +34,8 @@ def plan_revision(plan: Mapping[str, object]) -> int:
 class AgentExecutionContext:
     memory_context: MemoryContext
     agent_context: str
+    workspace_dir: str = ""
+    full_access: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,3 +1,4 @@
+from app.application.tool_runtime_support import current_workspace
 from app.core.config import settings
 from app.domain.agent_core.tools import (
     AgentTool,
@@ -70,7 +71,10 @@ def register_sandbox_shell_tools(
 
 
 def _run_and_wait(client: SandboxShellClient, command: str) -> dict:
-    started = client.execute(command=command, cwd=".")
+    workspace, full_access = current_workspace()
+    started = client.execute(
+        command=command, cwd=".", workspace=workspace, full_access=full_access
+    )
     return client.wait(
         session_id=str(started["id"]),
         timeout_seconds=settings.sandbox_shell_wait_timeout_seconds,
