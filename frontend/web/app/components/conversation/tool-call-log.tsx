@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Terminal } from "lucide-react";
 
 import type { SessionEventItem } from "../../types";
@@ -10,6 +10,11 @@ type ToolCallLogProps = {
   events: SessionEventItem[];
   running: boolean;
 };
+
+/** 每次揭示的行数：一次多喂几行，滚动更快。 */
+const STREAM_STEP = 6;
+/** 揭示间隔（毫秒）：约 40fps，接近终端刷新的手感。 */
+const STREAM_INTERVAL_MS = 24;
 
 /** 把一次工具调用渲染成一条「命令」文本：shell 显示原始命令，其余显示工具名。 */
 function commandOf(event: SessionEventItem): string {
@@ -25,18 +30,49 @@ function commandOf(event: SessionEventItem): string {
 }
 
 /**
- * 执行日志：把本轮的工具调用逐条滚动展示，像终端一样。
- * 运行中自动滚到底部，新命令一到就顶到最新。
+ * 执行日志：像终端一样，输出逐行快速「流式」滚动。
+ * 运行中最后一条工具的输出按行分批揭示，并自动钉在底部。
  */
 export function ToolCallLog({ events, running }: ToolCallLogProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const toolEvents = events.filter((event) => event.type === "tool_called");
+  const toolEvents = useMemo(
+    () => events.filter((event) => event.type === "tool_called"),
+    [events],
+  );
 
+  const last = toolEvents[toolEvents.length - 1];
+  const lastOutput = last ? getString(last.payload.output) : "";
+  const lastLines = useMemo(() => lastOutput.split("\n"), [lastOutput]);
+
+  // 已揭示的行数：运行中从 0 开始流式增长；结束后一次性显示全部。
+  const [streamedLines, setStreamedLines] = useState(() =>
+    running ? 0 : lastLines.length,
+  );
+
+  // 新工具到来或运行状态变化时重置揭示进度。
   useEffect(() => {
-    if (running && scrollRef.current) {
+    setStreamedLines(running ? 0 : lastLines.length);
+  }, [toolEvents.length, running, lastLines.length]);
+
+  // 运行中逐行快速揭示最后一条输出。
+  useEffect(() => {
+    if (!running || streamedLines >= lastLines.length) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setStreamedLines((previous) =>
+        Math.min(previous + STREAM_STEP, lastLines.length),
+      );
+    }, STREAM_INTERVAL_MS);
+    return () => window.clearTimeout(timer);
+  }, [running, streamedLines, lastLines.length]);
+
+  // 揭示进度一变化就钉到底部，形成连续滚动。
+  useEffect(() => {
+    if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [toolEvents.length, running]);
+  }, [streamedLines, toolEvents.length]);
 
   if (!toolEvents.length) {
     return null;
@@ -50,11 +86,15 @@ export function ToolCallLog({ events, running }: ToolCallLogProps) {
       </div>
       <div
         ref={scrollRef}
-        className="max-h-56 overflow-y-auto bg-black/40 px-4 py-3 font-mono text-xs leading-6 text-(--text-2)"
+        className="max-h-64 overflow-y-auto bg-black/40 px-4 py-3 font-mono text-xs leading-6 text-(--text-2)"
       >
         {toolEvents.map((event, index) => {
           const output = getString(event.payload.output);
           const status = getString(event.payload.status);
+          const isLast = index === toolEvents.length - 1;
+          const lines = output.split("\n");
+          const visibleLines =
+            isLast && running ? lines.slice(0, streamedLines) : lines;
           return (
             <div className="py-1" key={event.id ?? index}>
               <div className="text-(--accent)">
@@ -65,7 +105,9 @@ export function ToolCallLog({ events, running }: ToolCallLogProps) {
                 ) : null}
               </div>
               {output ? (
-                <div className="whitespace-pre-wrap text-(--text-4)">{output}</div>
+                <div className="whitespace-pre-wrap text-(--text-4)">
+                  {visibleLines.join("\n")}
+                </div>
               ) : null}
             </div>
           );
