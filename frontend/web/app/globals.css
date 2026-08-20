@@ -571,19 +571,19 @@ a {
    滑块随滚动点亮发光、停止后温和熄灭。 */
 @property --sb-live-a {
   syntax: "<color>";
-  inherits: false;
+  inherits: true;
   initial-value: transparent;
 }
 
 @property --sb-live-b {
   syntax: "<color>";
-  inherits: false;
+  inherits: true;
   initial-value: transparent;
 }
 
 @property --sb-glow {
   syntax: "<length>";
-  inherits: false;
+  inherits: true;
   initial-value: 0px;
 }
 
