@@ -142,13 +142,13 @@ class AgentRunnerServiceTest(unittest.IsolatedAsyncioTestCase):
 
     def assert_shared_model(self, service, model) -> None:
         machine = service.react_service._execution_machine
-        selector = machine._executor._tool_caller._selector
+        step_loop = machine._executor._step_loop
         self.assertIs(service.llm_service, model)
         self.assertIs(service.direct_chat_service.model, model)
         self.assertIs(service.planner_service.llm_service, model)
         self.assertIs(machine._critic._model, model)
         self.assertIs(machine._summarizer._model, model)
-        self.assertIs(selector.llm_service, model)
+        self.assertIs(step_loop.llm_service, model)
 
     def test_agent_runner_module_stays_within_file_limit(self) -> None:
         path = Path(__file__).parents[1] / "app/application/agent_runner_service.py"

@@ -5,6 +5,7 @@ from types import MappingProxyType
 from typing import Protocol
 from uuid import UUID
 
+from app.application.agent_loop import StepAgentLoop
 from app.application.tool_runtime import ToolExecutionContext
 from app.application.unit_of_work import UnitOfWork
 from app.domain.agent_core.tools import ToolCallResult, ToolInvocationStatus
@@ -116,15 +117,21 @@ class ReActStepExecutor:
         self,
         *,
         uow: UnitOfWork,
-        tool_caller: ToolCaller,
+        tool_caller: ToolCaller | None = None,
+        step_loop: StepAgentLoop | None = None,
         output_summarizer: OutputSummarizer | None = None,
     ) -> None:
         self._uow = uow
         self._tool_caller = tool_caller
+        self._step_loop = step_loop
         self._output_summarizer = output_summarizer or self._default_summary
 
     async def execute(self, request: StepExecutionRequest) -> StepExecutionOutcome:
         started = await self._add_started_event(request)
+        if self._step_loop is not None:
+            return await self._execute_with_loop(request, started)
+        if self._tool_caller is None:
+            raise ValueError("step executor requires tool_caller or step_loop")
         tool_result = await self._tool_caller(
             request=request,
             agent_context=self._render_agent_context(request),
@@ -140,6 +147,50 @@ class ReActStepExecutor:
             observation=observation,
         )
 
+    async def _execute_with_loop(
+        self,
+        request: StepExecutionRequest,
+        started: SessionEvent,
+    ) -> StepExecutionOutcome:
+        loop_result = await self._step_loop.run_step(
+            session_id=request.session_id,
+            plan=dict(request.plan),
+            step=dict(request.step),
+            index=request.step_index + 1,
+            context=self._render_agent_context(request),
+            execution_context=self._tool_execution_context(request),
+        )
+        tool_events: list[SessionEvent] = []
+        for item in loop_result.tool_calls:
+            result = item.result
+            tool_events.append(
+                await self._add_tool_event(
+                    request,
+                    {
+                        "tool_name": result.tool_name,
+                        "arguments": result.arguments,
+                        "output": result.output,
+                        "invocation_id": result.invocation_id,
+                        "status": result.status.value,
+                        "risk_level": result.risk_level.value,
+                        "artifact_id": result.artifact_id,
+                        "duration_ms": result.duration_ms,
+                        "audit": result.audit or {},
+                        "turn": item.turn,
+                    },
+                )
+            )
+        status = (
+            loop_result.tool_calls[-1].result.status
+            if loop_result.tool_calls
+            else ToolInvocationStatus.succeeded
+        )
+        observation = StepObservation(status=status, output=loop_result.summary)
+        return StepExecutionOutcome(
+            events=(started, *tool_events),
+            observation=observation,
+        )
+
     def format_step_history(
         self,
         *,
@@ -147,7 +198,12 @@ class ReActStepExecutor:
         step: Mapping[str, object],
         events: tuple[SessionEvent, ...],
     ) -> str:
-        tool_event = self._require_tool_event(events)
+        tool_events = [
+            event for event in events if event.type is SessionEventType.tool_called
+        ]
+        if not tool_events:
+            return f"- 步骤{step_index + 1}《{step.get('title') or ''}》已完成。"
+        tool_event = tool_events[-1]
         status = ToolInvocationStatus(str(tool_event.payload["status"]))
         prefix = "已完成" if status in SUCCESS_STATUSES else "⚠️ 失败"
         tool_name = str(tool_event.payload.get("tool_name") or "")

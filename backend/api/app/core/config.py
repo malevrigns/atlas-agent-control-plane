@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     tool_output_inline_limit: int = 64 * 1024
     tool_default_timeout_seconds: float = 30.0
     tool_auto_approve_risk: str = "medium"
+    # ===================== 多轮工具调用循环 =====================
+    agent_tool_mode: str = "auto"
+    agent_step_max_iterations: int = 15
+    agent_step_max_tool_calls: int = 20
+    agent_step_repeat_call_limit: int = 3
     max_upload_size: int = 10 * 1024 * 1024
     max_file_preview_size: int = 64 * 1024
     sandbox_api_base_url: str = "http://localhost:8100/api"

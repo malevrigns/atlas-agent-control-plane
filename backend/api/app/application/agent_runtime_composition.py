@@ -2,16 +2,16 @@ from dataclasses import dataclass
 
 from app.application.agent_direct_chat_service import AgentDirectChatService
 from app.application.agent_execution_machine import AgentExecutionMachine
+from app.application.agent_loop import StepAgentLoop
 from app.application.agent_summary_service import AgentSummaryService
 from app.application.context_engineering_service import ContextEngineeringService
 from app.application.critic_service import CriticService
 from app.application.llm_service import LLMService
 from app.application.planner_service import PlannerService
 from app.application.react_agent_service import ReActAgentService
-from app.application.react_step_executor import ReActStepExecutor, SelectedToolCaller
+from app.application.react_step_executor import ReActStepExecutor
 from app.application.session_file_sync_service import SessionFileSyncService
 from app.application.session_service import SessionService
-from app.application.tool_selection_service import ModelToolSelectionService
 from app.application.unit_of_work import UnitOfWork
 from app.core.config import settings
 from app.domain.agent_runtime.router import AgentStateRouter
@@ -39,14 +39,14 @@ def compose_agent_runtime(
     session_service = SessionService(uow)
     context_service = ContextEngineeringService(uow)
     summary = AgentSummaryService(uow, model)
-    selector = ModelToolSelectionService(
+    step_loop = StepAgentLoop(
         registry=build_builtin_tool_registry(content_model=model),
         llm_service=model,
         uow=uow,
     )
     executor = ReActStepExecutor(
         uow=uow,
-        tool_caller=SelectedToolCaller(selector),
+        step_loop=step_loop,
         output_summarizer=summary.summarize_tool_output,
     )
     machine = AgentExecutionMachine(

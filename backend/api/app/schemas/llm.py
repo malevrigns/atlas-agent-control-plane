@@ -20,8 +20,10 @@ class LLMConfigResponse(BaseModel):
 
 # ===================== 第3步：定义聊天请求中的消息结构 =====================
 class LLMMessageRequest(BaseModel):
-    role: str = Field(pattern="^(system|user|assistant)$")
+    role: str = Field(pattern="^(system|user|assistant|tool)$")
     content: str = Field(min_length=1)
+    name: str | None = None
+    tool_call_id: str | None = None
 
 
 # ===================== 第4步：定义聊天请求体 =====================

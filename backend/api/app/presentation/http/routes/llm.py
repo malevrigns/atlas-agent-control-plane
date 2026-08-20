@@ -21,7 +21,12 @@ async def chat(
 ) -> ApiResponse[LLMChatResponse]:
     result = await service.chat(
         messages=[
-            LLMMessage(role=message.role, content=message.content)
+            LLMMessage(
+                  role=message.role,
+                  content=message.content,
+                  name=message.name,
+                  tool_call_id=message.tool_call_id,
+              )
             for message in payload.messages
         ],
         provider=payload.provider,

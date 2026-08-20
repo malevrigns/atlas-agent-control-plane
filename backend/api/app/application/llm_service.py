@@ -50,6 +50,8 @@ class LLMService:
         temperature: float | None,
         max_tokens: int | None,
         extra_body: dict | None = None,
+        tools: list[dict] | None = None,
+        tool_choice: str | None = None,
     ) -> tuple[LLMChatRequest, OpenAICompatibleClient]:
         if not module_enabled("llm"):
             raise AppException(message="LLM module is disabled", code=503, status_code=503)
@@ -81,6 +83,8 @@ class LLMService:
             else self.config.llm.temperature,
             max_tokens=max_tokens if max_tokens is not None else self.config.llm.max_tokens,
             extra_body=extra_body,
+            tools=tools,
+            tool_choice=tool_choice,
         )
         client = OpenAICompatibleClient(
             api_key=api_key,
@@ -98,9 +102,12 @@ class LLMService:
         model: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        tools: list[dict] | None = None,
+        tool_choice: str | None = None,
     ) -> LLMChatResult:
         request, client = self._prepare_request(
-            messages, provider, model, temperature, max_tokens
+            messages, provider, model, temperature, max_tokens,
+            tools=tools, tool_choice=tool_choice,
         )
         return await client.chat(request)
 

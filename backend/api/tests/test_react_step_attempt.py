@@ -46,8 +46,8 @@ class StepAttemptIdempotencyTest(unittest.IsolatedAsyncioTestCase):
         await executor.execute(StepExecutionRequest(**common, attempt=1))
         await executor.execute(StepExecutionRequest(**common, attempt=2))
 
+        # 幂等键已改为 sha256 哈希，不再保留 :attempt:N 后缀；只断言两次 attempt 产生不同键。
         self.assertNotEqual(contexts[0].idempotency_key, contexts[1].idempotency_key)
-        self.assertTrue(contexts[1].idempotency_key.endswith(":attempt:2"))
 
     async def test_selected_tool_caller_adapts_request_to_selector(self) -> None:
         class Selector:

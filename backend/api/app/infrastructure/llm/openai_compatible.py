@@ -1,10 +1,11 @@
 import json
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 
 from app.core.exceptions import AppException
-from app.domain.llm.entities import LLMChatRequest, LLMChatResult, LLMStreamDelta
+from app.domain.llm.entities import LLMChatRequest, LLMChatResult, LLMStreamDelta, LLMToolCall
 
 
 # ===================== 第1步：封装 OpenAI 兼容的 HTTP 客户端 =====================
@@ -23,15 +24,16 @@ class OpenAICompatibleClient:
 
     async def chat(self, request: LLMChatRequest) -> LLMChatResult:
         # ===================== 第2步：组装 /chat/completions 请求体 =====================
-        payload = {
+        payload: dict[str, Any] = {
             "model": request.model,
-            "messages": [
-                {"role": message.role, "content": message.content}
-                for message in request.messages
-            ],
+            "messages": self._build_message_payloads(request.messages),
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
         }
+        if request.tools:
+            payload["tools"] = request.tools
+        if request.tool_choice:
+            payload["tool_choice"] = request.tool_choice
 
         # ===================== 第3步：向模型服务商发送 HTTP 请求 =====================
         try:
@@ -45,8 +47,9 @@ class OpenAICompatibleClient:
                     json=payload,
                 )
         except httpx.HTTPError as exc:
+            detail = str(exc).strip() or type(exc).__name__
             raise AppException(
-                message=f"LLM request failed: {exc}",
+                message=f"LLM request failed: {detail}",
                 code=502,
                 status_code=502,
             ) from exc
@@ -71,19 +74,22 @@ class OpenAICompatibleClient:
 
         message = choices[0].get("message") or {}
         content = message.get("content")
+        if content is None:
+            content = ""
         if not isinstance(content, str):
             raise AppException(
                 message="LLM provider returned empty message content",
                 code=502,
                 status_code=502,
             )
+        tool_calls = self._parse_tool_calls(message.get("tool_calls"))
 
-        # 这里只取第一条回复，后续如果支持多候选结果，可以在这里扩展。
         return LLMChatResult(
             provider=request.provider,
             model=request.model,
             content=content,
             usage=data.get("usage"),
+            tool_calls=tool_calls,
         )
 
     async def chat_vision(
@@ -106,6 +112,7 @@ class OpenAICompatibleClient:
             "messages": [
                 {
                     "role": "user",
+                    "name": "user",
                     "content": [
                         {"type": "image_url", "image_url": {"url": image_data_url}},
                         {"type": "text", "text": prompt},
@@ -160,10 +167,7 @@ class OpenAICompatibleClient:
 
         payload = {
             "model": request.model,
-            "messages": [
-                {"role": message.role, "content": message.content}
-                for message in request.messages
-            ],
+            "messages": self._build_message_payloads(request.messages),
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
             "stream": True,
@@ -215,3 +219,58 @@ class OpenAICompatibleClient:
                 code=502,
                 status_code=502,
             ) from exc
+
+    @staticmethod
+    def _build_message_payload(message) -> dict[str, Any]:
+        payload: dict[str, Any] = {"role": message.role, "content": message.content}
+        if message.name:
+            payload["name"] = message.name
+        elif message.role == "tool":
+            raise AppException(
+                message="tool role message requires name",
+                code=400,
+                status_code=400,
+            )
+        else:
+            payload["name"] = message.role
+        if message.tool_call_id:
+            payload["tool_call_id"] = message.tool_call_id
+        if message.tool_calls:
+            payload["tool_calls"] = [
+                {
+                    "id": tool_call.id,
+                    "type": "function",
+                    "function": {
+                        "name": tool_call.name,
+                        "arguments": json.dumps(tool_call.arguments, ensure_ascii=False),
+                    },
+                }
+                for tool_call in message.tool_calls
+            ]
+        return payload
+
+    @classmethod
+    def _build_message_payloads(cls, messages: list) -> list[dict[str, Any]]:
+        return [cls._build_message_payload(message) for message in messages]
+
+    @staticmethod
+    def _parse_tool_calls(raw: Any) -> list[LLMToolCall]:
+        if not isinstance(raw, list):
+            return []
+        tool_calls: list[LLMToolCall] = []
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            function = item.get("function") or {}
+            name = function.get("name")
+            arguments_raw = function.get("arguments") or "{}"
+            try:
+                arguments = json.loads(arguments_raw)
+            except (json.JSONDecodeError, TypeError):
+                arguments = {}
+            if not isinstance(name, str) or not name or not isinstance(arguments, dict):
+                continue
+            tool_calls.append(
+                LLMToolCall(id=str(item.get("id") or ""), name=name, arguments=arguments)
+            )
+        return tool_calls

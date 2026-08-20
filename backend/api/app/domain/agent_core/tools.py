@@ -284,3 +284,31 @@ def _to_schema_type(annotation: Any) -> str:
     if annotation is bool:
         return "boolean"
     return "string"
+
+
+def to_openai_tool_schema(tool: ToolDefinition) -> dict[str, Any]:
+    """把单个工具定义转成 OpenAI 兼容的 function calling schema。"""
+
+    properties = {
+        parameter.name: {"type": parameter.type, "description": parameter.description}
+        for parameter in tool.parameters
+    }
+    required = [parameter.name for parameter in tool.parameters if parameter.required]
+    return {
+        "type": "function",
+        "function": {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        },
+    }
+
+
+def to_openai_tool_schemas(tools: list[ToolDefinition]) -> list[dict[str, Any]]:
+    """把工具定义列表转成 OpenAI 兼容的 function calling schema 列表。"""
+
+    return [to_openai_tool_schema(tool) for tool in tools]
