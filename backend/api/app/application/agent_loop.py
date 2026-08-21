@@ -8,7 +8,6 @@
 工具结果以消息形式回喂给模型，模型「看结果后再决策」，直到该步骤完成。
 """
 
-import asyncio
 import json
 from dataclasses import dataclass, replace
 from typing import Any
@@ -302,12 +301,13 @@ class StepAgentLoop:
             if total_tool_calls + len(outcome.tool_calls) > settings.agent_step_max_tool_calls:
                 break
 
-            results = await asyncio.gather(
-                *[
-                    self._execute_tool(request, execution_context, turn, offset)
-                    for offset, request in enumerate(outcome.tool_calls)
-                ]
-            )
+            # 顺序执行：工具共用同一个 async DB session，并发 flush 会触发
+            # "Session is already flushing"。
+            results = []
+            for offset, request in enumerate(outcome.tool_calls):
+                results.append(
+                    await self._execute_tool(request, execution_context, turn, offset)
+                )
 
             messages.append(strategy.build_assistant_message(outcome))
             for request, (call_id, result) in zip(outcome.tool_calls, results):
