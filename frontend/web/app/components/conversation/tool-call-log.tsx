@@ -16,6 +16,16 @@ const STREAM_STEP = 6;
 /** 揭示间隔（毫秒）：约 40fps，接近终端刷新的手感。 */
 const STREAM_INTERVAL_MS = 24;
 
+/** 工具写入的文件相对路径（file_write / file_replace），用于生成下载链接。 */
+function writtenPath(event: SessionEventItem): string {
+  const toolName = getString(event.payload.tool_name);
+  if (toolName !== "file_write" && toolName !== "file_replace") {
+    return "";
+  }
+  const args = event.payload.arguments as Record<string, unknown> | undefined;
+  return args?.path ? getString(args.path) : "";
+}
+
 /** 把一次工具调用渲染成一条「命令」文本：shell 显示原始命令，其余显示工具名。 */
 function commandOf(event: SessionEventItem): string {
   const toolName = getString(event.payload.tool_name);
@@ -102,6 +112,15 @@ export function ToolCallLog({ events, running }: ToolCallLogProps) {
                 {commandOf(event)}
                 {status === "failed" ? (
                   <span className="ml-2 text-rose-400">[失败]</span>
+                ) : null}
+                {writtenPath(event) ? (
+                  <a
+                    className="ml-2 inline-flex items-center gap-1 rounded-md border border-(--accent)/40 bg-(--accent)/10 px-2 py-0.5 text-[11px] font-medium text-(--accent) no-underline transition hover:bg-(--accent)/20"
+                    href={`/api/sessions/${event.session_id}/sandbox-files/download?path=${encodeURIComponent(writtenPath(event))}`}
+                    download
+                  >
+                    ↓ 下载
+                  </a>
                 ) : null}
               </div>
               {output ? (

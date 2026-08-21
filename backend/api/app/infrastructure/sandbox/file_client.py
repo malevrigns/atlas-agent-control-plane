@@ -93,6 +93,37 @@ class SandboxFileClient:
             params={"path": path, "workspace": workspace, "full_access": _flag(full_access)},
         )
 
+    # ===================== 第5.5步：下载文件原始内容 =====================
+    def download_file(
+        self, path: str, workspace: str = "", full_access: bool = False
+    ) -> tuple[bytes, str]:
+        url = f"{self.base_url}/files/download"
+        try:
+            with httpx.Client(timeout=self.timeout_seconds, trust_env=False) as client:
+                response = client.get(
+                    url,
+                    params={
+                        "path": path,
+                        "workspace": workspace,
+                        "full_access": _flag(full_access),
+                    },
+                    headers=self.headers,
+                )
+        except httpx.HTTPError as error:
+            raise AppException(
+                message=f"sandbox download failed: {error}",
+                code=502,
+                status_code=502,
+            ) from error
+        if response.status_code >= 400:
+            raise AppException(
+                message="sandbox file download failed",
+                code=response.status_code,
+                status_code=response.status_code,
+            )
+        filename = path.rsplit("/", 1)[-1]
+        return response.content, filename
+
     # ===================== 第6步：统一处理 Sandbox 响应 =====================
     def _request(
         self,

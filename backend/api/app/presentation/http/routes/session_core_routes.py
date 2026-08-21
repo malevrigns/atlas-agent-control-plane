@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response, StreamingResponse
 
 from app.application.agent_runner_service import AgentRunnerService
 from app.application.context_engineering_service import ContextEngineeringService
@@ -18,6 +18,8 @@ from app.presentation.http.routes.session_route_responses import (
     to_runner_stream_payload,
     to_session_response,
 )
+from app.core.config import settings
+from app.infrastructure.sandbox.file_client import SandboxFileClient
 from app.presentation.http.sse import encode_sse
 from app.schemas.common import ApiResponse
 from app.schemas.session import (
@@ -32,6 +34,29 @@ from app.schemas.session import (
 )
 
 router = APIRouter()
+
+
+@router.get("/{session_id}/sandbox-files/download")
+async def download_sandbox_file(
+    session_id: UUID,
+    path: str = Query(min_length=1),
+    service: SessionService = Depends(build_session_service),
+) -> Response:
+    """下载沙箱工作区里的文件（Agent 写入的文件可给用户一个下载链接）。"""
+
+    session = await service.get_session(session_id)
+    client = SandboxFileClient(
+        base_url=settings.sandbox_api_base_url,
+        timeout_seconds=settings.sandbox_api_timeout_seconds,
+    )
+    content, filename = client.download_file(
+        path, workspace=session.workspace_dir, full_access=session.full_access
+    )
+    return Response(
+        content=content,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": 'attachment; filename="' + filename + '"'},
+    )
 
 
 @router.post("", response_model=ApiResponse[SessionResponse])

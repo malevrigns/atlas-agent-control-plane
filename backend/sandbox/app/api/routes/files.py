@@ -101,7 +101,9 @@ async def upload_file(
 @router.get("/download")
 async def download_file(
     path: str = Query(min_length=1),
+    workspace: str = Query(default=""),
+    full_access: bool = Query(default=False),
     service: SandboxFileService = Depends(build_file_service),
 ) -> FileResponse:
-    target = service.get_download_path(path)
+    target = service.get_download_path(path, workspace, full_access)
     return FileResponse(path=target, filename=target.name)
