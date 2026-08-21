@@ -205,11 +205,11 @@ export function AppSidebar({
       {showCreateForm ? (
         <div className="mt-6 flex flex-col gap-2 rounded-xl border border-(--line) bg-(--fill-1) p-3">
           <label className="text-xs font-medium text-(--text-3)">
-            本地工作区目录（相对 D 盘，留空则使用整个挂载盘）
+            本地工作区目录（例如 D:/projects/myapp，留空则使用整个 D 盘）
           </label>
           <input
             className="rounded-lg border border-(--line) bg-(--field) px-3 py-2 text-sm text-(--text-1) outline-none placeholder:text-(--text-5) focus:border-(--accent)"
-            placeholder="例如 projects/myapp"
+            placeholder="例如 D:/projects/myapp"
             value={workspaceDir}
             onChange={(event) => setWorkspaceDir(event.target.value)}
           />

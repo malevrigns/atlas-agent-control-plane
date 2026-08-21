@@ -11,6 +11,31 @@ from app.domain.sessions.entities import (
 )
 
 
+def normalize_workspace_dir(raw: str) -> str:
+    """把用户输入的工作区路径规范成沙箱相对路径。
+
+    D:\\projects\\myapp -> projects/myapp
+    D:/projects/myapp      -> projects/myapp
+    projects\\myapp       -> projects/myapp
+    projects/myapp         -> projects/myapp（不变）
+    拒绝 ..（路径穿越）。
+    """
+
+    value = raw.strip()
+    if not value:
+        return ""
+    value = value.replace("\\", "/")
+    if len(value) >= 2 and value[1] == ":":
+        value = value[2:]
+    value = value.strip("/")
+    parts = [part for part in value.split("/") if part not in ("", ".")]
+    if any(part == ".." for part in parts):
+        raise AppException(
+            message="工作区路径不能包含 ..", code=400, status_code=400
+        )
+    return "/".join(parts)
+
+
 class SessionService:
     def __init__(self, uow: UnitOfWork) -> None:
         self.uow = uow
@@ -24,7 +49,7 @@ class SessionService:
         clean_title = title.strip() or "新工作区"
         session = await self.uow.sessions.add(
             title=clean_title,
-            workspace_dir=workspace_dir.strip(),
+            workspace_dir=normalize_workspace_dir(workspace_dir),
             full_access=full_access,
         )
         await self.uow.commit()
