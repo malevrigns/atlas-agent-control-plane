@@ -74,6 +74,12 @@ class MemoryResponse(BaseModel):
     user_id: str | None
     created_by: str
     verification: dict[str, object]
+    # 图谱关联：supports/contradicts/extends/duplicates 关系的记忆 id 集合。
+    related_ids: list[UUID] | None = None
+    # 使用统计：检索命中次数（衰减公式锚点）。
+    access_count: int | None = None
+    # 最近一次被检索命中的时间；无命中记录时为 None。
+    last_accessed_at: datetime | None = None
     created_at: datetime | None
     updated_at: datetime | None
 

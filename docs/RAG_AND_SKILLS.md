@@ -73,6 +73,16 @@ chunk 的 `char_start`/`char_end` 可回溯到原文字符位置。
 
 每次检索写入一条 `retrieval_traces`（与记忆检索共用同一张表），记录检索计划、候选与最终选中项。
 
+### 检索重排与置信度
+查询管线在混合评分之后还有两级增强，均可独立开关：
+
+1. **查询改写与 RRF 融合。** `RAG_QUERY_EXPAND_ENABLED` 开启后，检索会先对查询做改写（LLM 改写，失败时降级为规则改写），产生 2-3 个变体后逐查询检索，
+   用倒数排名融合（RRF）合并候选。融合信号记在 chunk 的 `fusion_score`（归一化到 0-1；单查询检索时为 1）。
+2. **重排与置信度。** `RAG_RERANK_ENABLED` 开启时，对候选做二次相关分评估（`RAG_RERANK_USE_LLM` 决定是否调用 LLM），结果记在 `rerank_score`；
+   最终 `final_score` 按 `RAG_WEIGHT_RERANK` 权重与原始分混合。每条命中另附 `confidence`（0-1）：相关分 × 文档新鲜度 × 来源类型加权的综合评估。
+
+以上分数均为可选字段，旧版检索结果不携带时返回 `null`。查询响应的 `retrieval_metadata` 记录检索过程元数据
+（耗时、候选数、使用的查询变体、重排开关与权重），与 `retrieval_traces` 使用同一套审计语言，供前端展示与运维排查。
 ### RAG 接口
 
 ```http

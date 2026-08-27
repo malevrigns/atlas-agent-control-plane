@@ -41,7 +41,22 @@ AtlasAgent 不再把一段可变文本当作任务的唯一事实。系统保留
 
 检索分数综合语义/词项相关度、范围匹配、重要度、可信度、权威度、时间新鲜度和任务关联；返回值携带 `provenance`、`reason` 与检索轨迹，便于解释为什么某条记忆进入上下文。
 
-## 4. 统一 Tool Runtime
+## 4. 记忆生命周期与图谱
+长期记忆只增不减会被陈旧事实污染，因此 `agent_memories` 之上增加三组治理机制：
+
+- **衰减与巩固。** 应用启动时注册后台任务（默认每小时，`memory_lifecycle_interval_seconds`），按艾宾浩斯曲线衰减置信度：`confidence *= exp(-λ × 距最近命中的天数)`，λ 按类型区分（偏好最慢、事件类经验最快）；时间锚点优先取最近命中时间。反之，被检索命中 ≥3 次且已验证的记忆会巩固晋升，`authority` 从 `suggested` 升为 `verified`。
+- **冲突消解。** 同一 `subject` + `predicate` 但 `value` 不同的记忆判为冲突。按 `memory_conflict_strategy` 消解：`latest_wins`（默认，新记忆胜出）、`authority_wins`（权威度高者胜出）、`manual_review`（挂起人工复核）；败方标记 `superseded` 并复用既有 supersedes 链。
+- **图谱关联。** `related_ids` 维护轻量关联图，边类型为 `supports` / `contradicts` / `extends` / `duplicates`（记录在 `metadata.graph_relations`），单条记忆的关联数受 `memory_graph_max_links` 约束。检索命中一条记忆时可顺带展开其直接关联（深度硬上限 1、条数上限 3），防止上下文爆炸。
+
+使用统计与图谱关联通过记忆 API 响应暴露（均为可选字段，无数据时为 `null`）：
+
+| 字段 | 含义 |
+| --- | --- |
+| `related_ids` | 与本条记忆存在图谱关联的记忆 id 集合 |
+| `access_count` | 检索命中次数，衰减公式的锚点 |
+| `last_accessed_at` | 最近一次被检索命中的时间 |
+
+## 5. 统一 Tool Runtime
 
 所有工具定义均声明版本、风险级别、所需权限、幂等性、超时和输出模式。调用链路固定为：
 
@@ -52,7 +67,7 @@ AtlasAgent 不再把一段可变文本当作任务的唯一事实。系统保留
 
 调用状态包括 `pending`、`running`、`succeeded`、`failed`、`timed_out`、`denied`、`approval_required` 和 `deduplicated`。高于自动批准阈值的工具必须显式批准；缺少权限时直接拒绝。相同工具与幂等键的成功调用不会再次产生副作用。
 
-## 5. 关键接口
+## 6. 关键接口
 
 | 接口 | 用途 |
 | --- | --- |
@@ -66,7 +81,7 @@ AtlasAgent 不再把一段可变文本当作任务的唯一事实。系统保留
 | `POST /api/memories/{id}/verify` | 验证或拒绝候选记忆 |
 | `POST /api/agent-core/tools/{name}/invoke` | 经 Runtime 调用工具 |
 
-## 6. 数据迁移与验证
+## 7. 数据迁移与验证
 
 数据库升级：
 

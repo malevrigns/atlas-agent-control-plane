@@ -96,9 +96,13 @@ def to_query_response(result: RagQueryResult) -> RagQueryResponse:
                 final_score=chunk.final_score,
                 matched_terms=chunk.matched_terms,
                 citation=chunk.citation,
+                fusion_score=chunk.fusion_score,
+                rerank_score=chunk.rerank_score,
+                confidence=chunk.confidence,
             )
             for chunk in result.chunks
         ],
+        retrieval_metadata=result.retrieval_metadata,
     )
 
 

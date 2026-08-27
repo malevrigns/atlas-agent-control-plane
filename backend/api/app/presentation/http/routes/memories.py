@@ -68,6 +68,9 @@ def to_memory_response(memory: AgentMemory) -> MemoryResponse:
         verification=memory.verification,
         created_at=memory.created_at,
         updated_at=memory.updated_at,
+        related_ids=memory.related_ids or None,
+        access_count=memory.access_count or None,
+        last_accessed_at=memory.last_accessed_at,
     )
 
 

@@ -84,6 +84,12 @@ class RetrievedChunkResponse(BaseModel):
     final_score: float
     matched_terms: list[str]
     citation: str
+    # RRF 多查询融合信号（归一化到 0-1）；None 表示该候选未参与多查询融合。
+    fusion_score: float | None = None
+    # 重排器给出的相关分（0-1）；None 表示该候选未参与重排。
+    rerank_score: float | None = None
+    # 引用置信度（0-1）：相关分 × 文档新鲜度 × 来源类型加权的综合评估。
+    confidence: float | None = None
 
 
 class RagQueryResponse(BaseModel):
@@ -96,6 +102,9 @@ class RagQueryResponse(BaseModel):
     total_chars: int
     context_text: str
     chunks: list[RetrievedChunkResponse]
+    # 检索过程元数据：耗时、候选数、查询变体、重排开关与权重等，
+    # 供前端展示与运维审计；旧版结果可能为 None（向后兼容）。
+    retrieval_metadata: dict[str, object] | None = None
 
 
 class RagHealthResponse(BaseModel):
