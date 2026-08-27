@@ -12,7 +12,12 @@
 <a href="#"><img src="https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white&labelColor=1a1a2e" alt="Next.js 16"></a>
 <a href="#"><img src="https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white&labelColor=1a1a2e" alt="PostgreSQL + pgvector"></a>
 
+**From chat apps to controllable systems** — every fact traceable, every memory trustworthy, every tool governed, every task recoverable, every step auditable.
 **把 Agent 从会话应用升级为可控系统** —— 事实可溯源、记忆可信、工具受治理、任务可恢复、每一步可审计。
+
+⭐ **If AtlasAgent saves you time, a star is the simplest way to say thanks** — and it genuinely helps more developers find the project.
+
+[English](#english) | [中文](#中文)
 
 [快速开始](#快速开始) · [核心能力](#核心能力) · [运行机制](#运行机制) · [客户端](#客户端) · [完整教程](tutorial/README.md)
 
@@ -20,13 +25,285 @@
 
 ---
 
-## 简介
+## English
+
+### What is AtlasAgent?
+
+AtlasAgent is a **production-ready control plane for AI agents**. It puts raw events, long-term memory, RAG retrieval, skill guidance, tool invocations, artifacts, and checkpoints on a single traceable chain, and governs the six boundaries where agent systems actually break in production: **where facts come from, why memory is trustworthy, whether citations are traceable, when a tool is allowed to run, how a failed task recovers, and how every step gets audited.**
+
+One FastAPI control plane serves both a Next.js web app (PWA) and a Textual TUI. The repo also ships a **55-chapter engineering tutorial** that rebuilds the entire system from an empty directory, up to the Memory / RAG / Skill / Tool Control Plane.
+
+### Why AtlasAgent?
+
+Frameworks like LangChain are great for wiring LLM features together quickly. AtlasAgent takes the opposite bet: in production, "it works" is not enough — you need to explain what the agent knows, prove what it did, and recover when it fails. That's what AtlasAgent optimizes for: **auditable** (every tool call, memory write, and evidence citation is a queryable first-class record), **governable** (tools pass through a unified runtime with risk tiers, approval, idempotency, and sandboxing — not loose function calls), and **recoverable** (long tasks leave behind a verified checkpoint DAG you can resume from, instead of re-running the whole plan).
+
+### 🎉 What's New
+
+- [2026.08] 🎯 **Multi-round tool calling inside a single step + native Function Calling**: the model now calls tools repeatedly within one step, observes the results, and decides what to do next — the way a real agent works.
+- [2026.08] 🎯 **Web client is now a PWA**: installable on desktop and mobile with an offline app shell; the Electron desktop client is retired in favor of a focused Web + TUI pair.
+- [2026.08] 🎯 **Resume failed tasks from a checkpoint**: reuse the existing plan, skip completed steps, and continue from the failure point — no re-running from scratch.
+- [2026.08] 🎯 **Direct-answer routing + live reasoning**: ordinary questions stream straight through, and the thinking process is streamed live and replayable afterwards.
+- [2026.08] 🎯 **Automatic knowledge-base recall with cited answers**: every turn recalls relevant documents and attributes its sources.
+- [2026.08] 🎯 **Web-page reading + tool self-healing**: the agent can now read real page content and recover from flaky tool calls.
+
+### ✨ Core Capabilities
+
+<p align="center">
+  <img src="./assets/readme/evidence-chain.webp" width="100%" alt="AtlasAgent evidence chain from events and memory through tool audit and artifacts to verified checkpoints">
+</p>
+
+| Boundary | How AtlasAgent handles it | Key mechanisms |
+| --- | --- | --- |
+| **Evidence-backed Memory** | Only facts that are still valid, source-attributed, and passed the write gate are injected into context | Typed memory, Write Gate, evidence chains, scopes, TTL, supersession, explainable retrieval |
+| **RAG Knowledge Base** | Makes team documents a retrievable, citable, verifiable source of evidence | Chunking with overlap, swappable vector backends (pgvector / Qdrant), hybrid vector + lexical reranking, numbered citations, retrieval audit, multimodal ingestion, per-turn auto-recall with source attribution |
+| **Transparent Reasoning** | Surfaces the model's thinking and answering process live | Direct-answer vs. pipeline routing, plan/execute/direct thinking deltas, reasoning persisted for replay, throttled typewriter rendering |
+| **Multi-round Tool Calling** | The model calls tools repeatedly inside a step and decides after observing results | Native Function Calling, JSON fallback, concurrent tool execution, duplicate-call guardrails |
+| **Skill Registry** | Turns team operating playbooks into governed, traceable behavior specs | draft/published/deprecated lifecycle, semver versions, enable/disable decoupling, relevance-based injection |
+| **Checkpoint DAG** | Verifiable pause, resume, and rollback points for long tasks | Parent-child checkpoints, event ranges, state hashes, environment fingerprints, verification reports |
+| **Unified Tool Runtime** | Constrains permissions and side effects before the handler runs | Risk tiers, approval, idempotency, timeouts, redaction, artifactizing large outputs, full audit trail |
+| **Artifact Store** | Makes logs, patches, screenshots, and reports stable sources of truth | SHA-256 content addressing, provenance references, task and checkpoint linkage |
+| **Multi-client Workspace** | Observe the same running state from a browser or over SSH | Next.js Web (PWA), Textual TUI, shared FastAPI surface |
+| **Isolated Sandbox** | Confines file, shell, and browser automation to its own runtime boundary | Workspace limits, output limits, web-page reading, VNC / noVNC, unified gateway |
+
+### 🏗️ How It Works
+
+The control plane's ordering of truth is explicit: **raw events and artifacts are the source of truth, task state is a rebuildable materialized view, and a checkpoint is a verified recovery point.**
+
+A task moves along this chain:
+
+1. A structured task is created with a goal and acceptance criteria.
+2. Candidate memory is filtered down to facts that have a source, haven't expired, and are relevant.
+3. Tools enter the unified runtime — risk, permission, and idempotency checks run before any handler executes.
+4. Large outputs are converted into content-addressed artifacts; the call is written to the audit log.
+5. State hash, environment fingerprint, and verification report combine into a recoverable checkpoint.
+
+#### The Plan / Execute / Reflect / Summarize engine
+
+Tool-driven conversations run on a project-owned **async state machine with no workflow-framework dependency**; ordinary Q&A still goes through a direct streaming path. Inside each execution step, `StepAgentLoop` drives multi-round tool calling until the step reaches its conclusion.
+
+| State | Responsibility | Observable outcome |
+| --- | --- | --- |
+| Plan | Planner produces a structured plan and emits `plan_created` | Planning thinking deltas + `plan_created` |
+| Execute | `ReActStepExecutor` + `StepAgentLoop` run multi-round governed tool calls for the current step | `step_started`, repeated `tool_called` |
+| Reflect | Critic decides `accept`, `retry`, `replan`, or `fail` based on the step goal and tool observations | `step_reflected`, then routes to the next state |
+| Summarize | `AgentSummaryService` streams the final answer strictly from observed tool evidence | Final answer deltas, `message_created`, `task_done` |
+
+<details>
+<summary><strong>Expand full system topology</strong></summary>
+
+<br>
+
+```mermaid
+flowchart LR
+    subgraph Clients["Clients"]
+        direction TB
+        Web["Web · Next.js (PWA)"]
+        TUI["TUI · Textual"]
+    end
+
+    Gateway["Nginx Gateway"]
+    API["FastAPI Control Plane"]
+
+    subgraph Runtime["Agent Runtime"]
+        direction TB
+        Planner["Planning & Events"]
+        Loop["StepAgentLoop · multi-round tool calls"]
+        Tools["Tool Runtime"]
+        Memory["Memory & Checkpoints"]
+    end
+
+    subgraph Data["Sources of Truth & Infrastructure"]
+        direction TB
+        Postgres["PostgreSQL"]
+        Redis["Redis"]
+        Sandbox["Sandbox & Artifacts"]
+    end
+
+    Web --> Gateway
+    TUI --> API
+    Gateway --> API
+    API --> Planner
+    API --> Loop
+    Loop --> Tools
+    API --> Memory
+    Planner --> Redis
+    Tools --> Sandbox
+    Memory --> Postgres
+```
+
+</details>
+
+### 🚀 Quick Start
+
+Requires Git, Docker, and Docker Compose v2.
+
+```bash
+git clone https://github.com/malevrigns/atlas-agent-control-plane.git
+cd atlas-agent-control-plane
+cp .env.example .env
+BUILD=true ./scripts/start.sh
+```
+
+Once it's up:
+
+- Web workbench (PWA): <http://localhost:8088>
+- API health check: <http://localhost:8088/api/status>
+- Database status: <http://localhost:8088/api/status/database>
+
+The start script generates random credentials for the API and PostgreSQL and prints the API key needed to log in on the Web. Every endpoint except `/api/status` requires a browser HttpOnly session or an `X-Atlas-API-Key` header.
+
+On Windows, run the same script from Git Bash or a WSL with Docker integration. Restarting without rebuilding:
+
+```bash
+./scripts/start.sh
+```
+
+Stopping:
+
+```bash
+./scripts/stop.sh                      # keep data volumes
+CLEAN_VOLUMES=true ./scripts/stop.sh   # also wipe the database, Redis, and uploads
+```
+
+> [!TIP]
+> The gateway listens on `8088` by default. If the port is taken, set `NGINX_PORT=18088` and restart.
+
+### 📱 Clients
+
+| Client | Best for | Highlights |
+| --- | --- | --- |
+| **Web (PWA)** | Browser collaboration and the full feature set; installable to desktop / mobile | Sessions, streaming Q&A, live reasoning, execution logs, files, sandbox, settings, MCP, A2A, RAG & skill management |
+| **TUI** | SSH, low bandwidth, and keyboard-driven workflows | Three-pane task / checkpoint / audit layout, hotkeys, three terminal themes, offline demo data |
+
+TUI hotkeys and client configuration are covered in the [clients guide](docs/CLIENTS.md).
+
+### 🧩 Control Plane, Minimal Calls
+
+#### 1. Create a structured task
+
+```bash
+ATLAS_KEY="$(sed -n 's/^ATLAS_API_KEY=//p' .env)"
+curl -X POST http://localhost:8088/api/control-plane/tasks -H "X-Atlas-API-Key: ${ATLAS_KEY}" -H "Content-Type: application/json" -d '{"title": "Update deliverable", "goal": "Complete a verifiable upgrade", "acceptance_criteria": ["Tests pass"], "project_id": "atlas"}'
+```
+
+#### 2. Invoke a tool through the unified runtime
+
+```bash
+curl -X POST http://localhost:8088/api/agent-core/tools/draft_plan/invoke -H "X-Atlas-API-Key: ${ATLAS_KEY}" -H "Content-Type: application/json" -d '{"arguments": {"task": "Check delivery quality"}, "project_id": "atlas", "allowed_permissions": [], "idempotency_key": "demo-001"}'
+```
+
+#### 3. Read back the tool audit trail
+
+```bash
+curl -H "X-Atlas-API-Key: ${ATLAS_KEY}" "http://localhost:8088/api/control-plane/tool-invocations?project_id=atlas"
+```
+
+#### 4. Query the knowledge base for cited evidence
+
+```bash
+curl -X POST http://localhost:8088/api/rag/knowledge-bases/${KB_ID}/query -H "X-Atlas-API-Key: ${ATLAS_KEY}" -H "Content-Type: application/json" -d '{"query": "How do I roll back a database migration?", "top_k": 3}'
+```
+
+For the full data model, lifecycle, and API reference, see [Memory & Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md) and [RAG & Skill Registry](docs/RAG_AND_SKILLS.md).
+
+### ⚙️ Configuration & Security
+
+Common server settings live in [`.env.example`](.env.example) at the repo root:
+
+- `LLM_API_KEY`: model service key. The demo and control-plane features work without it. Any OpenAI-compatible service is supported: point `base_url` in `backend/api/config/llm.yaml` at your provider (e.g. DeepSeek `https://api.deepseek.com/v1`, Alibaba DashScope `https://dashscope.aliyuncs.com/compatible-mode/v1`) and set `default_model` accordingly. `llm.thinking: true` enables streaming reasoning (Qwen `enable_thinking`), shown live in the Web client and replayable afterwards; `llm.vision_model` enables multimodal RAG.
+- `ATLAS_API_KEY`: shared access key for the control plane and sandbox; the start script replaces the placeholder.
+- `NGINX_PORT`: unified gateway port, default `8088`.
+- `NGINX_HOST`: `127.0.0.1` by default; remote access must be combined with TLS and an upstream identity system.
+- `TOOL_AUTO_APPROVE_RISK`: highest risk level auto-approved for tools.
+- `TOOL_DEFAULT_TIMEOUT_SECONDS`: default tool timeout.
+- `TOOL_OUTPUT_INLINE_LIMIT`: threshold above which tool output is stored as an artifact.
+- `RAG_VECTOR_BACKEND`: RAG vector backend, `pgvector` (default) or `qdrant`.
+- `RAG_EMBEDDING_PROVIDER`: `auto` selects from `llm.yaml` and available keys; `local_hash` forces offline hash embeddings.
+- `EMBEDDING_API_KEY`: key for an OpenAI-compatible embedding service; leave empty to fall back to local vectors automatically.
+
+The TUI connects via `ATLAS_API_URL` and `ATLAS_API_KEY`.
+
+> [!IMPORTANT]
+> Never commit real `.env` files, model keys, or third-party credentials. stdio MCP, MCP HTTP, and A2A HTTP are disabled or have no allowed hosts by default — operators must explicitly allowlist them. The built-in API key is a single-tenant / intranet boundary; multi-user internet deployments must sit behind TLS, OIDC/RBAC, and rate limiting.
+
+### 🛠️ Local Development
+
+Start PostgreSQL and Redis first:
+
+```bash
+docker compose up -d postgres redis
+```
+
+| Module | Command | Default address / behavior |
+| --- | --- | --- |
+| API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` | `http://localhost:8000` |
+| Web | `cd frontend/web && pnpm install && pnpm dev` | `http://localhost:3000` |
+| TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` | Falls back to demo mode when the backend is unreachable |
+| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 8100:8100 -p 6080:6080 -e SANDBOX_AUTH_ENABLED=false atlas-sandbox` | The agent's virtual computer: `http://localhost:8100`; set `SANDBOX_API_BASE_URL=http://localhost:8100/api` and `TOOL_AUTO_APPROVE_RISK=high` on the API side to let chat tasks really execute code/browser jobs |
+
+Develop and verify:
+
+```bash
+# Backend tests
+cd backend/api
+uv run python -m unittest discover -s tests
+
+# TUI tests
+cd ../../frontend/tui
+uv run python -m unittest discover -s tests
+
+# Web typecheck & build
+cd ../web
+pnpm typecheck
+pnpm build
+```
+
+### 📁 Project Structure
+
+```text
+atlas-agent-control-plane/
+├── frontend/
+│   ├── web/       Next.js web client (PWA)
+│   └── tui/       Textual terminal client
+├── backend/
+│   ├── api/       FastAPI, DB migrations, control plane & tests
+│   └── sandbox/   Isolated execution: files, shell, browser & VNC
+├── nginx/         Unified gateway configuration
+├── docs/          Control plane & client deep-dive docs
+├── tutorial/      55-chapter engineering tutorial (ch. 0–56)
+├── scripts/       Start/stop & runtime configuration scripts
+├── tests/         Root-level production configuration tests
+└── docker-compose.yml
+```
+
+### 📚 Docs & Tutorial
+
+- [Architecture overview](ARCHITECTURE.md)
+- [API architecture](backend/api/ARCHITECTURE.md)
+- [Memory & Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md)
+- [RAG knowledge base & Skill registry](docs/RAG_AND_SKILLS.md)
+- [Web & TUI clients](docs/CLIENTS.md)
+- [Full tutorial](tutorial/README.md) — from a minimal working service to the complete control plane
+
+### 🤝 Contributing
+
+Issues and pull requests are welcome. Run the relevant tests and type checks before submitting, and make sure no real keys or `.env` files are included. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, commit conventions, and the PR process.
+
+### 📄 License
+
+[MIT License](LICENSE)
+
+---
+
+## 中文
+
+### 简介
 
 AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。它把原始事件、长期记忆、知识库检索、技能指引、工具调用、Artifact 和 Checkpoint 放进同一条可追溯链路，集中处理六个生产边界：**事实从哪里来、记忆为什么可信、资料引用能否追溯、工具何时允许执行、任务如何恢复，以及每一步如何审计。**
 
 同一套 FastAPI 控制平面同时服务 Next.js Web（PWA）与 Textual TUI，并配有从基础服务到 Memory / RAG / Skill / Tool Control Plane 的 **0–56 章教程**（共 55 章）。
 
-## 🎉 最近更新
+### 🎉 最近更新
 
 - [2026.08] 🎯 **步骤内多轮工具调用 + 原生 Function Calling**：模型在单个步骤内自主多次调用工具、观察结果再决策，真正像 Agent 一样工作。
 - [2026.08] 🎯 **Web 端升级为 PWA**：可安装到桌面 / 移动端，离线缓存应用外壳；移除 Electron 桌面客户端，收敛为 Web + TUI 双客户端。
@@ -34,7 +311,8 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 - [2026.08] 🎯 **直答分流与推理直播**：普通问答直接流式回答，思考过程实时展示并可回看。
 - [2026.08] 🎯 **知识库自动召回 + 带引用作答**：每轮对话自动召回相关文档并标注来源。
 - [2026.08] 🎯 **网页正文读取作答与工具自愈**：补上读取真实网页正文的能力。
-## ✨ 核心能力
+
+### ✨ 核心能力
 
 <p align="center">
   <img src="./assets/readme/evidence-chain.webp" width="100%" alt="AtlasAgent evidence chain from events and memory through tool audit and artifacts to verified checkpoints">
@@ -52,7 +330,8 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 | **Artifact Store** | 让日志、补丁、截图和报告成为稳定事实源 | SHA-256 内容寻址、来源引用、任务与 Checkpoint 关联 |
 | **Multi-client Workspace** | 在浏览器与 SSH 场景中观察同一运行状态 | Next.js Web（PWA）、Textual TUI，共用 FastAPI 接口 |
 | **Isolated Sandbox** | 把文件、Shell 与浏览器自动化限制在独立运行边界 | 工作区限制、输出限制、网页正文读取、VNC / noVNC、统一网关 |
-## 🏗️ 运行机制
+
+### 🏗️ 运行机制
 
 控制面的事实优先级很明确：**原始事件与 Artifact 是事实源，任务状态是可重建的物化视图，Checkpoint 是经过验证的恢复点。**
 
@@ -64,7 +343,7 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 4. 大输出转为内容寻址 Artifact，调用过程写入审计记录。
 5. 状态哈希、环境指纹和校验报告共同生成可恢复 Checkpoint。
 
-### Plan / Execute / Reflect / Summarize 执行机
+#### Plan / Execute / Reflect / Summarize 执行机
 
 工具型对话使用项目内的、**不依赖工作流框架**的异步状态机推进；普通问答仍走直接流式回答。每个执行步骤内部，`StepAgentLoop` 驱动模型进行多轮工具调用，直到给出该步骤的结论。
 
@@ -119,7 +398,8 @@ flowchart LR
 ```
 
 </details>
-## 🚀 快速开始
+
+### 🚀 快速开始
 
 需要 Git、Docker 与 Docker Compose v2。
 
@@ -154,7 +434,7 @@ CLEAN_VOLUMES=true ./scripts/stop.sh   # 连同数据库、Redis、上传文件�
 > [!TIP]
 > 默认网关端口为 `8088`。端口冲突时设置 `NGINX_PORT=18088` 后重新启动。
 
-## 📱 客户端
+### 📱 客户端
 
 | 客户端 | 最适合 | 特色 |
 | --- | --- | --- |
@@ -162,35 +442,37 @@ CLEAN_VOLUMES=true ./scripts/stop.sh   # 连同数据库、Redis、上传文件�
 | **TUI** | SSH、低带宽与键盘工作流 | 任务 / Checkpoint / 审计三栏、快捷键、三套终端主题、离线演示数据 |
 
 TUI 的快捷键与客户端配置见 [客户端指南](docs/CLIENTS.md)。
-## 🧩 Control Plane 最小调用
 
-### 1. 创建结构化任务
+### 🧩 Control Plane 最小调用
+
+#### 1. 创建结构化任务
 
 ```bash
 ATLAS_KEY="$(sed -n 's/^ATLAS_API_KEY=//p' .env)"
 curl -X POST http://localhost:8088/api/control-plane/tasks -H "X-Atlas-API-Key: ${ATLAS_KEY}" -H "Content-Type: application/json" -d '{"title": "更新交付物", "goal": "完成可验证升级", "acceptance_criteria": ["测试通过"], "project_id": "atlas"}'
 ```
 
-### 2. 通过统一 Runtime 调用工具
+#### 2. 通过统一 Runtime 调用工具
 
 ```bash
 curl -X POST http://localhost:8088/api/agent-core/tools/draft_plan/invoke -H "X-Atlas-API-Key: ${ATLAS_KEY}" -H "Content-Type: application/json" -d '{"arguments": {"task": "检查交付质量"}, "project_id": "atlas", "allowed_permissions": [], "idempotency_key": "demo-001"}'
 ```
 
-### 3. 回读工具审计
+#### 3. 回读工具审计
 
 ```bash
 curl -H "X-Atlas-API-Key: ${ATLAS_KEY}" "http://localhost:8088/api/control-plane/tool-invocations?project_id=atlas"
 ```
 
-### 4. 检索知识库并拿到带引用的证据
+#### 4. 检索知识库并拿到带引用的证据
 
 ```bash
 curl -X POST http://localhost:8088/api/rag/knowledge-bases/${KB_ID}/query -H "X-Atlas-API-Key: ${ATLAS_KEY}" -H "Content-Type: application/json" -d '{"query": "数据库迁移怎么回滚", "top_k": 3}'
 ```
 
 完整数据模型、生命周期和接口说明见 [Memory 与 Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md) 与 [RAG 与 Skill 注册中心](docs/RAG_AND_SKILLS.md)。
-## ⚙️ 配置与安全
+
+### ⚙️ 配置与安全
 
 服务端常用配置集中在根目录的 [`.env.example`](.env.example)：
 
@@ -209,7 +491,8 @@ TUI 通过 `ATLAS_API_URL` 与 `ATLAS_API_KEY` 连接后端。
 
 > [!IMPORTANT]
 > 不要提交真实 `.env`、模型密钥或第三方服务凭据。stdio MCP、MCP HTTP 与 A2A HTTP 默认关闭或无允许主机，必须由运维通过 allowlist 显式放行。内置 API Key 是单租户/内网边界，互联网多用户部署仍应在网关前接入 TLS、OIDC/RBAC 与限流。
-## 🛠️ 本地开发
+
+### 🛠️ 本地开发
 
 先准备 PostgreSQL 与 Redis：
 
@@ -241,7 +524,7 @@ pnpm typecheck
 pnpm build
 ```
 
-## 📁 项目结构
+### 📁 项目结构
 
 ```text
 atlas-agent-control-plane/
@@ -259,7 +542,7 @@ atlas-agent-control-plane/
 └── docker-compose.yml
 ```
 
-## 📚 文档与教程
+### 📚 文档与教程
 
 - [整体架构](ARCHITECTURE.md)
 - [API 架构](backend/api/ARCHITECTURE.md)
@@ -268,11 +551,11 @@ atlas-agent-control-plane/
 - [Web 与 TUI 客户端](docs/CLIENTS.md)
 - [完整教程目录](tutorial/README.md) —— 从最小可运行服务逐步演进到完整控制平面
 
-## 🤝 贡献
+### 🤝 贡献
 
-欢迎提交 Issue 与 Pull Request。提交前请运行对应的测试与类型检查，并确保不提交真实密钥与 `.env`。
+欢迎提交 Issue 与 Pull Request。提交前请运行对应的测试与类型检查，并确保不提交真实密钥与 `.env`。开发环境、commit 规范与 PR 流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-## 📄 License
+### 📄 License
 
 [MIT License](LICENSE)
 

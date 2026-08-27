@@ -1,5 +1,9 @@
 # AtlasAgent · 智能体开发实战教程
 ![智能体开发实战教程封面](assets/agent-tutorial-cover.png)
+## About this tutorial (English)
+
+This repository contains a **55-chapter, Chinese-language engineering tutorial** that builds a production-grade AI agent control plane from an empty directory — not by wiring up a framework, but by writing every layer yourself. Each chapter follows the same shape: goals, design motivation and trade-offs, complete runnable code (backend / frontend / config), and a verification step. You'll go from Docker Compose foundations through an isolated sandbox, RAG with cited answers, a skill registry, checkpoint-based recovery, and an auditable tool runtime, and finish with private deployment. It's written for developers who want to *build* an agent system end to end, and is best read in order. (The chapters themselves are in Chinese; English chapter titles are listed in the table of contents below.)
+
 ## 写在前面
 ​        项目的开始源于工作和学习的需要。有时候我在想，当今世界从 OpenClaw、Hermes、Claude Code、Codex 等 Agent 横空出世之后，强工具调用的 Agent 已经展现出极其强大的通用能力。它们会读代码，会调用命令，会搜索资料，会写页面，也会在某种程度上替人拆解问题。似乎人类在通往 AGI 的道路上确实迈出了一大步。
 ​        笔者第一次部署 OpenClaw 时，它带给我的体验是前所未有的。但问题也随之而来：这些通用 Agent 已经这么强大了，我们还有没有必要从零开发一个新的智能体？这个问题困扰了笔者很久。后来笔者慢慢有了答案：做自己领域的垂类 Agent，和使用通用 Agent，并不冲突。通用 Agent 像一把通用刀，而垂类 Agent 更像一台已经按业务流程装配好的机器。前者解决广泛问题，后者解决稳定场景。
@@ -91,58 +95,58 @@ CLEAN_VOLUMES=true ./scripts/stop.sh # 连同数据库、Redis、上传文件一
 
 ## 目录
 
-- [第 0 章. 项目缘起](chapters/00-项目缘起.md)
-- [第一章. 项目伊始](chapters/01-项目伊始.md)
-- [第二章. Docker Compose 基础设施奠基](chapters/02-Docker%20Compose%20基础设施奠基.md)
-- [第三章. 后端 API 与通用模块奠基](chapters/03-后端%20API%20与通用模块奠基.md)
-- [第四章. 前端 UI 与 Nginx 网关贯通](chapters/04-前端%20UI%20与%20Nginx%20网关贯通.md)
-- [第五章. 数据库、迁移与会话模型立制](chapters/05-数据库、迁移与会话模型立制.md)
-- [第六章. 会话开立与左侧列表](chapters/06-会话开立与左侧列表.md)
-- [第七章. 对话消息与 SSE 事件流](chapters/07-对话消息与%20SSE%20事件流.md)
-- [第八章. 会话状态与任务收放](chapters/08-会话状态与任务收放.md)
-- [第九章. 文件上传、存储与预览](chapters/09-文件上传、存储与预览.md)
-- [第十章. 文件存储拓界](chapters/10-文件存储拓界.md)
-- [第十一章. 应用配置与 LLM 客户端就位](chapters/11-应用配置与%20LLM%20客户端就位.md)
-- [第十二章. Agent 思维、Memory 与工具协议](chapters/12-Agent%20思维、Memory%20与工具协议.md)
-- [第十三章. PlannerAgent 与 ReActAgent 执行闭环](chapters/13-PlannerAgent%20与%20ReActAgent%20执行闭环.md)
-- [第十四章. AgentTaskRunner 与 Redis Stream 任务流转](chapters/14-AgentTaskRunner%20与%20Redis%20Stream%20任务流转.md)
-- [第十五章. 上下文工程](chapters/15-上下文工程.md)
-- [第十六章. Sandbox 服务与文件工具](chapters/16-Sandbox%20服务与文件工具.md)
-- [第十七章. Sandbox Shell 与 Docker 隔离](chapters/17-Sandbox%20Shell%20与%20Docker%20隔离.md)
-- [第十八章. Playwright、CDP 与 BrowserTool](chapters/18-Playwright、CDP%20与%20BrowserTool.md)
-- [第十九章. VNC 远程桌面与工具预览](chapters/19-VNC%20远程桌面与工具预览.md)
-- [第二十章. SearchTool 搜索能力成形](chapters/20-SearchTool%20搜索能力成形.md)
-- [第二十一章. MCP 协议与工具接入](chapters/21-MCP%20协议与工具接入.md)
-- [第二十二章. 后端分层框架再造](chapters/22-后端分层框架再造.md)
-- [第二十三章. A2A 协议与工具接入](chapters/23-A2A%20协议与工具接入.md)
-- [第二十四章. 多 Agent 协作统筹](chapters/24-多%20Agent%20协作统筹.md)
-- [第二十五章. 设置面板落成](chapters/25-设置面板落成.md)
-- [第二十六章. AI 对话工作台与执行详情](chapters/26-AI%20对话工作台与执行详情.md)
-- [第二十七章. 长期记忆与上下文注入](chapters/27-长期记忆与上下文注入.md)
-- [第二十八章. Agent Runner 与模型工具选择](chapters/28-Agent%20Runner%20与模型工具选择.md)
-- [第二十九章. 复杂任务复原与 Agent Harness](chapters/29-复杂任务复原与%20Agent%20Harness.md)
-- [第三十章. 生产构建、测试与可观测性](chapters/30-生产构建、测试与可观测性.md)
-- [第三十一章. 安全加固与沙箱划界](chapters/31-安全加固与沙箱划界.md)
-- [第三十二章. 产品体验验收与前端交互细琢](chapters/32-产品体验验收与前端交互细琢.md)
-- [第三十三章. 组件规范与流式执行体验](chapters/33-组件规范与流式执行体验.md)
-- [第三十四章. 工具工作区、响应式与可访问性](chapters/34-工具工作区、响应式与可访问性.md)
-- [第三十五章. 对话叙事、Markdown 与计划动效](chapters/35-对话叙事、Markdown%20与计划动效.md)
-- [第三十六章. 工具详情、浏览器观察与搜索稳定性](chapters/36-工具详情、浏览器观察与搜索稳定性.md)
-- [第三十七章. 任务自动执行与步骤卡片](chapters/37-任务自动执行与步骤卡片.md)
-- [第三十八章. 详情抽屉、配置中心与集成验收](chapters/38-详情抽屉、配置中心与集成验收.md)
-- [第三十九章. 后端异常与任务错误体验](chapters/39-后端异常与任务错误体验.md)
-- [第四十章. 文件解析、摘要、引用与预览](chapters/40-文件解析、摘要、引用与预览.md)
-- [第四十一章. 最终回答质量与引用体系](chapters/41-最终回答质量与引用体系.md)
-- [第四十二章. 最终 UI 微调与交付清单](chapters/42-最终%20UI%20微调与交付清单.md)
-- [第四十三章. Docker 私有化部署与内网交付](chapters/43-Docker%20私有化部署与内网交付.md)
-- [第四十四章. 项目简历落笔](chapters/44-项目简历落笔.md)
-- [第四十五章. Memory Control Plane 与 Checkpoint DAG](chapters/45-Memory%20Control%20Plane%20与%20Checkpoint%20DAG.md)
-- [第四十六章. Tool Runtime 权限、幂等与审计](chapters/46-Tool%20Runtime%20权限、幂等与审计.md)
-- [第四十八章. 键盘优先 TUI 客户端](chapters/48-键盘优先%20TUI%20客户端.md)
-- [第四十九章. 迁移、测试与交付验收](chapters/49-迁移、测试与交付验收.md)
-- [第五十章. RAG 检索增强生成与知识库](chapters/50-RAG%20检索增强生成与知识库.md)
-- [第五十一章. Skill 注册中心与上下文注入](chapters/51-Skill%20注册中心与上下文注入.md)
-- [第五十三章. 直答路由与推理流直播](chapters/53-直答路由与推理流直播.md)
-- [第五十四章. 知识库自动召回与带引用作答](chapters/54-知识库自动召回与带引用作答.md)
-- [第五十五章. 浏览器读页作答与工具自愈](chapters/55-浏览器读页作答与工具自愈.md)
-- [第五十六章. 任务卡片、锚定滚动与界面主题化](chapters/56-任务卡片、锚定滚动与界面主题化.md)
+- [第 0 章. 项目缘起](chapters/00-项目缘起.md) <sub>Project Origin</sub>
+- [第一章. 项目伊始](chapters/01-项目伊始.md) <sub>Project Kickoff</sub>
+- [第二章. Docker Compose 基础设施奠基](chapters/02-Docker%20Compose%20基础设施奠基.md) <sub>Laying the Foundation: Docker Compose Infrastructure</sub>
+- [第三章. 后端 API 与通用模块奠基](chapters/03-后端%20API%20与通用模块奠基.md) <sub>Backend API & Shared Modules</sub>
+- [第四章. 前端 UI 与 Nginx 网关贯通](chapters/04-前端%20UI%20与%20Nginx%20网关贯通.md) <sub>Frontend UI & Nginx Gateway</sub>
+- [第五章. 数据库、迁移与会话模型立制](chapters/05-数据库、迁移与会话模型立制.md) <sub>Database, Migrations & the Session Model</sub>
+- [第六章. 会话开立与左侧列表](chapters/06-会话开立与左侧列表.md) <sub>Opening Sessions & the Sidebar List</sub>
+- [第七章. 对话消息与 SSE 事件流](chapters/07-对话消息与%20SSE%20事件流.md) <sub>Chat Messages & the SSE Event Stream</sub>
+- [第八章. 会话状态与任务收放](chapters/08-会话状态与任务收放.md) <sub>Session State & Task Collapse/Expand</sub>
+- [第九章. 文件上传、存储与预览](chapters/09-文件上传、存储与预览.md) <sub>File Upload, Storage & Preview</sub>
+- [第十章. 文件存储拓界](chapters/10-文件存储拓界.md) <sub>Extending File Storage</sub>
+- [第十一章. 应用配置与 LLM 客户端就位](chapters/11-应用配置与%20LLM%20客户端就位.md) <sub>App Configuration & the LLM Client</sub>
+- [第十二章. Agent 思维、Memory 与工具协议](chapters/12-Agent%20思维、Memory%20与工具协议.md) <sub>Agent Thinking, Memory & the Tool Protocol</sub>
+- [第十三章. PlannerAgent 与 ReActAgent 执行闭环](chapters/13-PlannerAgent%20与%20ReActAgent%20执行闭环.md) <sub>PlannerAgent & ReActAgent Execution Loop</sub>
+- [第十四章. AgentTaskRunner 与 Redis Stream 任务流转](chapters/14-AgentTaskRunner%20与%20Redis%20Stream%20任务流转.md) <sub>AgentTaskRunner & Redis Stream Task Flow</sub>
+- [第十五章. 上下文工程](chapters/15-上下文工程.md) <sub>Context Engineering</sub>
+- [第十六章. Sandbox 服务与文件工具](chapters/16-Sandbox%20服务与文件工具.md) <sub>Sandbox Service & File Tools</sub>
+- [第十七章. Sandbox Shell 与 Docker 隔离](chapters/17-Sandbox%20Shell%20与%20Docker%20隔离.md) <sub>Sandbox Shell & Docker Isolation</sub>
+- [第十八章. Playwright、CDP 与 BrowserTool](chapters/18-Playwright、CDP%20与%20BrowserTool.md) <sub>Playwright, CDP & BrowserTool</sub>
+- [第十九章. VNC 远程桌面与工具预览](chapters/19-VNC%20远程桌面与工具预览.md) <sub>VNC Remote Desktop & Tool Preview</sub>
+- [第二十章. SearchTool 搜索能力成形](chapters/20-SearchTool%20搜索能力成形.md) <sub>SearchTool: Shaping the Search Capability</sub>
+- [第二十一章. MCP 协议与工具接入](chapters/21-MCP%20协议与工具接入.md) <sub>MCP Protocol & Tool Integration</sub>
+- [第二十二章. 后端分层框架再造](chapters/22-后端分层框架再造.md) <sub>Rebuilding the Backend Layered Framework</sub>
+- [第二十三章. A2A 协议与工具接入](chapters/23-A2A%20协议与工具接入.md) <sub>A2A Protocol & Tool Integration</sub>
+- [第二十四章. 多 Agent 协作统筹](chapters/24-多%20Agent%20协作统筹.md) <sub>Multi-Agent Orchestration</sub>
+- [第二十五章. 设置面板落成](chapters/25-设置面板落成.md) <sub>The Settings Panel</sub>
+- [第二十六章. AI 对话工作台与执行详情](chapters/26-AI%20对话工作台与执行详情.md) <sub>AI Chat Workbench & Execution Details</sub>
+- [第二十七章. 长期记忆与上下文注入](chapters/27-长期记忆与上下文注入.md) <sub>Long-term Memory & Context Injection</sub>
+- [第二十八章. Agent Runner 与模型工具选择](chapters/28-Agent%20Runner%20与模型工具选择.md) <sub>Agent Runner & Model Tool Selection</sub>
+- [第二十九章. 复杂任务复原与 Agent Harness](chapters/29-复杂任务复原与%20Agent%20Harness.md) <sub>Recovering Complex Tasks & the Agent Harness</sub>
+- [第三十章. 生产构建、测试与可观测性](chapters/30-生产构建、测试与可观测性.md) <sub>Production Build, Tests & Observability</sub>
+- [第三十一章. 安全加固与沙箱划界](chapters/31-安全加固与沙箱划界.md) <sub>Security Hardening & Sandbox Boundaries</sub>
+- [第三十二章. 产品体验验收与前端交互细琢](chapters/32-产品体验验收与前端交互细琢.md) <sub>Product UX Acceptance & Frontend Refinement</sub>
+- [第三十三章. 组件规范与流式执行体验](chapters/33-组件规范与流式执行体验.md) <sub>Component Standards & the Streaming Execution UX</sub>
+- [第三十四章. 工具工作区、响应式与可访问性](chapters/34-工具工作区、响应式与可访问性.md) <sub>Tool Workspace, Responsiveness & Accessibility</sub>
+- [第三十五章. 对话叙事、Markdown 与计划动效](chapters/35-对话叙事、Markdown%20与计划动效.md) <sub>Conversation Narrative, Markdown & Plan Animations</sub>
+- [第三十六章. 工具详情、浏览器观察与搜索稳定性](chapters/36-工具详情、浏览器观察与搜索稳定性.md) <sub>Tool Details, Browser Observation & Search Stability</sub>
+- [第三十七章. 任务自动执行与步骤卡片](chapters/37-任务自动执行与步骤卡片.md) <sub>Automatic Task Execution & Step Cards</sub>
+- [第三十八章. 详情抽屉、配置中心与集成验收](chapters/38-详情抽屉、配置中心与集成验收.md) <sub>Detail Drawer, Config Center & Integration Acceptance</sub>
+- [第三十九章. 后端异常与任务错误体验](chapters/39-后端异常与任务错误体验.md) <sub>Backend Exceptions & Task Error UX</sub>
+- [第四十章. 文件解析、摘要、引用与预览](chapters/40-文件解析、摘要、引用与预览.md) <sub>File Parsing, Summaries, Citations & Preview</sub>
+- [第四十一章. 最终回答质量与引用体系](chapters/41-最终回答质量与引用体系.md) <sub>Final Answer Quality & the Citation System</sub>
+- [第四十二章. 最终 UI 微调与交付清单](chapters/42-最终%20UI%20微调与交付清单.md) <sub>Final UI Tweaks & the Delivery Checklist</sub>
+- [第四十三章. Docker 私有化部署与内网交付](chapters/43-Docker%20私有化部署与内网交付.md) <sub>Docker Private Deployment & Intranet Delivery</sub>
+- [第四十四章. 项目简历落笔](chapters/44-项目简历落笔.md) <sub>Writing the Project Résumé</sub>
+- [第四十五章. Memory Control Plane 与 Checkpoint DAG](chapters/45-Memory%20Control%20Plane%20与%20Checkpoint%20DAG.md) <sub>Memory Control Plane & Checkpoint DAG</sub>
+- [第四十六章. Tool Runtime 权限、幂等与审计](chapters/46-Tool%20Runtime%20权限、幂等与审计.md) <sub>Tool Runtime: Permissions, Idempotency & Audit</sub>
+- [第四十八章. 键盘优先 TUI 客户端](chapters/48-键盘优先%20TUI%20客户端.md) <sub>Keyboard-first TUI Client</sub>
+- [第四十九章. 迁移、测试与交付验收](chapters/49-迁移、测试与交付验收.md) <sub>Migrations, Tests & Delivery Acceptance</sub>
+- [第五十章. RAG 检索增强生成与知识库](chapters/50-RAG%20检索增强生成与知识库.md) <sub>RAG: Retrieval-Augmented Generation & the Knowledge Base</sub>
+- [第五十一章. Skill 注册中心与上下文注入](chapters/51-Skill%20注册中心与上下文注入.md) <sub>Skill Registry & Context Injection</sub>
+- [第五十三章. 直答路由与推理流直播](chapters/53-直答路由与推理流直播.md) <sub>Direct-Answer Routing & Live Reasoning Stream</sub>
+- [第五十四章. 知识库自动召回与带引用作答](chapters/54-知识库自动召回与带引用作答.md) <sub>Automatic Knowledge Recall & Cited Answers</sub>
+- [第五十五章. 浏览器读页作答与工具自愈](chapters/55-浏览器读页作答与工具自愈.md) <sub>Reading Web Pages with the Browser & Tool Self-healing</sub>
+- [第五十六章. 任务卡片、锚定滚动与界面主题化](chapters/56-任务卡片、锚定滚动与界面主题化.md) <sub>Task Cards, Anchored Scrolling & UI Theming</sub>

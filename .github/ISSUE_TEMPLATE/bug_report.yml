@@ -1,0 +1,86 @@
+name: 🐛 Bug Report / 问题反馈
+description: Report a reproducible problem with AtlasAgent / 报告 AtlasAgent 的可复现问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report! Please search existing issues first — it may already be known.
+        感谢你提交问题反馈！提交前请先搜索已有 Issue，该问题可能已被记录。
+  - type: dropdown
+    id: client
+    attributes:
+      label: Which client / 出问题的客户端
+      description: Where did you observe the problem? / 你在哪里观察到该问题？
+      options:
+        - Web (PWA) / Web 端
+        - TUI
+        - API only / 仅 API
+        - Not sure / 不确定
+    validations:
+      required: true
+  - type: dropdown
+    id: env
+    attributes:
+      label: Environment / 运行环境
+      description: How is AtlasAgent running? / AtlasAgent 如何运行？
+      options:
+        - docker-compose (start.sh) / Docker Compose（start.sh）
+        - Local dev (uvicorn + pnpm dev) / 本地开发
+        - Other / 其他
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened? / 发生了什么？
+      description: A clear and concise description of the bug. / 清晰简洁地描述该问题。
+      placeholder: The task failed after a tool call with ... / 任务在工具调用后失败，报错……
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      description: Exact commands / clicks to reproduce the bug. / 精确的复现命令或操作步骤。
+      placeholder: |
+        1. Start with `./scripts/start.sh`
+        2. Open a session and send ...
+        3. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / 期望行为
+      description: What did you expect to happen? / 你期望发生什么？
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Runtime details / 运行环境详情
+      description: |
+        OS, Docker version, Node / Python versions, client version, LLM provider (no keys!).
+        操作系统、Docker 版本、Node / Python 版本、客户端版本、LLM 服务商（请勿粘贴密钥！）。
+      placeholder: |
+        OS: Windows 11 / Docker 27.x / Node 22 / Python 3.12
+        LLM provider: DeepSeek (model: deepseek-chat)
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / 日志
+      description: Paste relevant logs in a code block. Do not include API keys, `.env` contents, or personal data. / 请在代码块中粘贴相关日志。不要包含 API Key、`.env` 内容或个人信息。
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context / 补充信息
+      description: Anything else that might help — screenshots, minimal repro, related issues. / 其他有助于定位的信息：截图、最小复现、相关 Issue。
+    validations:
+      required: false

@@ -1,0 +1,38 @@
+name: ✨ Feature Request / 功能建议
+description: Suggest a new feature or improvement for AtlasAgent / 为 AtlasAgent 提出新功能或改进建议
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to propose an idea!
+        感谢你花时间提出建议！
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature related to a problem? / 是否与某个问题相关？
+      description: A clear description of the problem. E.g. "I'm always frustrated when ..." / 清晰描述该问题。例如：“我总是对……感到困扰”。
+    validations:
+      required: false
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like / 期望的解决方案
+      description: A clear description of what you want to happen. / 清晰描述你希望发生什么。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered / 考虑过的替代方案
+      description: Any alternative solutions or workarounds you've thought about. / 你考虑过的其他替代方案或变通方式。
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context / 补充信息
+      description: Mockups, links, related projects, why this matters for agent control planes. / 示意图、链接、相关项目、为什么这对 Agent 控制平面重要。
+    validations:
+      required: false
