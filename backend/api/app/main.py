@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,9 +11,13 @@ from app.core.config import settings
 from app.core.handlers import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.request_id import RequestIdMiddleware
+from app.domain.memories.lifecycle import MemoryLifecycleService
 from app.infrastructure.database.session import AsyncSessionLocal
+from app.infrastructure.repositories.memory_repository import SqlAlchemyAgentMemoryRepository
 from app.infrastructure.task_queue import RedisAgentTaskQueue, create_redis_client
 from app.presentation.http.router import api_router
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def _reset_stale_running_sessions() -> None:
@@ -32,6 +38,24 @@ async def _reset_stale_running_sessions() -> None:
     except Exception:  # noqa: BLE001 —— 清理失败不阻断启动。
         return
 
+async def _memory_lifecycle_loop(session_factory) -> None:
+    """后台周期性执行记忆衰减与巩固。
+
+    参考 AgentTaskRunner 的后台任务模式：启动时注册 asyncio 任务，
+    关闭时取消。单次执行失败只记日志，不中断循环。
+    """
+    while True:
+        await asyncio.sleep(settings.memory_lifecycle_interval_seconds)
+        try:
+            async with session_factory() as db_session:
+                service = MemoryLifecycleService(
+                    SqlAlchemyAgentMemoryRepository(db_session),
+                    commit=db_session.commit,
+                )
+                await service.run_lifecycle()
+        except Exception:  # noqa: BLE001 —— 生命周期任务失败不阻断应用。
+            _LOGGER.exception("memory lifecycle run failed")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -47,10 +71,22 @@ async def lifespan(app: FastAPI):
     runner.start()
     await _reset_stale_running_sessions()
 
+    # ===================== 第3步：注册记忆生命周期后台任务 =====================
+    memory_lifecycle_task: asyncio.Task | None = None
+    if settings.memory_decay_enabled:
+        memory_lifecycle_task = asyncio.create_task(_memory_lifecycle_loop(AsyncSessionLocal))
+        app.state.memory_lifecycle_task = memory_lifecycle_task
+
     try:
         yield
     finally:
-        # ===================== 第3步：应用关闭时释放后台任务和 Redis 连接 =====================
+        # ===================== 第4步：应用关闭时释放后台任务和 Redis 连接 =====================
+        if memory_lifecycle_task is not None:
+            memory_lifecycle_task.cancel()
+            try:
+                await memory_lifecycle_task
+            except asyncio.CancelledError:
+                pass
         await runner.stop()
         await redis.aclose()
 
