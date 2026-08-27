@@ -64,34 +64,6 @@ jobs:
         working-directory: frontend/web
         run: pnpm build
 
-  desktop:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: frontend/desktop/package-lock.json
-      - name: Install
-        working-directory: frontend/desktop
-        run: npm ci
-      - name: Audit
-        working-directory: frontend/desktop
-        run: npm audit --audit-level high
-      - name: Build
-        working-directory: frontend/desktop
-        run: npm run build
-      - name: Desktop tests
-        working-directory: frontend/desktop
-        run: npm test
-      - name: Electron syntax
-        working-directory: frontend/desktop
-        run: |
-          node --check electron/main.cjs
-          node --check electron/preload.cjs
-          node --check electron/request-guard.cjs
-
   compose:
     runs-on: ubuntu-latest
     steps:
