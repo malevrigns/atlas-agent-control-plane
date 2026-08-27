@@ -13,7 +13,7 @@ from app.domain.memories.entities import (
     MemoryStatus,
 )
 from app.domain.memories.repositories import AgentMemoryRepository
-from app.infrastructure.database.models.agent_memory import AgentMemoryModel
+from app.infrastructure.database.models.agent_memory import AgentMemoryModel, MemoryAuditEventModel
 
 
 class SqlAlchemyAgentMemoryRepository(AgentMemoryRepository):
@@ -198,6 +198,9 @@ class SqlAlchemyAgentMemoryRepository(AgentMemoryRepository):
         provenance: list[str] | None = None,
         verification: dict[str, object] | None = None,
         valid_to: datetime | None = None,
+        confidence: float | None = None,
+        authority: MemoryAuthority | None = None,
+        related_ids: list[UUID] | None = None,
     ) -> AgentMemory | None:
         stmt = (
             select(AgentMemoryModel)
@@ -228,6 +231,12 @@ class SqlAlchemyAgentMemoryRepository(AgentMemoryRepository):
             model.verification_json = verification
         if valid_to is not None:
             model.valid_to = valid_to
+        if confidence is not None:
+            model.confidence = max(0.0, min(1.0, confidence))
+        if authority is not None:
+            model.authority = authority.value
+        if related_ids is not None:
+            model.related_ids_json = [str(item) for item in related_ids]
 
         # 2. 手动更新时间，方便排序和前端判断最近改动。
         model.updated_at = datetime.now(UTC)
@@ -273,3 +282,47 @@ class SqlAlchemyAgentMemoryRepository(AgentMemoryRepository):
         await self.db_session.flush()
         await self.db_session.refresh(model)
         return model.to_entity()
+
+    # ===================== 第5步：使用统计（检索命中自动 +1） =====================
+    async def touch_access(self, memory_id: UUID, *, now: datetime) -> AgentMemory | None:
+        """记录一次检索命中：access_count +1 并刷新 last_accessed_at。
+
+        last_accessed_at 是艾宾浩斯衰减公式的时间锚点，命中越多记忆越不容易被遗忘。
+        """
+        stmt = select(AgentMemoryModel).where(AgentMemoryModel.id == memory_id)
+        result = await self.db_session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        model.access_count = (model.access_count or 0) + 1
+        model.last_accessed_at = now
+        await self.db_session.flush()
+        await self.db_session.refresh(model)
+        return model.to_entity()
+
+    # ===================== 第6步：生命周期任务扫描 =====================
+    async def list_for_lifecycle(self, *, limit: int | None = None) -> list[AgentMemory]:
+        """返回所有未软删除的记忆，供衰减/巩固等后台任务批量处理。"""
+        stmt = select(AgentMemoryModel).where(AgentMemoryModel.deleted_at.is_(None))
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        result = await self.db_session.execute(stmt)
+        return [model.to_entity() for model in result.scalars()]
+
+    # ===================== 第7步：生命周期审计事件 =====================
+    async def record_audit_event(
+        self,
+        *,
+        memory_id: UUID | None,
+        event_type: str,
+        payload: dict[str, object],
+    ) -> UUID:
+        """为记忆写入一条审计事件（冲突消解、巩固等自动化动作留痕）。"""
+        model = MemoryAuditEventModel(
+            memory_id=memory_id,
+            event_type=event_type,
+            payload=dict(payload or {}),
+        )
+        self.db_session.add(model)
+        await self.db_session.flush()
+        return model.id

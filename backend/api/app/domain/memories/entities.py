@@ -40,11 +40,14 @@ class MemoryStatus(StrEnum):
 
 
 class MemoryAuthority(StrEnum):
+    """记忆的权威级别。"""
+
     explicit_user = "explicit_user"
     tool_verified = "tool_verified"
     test_verified = "test_verified"
+    suggested = "suggested"
+    verified = "verified"
     agent_inferred = "agent_inferred"
-
 
 class MemorySensitivity(StrEnum):
     public = "public"
@@ -91,6 +94,11 @@ class AgentMemory:
     created_at: datetime | None = None
     updated_at: datetime | None = None
     deleted_at: datetime | None = None
+    # 图谱关联：与当前记忆存在 supports/contradicts/extends/duplicates 关系的记忆 id。
+    related_ids: list[UUID] = field(default_factory=list)
+    # 使用统计：检索命中次数与最近一次命中时间，供衰减公式锚定。
+    access_count: int = 0
+    last_accessed_at: datetime | None = None
 
     def is_retrievable(self, now: datetime | None = None) -> bool:
         current_time = now or datetime.now(UTC)

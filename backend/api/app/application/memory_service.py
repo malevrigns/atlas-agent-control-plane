@@ -1,9 +1,11 @@
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
 from app.application.unit_of_work import UnitOfWork
 from app.core.exceptions import AppException
 from app.application.memory_write_gate import MemoryWriteGate
+from app.domain.memories.conflicts import MemoryConflictService
 from app.domain.memories.entities import (
     AgentMemory,
     MemoryAuthority,
@@ -13,6 +15,9 @@ from app.domain.memories.entities import (
     MemorySensitivity,
     MemoryStatus,
 )
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class MemoryService:
@@ -29,6 +34,8 @@ class MemoryService:
     def __init__(self, uow: UnitOfWork) -> None:
         self.uow = uow
         self.write_gate = MemoryWriteGate()
+        # 冲突消解复用同一个数据库会话，事务由 create_memory 统一提交。
+        self.conflict_service = MemoryConflictService(self.uow.memories)
 
     # ===================== 第1步：读取长期记忆列表 =====================
     async def list_memories(
@@ -160,6 +167,13 @@ class MemoryService:
             created_by=candidate.created_by,
             verification=candidate.verification,
         )
+        # 3.5 冲突消解：新记忆与存量记忆同 subject + 同 predicate 但 value
+        #     不同时，按策略把旧版本标记 superseded 并留下审计事件。
+        #     失败不影响记忆创建本身（新记忆已按门禁落库）。
+        try:
+            await self.conflict_service.resolve(memory)
+        except Exception:  # noqa: BLE001 —— 冲突消解是增强项，不能拖垮写入。
+            _LOGGER.exception("memory conflict resolution failed for %s", memory.id)
         if supersedes is not None:
             await self.uow.memories.mark_superseded(
                 supersedes,

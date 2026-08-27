@@ -88,6 +88,9 @@ class AgentMemoryRepository(Protocol):
         provenance: list[str] | None = None,
         verification: dict[str, object] | None = None,
         valid_to: datetime | None = None,
+        confidence: float | None = None,
+        authority: MemoryAuthority | None = None,
+        related_ids: list[UUID] | None = None,
     ) -> AgentMemory | None:
         raise NotImplementedError
 
@@ -100,4 +103,25 @@ class AgentMemoryRepository(Protocol):
         *,
         replacement_id: UUID,
     ) -> AgentMemory | None:
+        raise NotImplementedError
+
+    async def touch_access(self, memory_id: UUID, *, now: datetime) -> AgentMemory | None:
+        """记录一次检索命中：access_count +1 并刷新 last_accessed_at。"""
+
+        raise NotImplementedError
+
+    async def list_for_lifecycle(self, *, limit: int | None = None) -> list[AgentMemory]:
+        """返回所有未软删除的记忆，供衰减/巩固等生命周期任务扫描。"""
+
+        raise NotImplementedError
+
+    async def record_audit_event(
+        self,
+        *,
+        memory_id: UUID | None,
+        event_type: str,
+        payload: dict[str, object],
+    ) -> UUID:
+        """为一条记忆写入可审计的生命周期/冲突事件。"""
+
         raise NotImplementedError

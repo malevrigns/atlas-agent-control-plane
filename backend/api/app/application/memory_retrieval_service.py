@@ -1,11 +1,13 @@
 import math
 import re
 from datetime import UTC, datetime
+from uuid import UUID
 
 from app.application.unit_of_work import UnitOfWork
 from app.core.config import settings
 from app.domain.context_engineering.entities import MemoryContext, MemoryContextItem
 from app.domain.memories.entities import AgentMemory, MemoryKind
+from app.domain.memories.graph import MemoryGraphService
 
 
 class MemoryRetrievalService:
@@ -22,6 +24,8 @@ class MemoryRetrievalService:
 
     def __init__(self, uow: UnitOfWork) -> None:
         self.uow = uow
+        # 图谱扩展复用同一个数据库会话；事务归属由调用方统一提交。
+        self._graph = MemoryGraphService(uow.memories)
 
     # ===================== 第1步：检索并压缩长期记忆 =====================
     async def retrieve(
@@ -56,6 +60,7 @@ class MemoryRetrievalService:
         if user_id is not None:
             repository_arguments["user_id"] = user_id
         candidates = await self.uow.memories.list_retrievable(**repository_arguments)
+        memory_by_id = {memory.id: memory for memory in candidates}
 
         # 3. 计算混合分数，并过滤完全不相关的普通记忆。
         ranked_items = []
@@ -105,6 +110,47 @@ class MemoryRetrievalService:
             included.append(compressed)
             used_chars += len(compressed.content)
 
+        # 5. 使用统计：检索命中自动 +1，并刷新 last_accessed_at。
+        #    last_accessed_at 是记忆衰减公式的时间锚点，命中越多遗忘越慢。
+        for item in included:
+            await self._touch_access(item.id, current_time)
+
+        # 6. 图谱关联扩展：对入选记忆顺带取直接关联记忆（深度 1、条数有上限），
+        #    让相关事实/经验一起进入上下文；仍受总字符预算约束。
+        if settings.memory_graph_expand_enabled:
+            related_budget = settings.memory_graph_max_links
+            # 已入选的记忆 id，防止图谱邻居与直接命中重复进入上下文。
+            included_ids = {item.id for item in included}
+            for item in list(included):
+                if related_budget <= 0:
+                    break
+                source = memory_by_id.get(item.id)
+                if source is None or not source.related_ids:
+                    continue
+                neighbors = await self._graph.expand_context(
+                    source,
+                    depth=settings.memory_graph_expand_depth,
+                    limit=related_budget,
+                )
+                for neighbor in neighbors:
+                    if neighbor.id in included_ids:
+                        # 该邻居已作为直接命中入选，跳过避免重复。
+                        continue
+                    if related_budget <= 0 or used_chars >= total_char_limit:
+                        break
+                    remaining = total_char_limit - used_chars
+                    neighbor_item = self._related_item(neighbor, parent=item)
+                    compressed = self._compress_item(
+                        neighbor_item, min(item_char_limit, remaining)
+                    )
+                    if not compressed.content:
+                        continue
+                    included.append(compressed)
+                    included_ids.add(neighbor.id)
+                    used_chars += len(compressed.content)
+                    related_budget -= 1
+                    await self._touch_access(neighbor.id, current_time)
+
         context = MemoryContext(
             query=" ".join(query.split())[:1000],
             items=included,
@@ -131,6 +177,44 @@ class MemoryRetrievalService:
                 "token_budget": total_char_limit // 4,
             })
         return context
+
+    # ===================== 使用统计与图谱扩展辅助 =====================
+    async def _touch_access(self, memory_id: UUID, now: datetime) -> None:
+        """记录一次检索命中；测试假仓库未实现该能力时静默跳过。"""
+        if not hasattr(self.uow.memories, "touch_access"):
+            return
+        await self.uow.memories.touch_access(memory_id, now=now)
+
+    @staticmethod
+    def _related_item(
+        neighbor: AgentMemory,
+        *,
+        parent: MemoryContextItem,
+    ) -> MemoryContextItem:
+        """为图谱关联记忆构建上下文条目。
+
+        相关度按父节点打六折：关联记忆是佐证而非直接命中，排序上
+        必须低于真正的查询命中结果。
+        """
+        return MemoryContextItem(
+            id=neighbor.id,
+            kind=neighbor.kind,
+            content=neighbor.content,
+            importance=neighbor.importance,
+            relevance_score=round(parent.relevance_score * 0.6, 4),
+            matched_terms=[],
+            original_chars=len(neighbor.content),
+            truncated=False,
+            source_session_id=neighbor.source_session_id,
+            source_event_id=neighbor.source_event_id,
+            updated_at=neighbor.updated_at,
+            scope=neighbor.scope.value,
+            status=neighbor.status.value,
+            confidence=neighbor.confidence,
+            authority=neighbor.authority.value,
+            provenance=list(neighbor.provenance),
+            reason_retrieved=f"graph_link={parent.id}",
+        )
 
     # ===================== 第2步：计算单条记忆的混合分数 =====================
     def _rank_memory(
@@ -176,8 +260,10 @@ class MemoryRetrievalService:
         # 5. 权威度、置信度、任务亲和度和时效性共同参与重排。
         authority_score = {
             "explicit_user": 1.0,
+            "verified": 1.0,
             "test_verified": 1.0,
             "tool_verified": 0.9,
+            "suggested": 0.4,
             "agent_inferred": 0.2,
         }.get(memory.authority.value, 0.2)
         task_affinity = 1.0 if memory.task_id else (0.75 if memory.project_id else 0.5)

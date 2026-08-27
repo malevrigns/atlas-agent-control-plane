@@ -87,6 +87,15 @@ class AgentMemoryModel(Base):
         "verification", JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
 
+    # ===================== Memory Lifecycle fields =====================
+    # related_ids 保存图谱关联的记忆 id，检索命中时用于扩展上下文。
+    related_ids_json: Mapped[list[object]] = mapped_column(
+        "related_ids", JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    # access_count 累计检索命中次数，last_accessed_at 是艾宾浩斯衰减的时间锚点。
+    access_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_accessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # ===================== 第3步：记录审计时间 =====================
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -136,4 +145,43 @@ class AgentMemoryModel(Base):
             created_at=self.created_at,
             updated_at=self.updated_at,
             deleted_at=self.deleted_at,
+            related_ids=self._parse_uuid_list(self.related_ids_json),
+            access_count=self.access_count or 0,
+            last_accessed_at=self.last_accessed_at,
         )
+
+    @staticmethod
+    def _parse_uuid_list(raw: list[object] | None) -> list[UUID]:
+        """把 JSONB 中保存的关联 id 解析回 UUID，跳过非法条目。"""
+
+        result: list[UUID] = []
+        for item in raw or []:
+            try:
+                result.append(UUID(str(item)))
+            except (TypeError, ValueError):
+                continue
+        return result
+
+
+class MemoryAuditEventModel(Base):
+    """记忆生命周期审计事件表。
+
+    冲突消解、衰减、巩固等自动化动作都会在这里留下一条可追溯记录，
+    便于事后回答“这条记忆为什么被标记 superseded / 权威度为什么变了”。
+    """
+
+    __tablename__ = "memory_audit_events"
+
+    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    # memory_id 为空表示事件不绑定单条记忆（例如整批衰减汇总）。
+    memory_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("agent_memories.id", ondelete="SET NULL")
+    )
+    # event_type 例如 conflict_resolved / conflict_manual_review / consolidated / decay_applied。
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
