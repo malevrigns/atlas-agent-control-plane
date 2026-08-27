@@ -8,8 +8,11 @@
 工具结果以消息形式回喂给模型，模型「看结果后再决策」，直到该步骤完成。
 """
 
+import asyncio
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, replace
+from logging import getLogger
 from typing import Any
 from uuid import UUID
 
@@ -18,6 +21,13 @@ from app.application.tool_runtime import ToolExecutionContext, ToolRuntime
 from app.application.unit_of_work import UnitOfWork
 from app.core.config import settings
 from app.core.exceptions import AppException
+from app.domain.agent_core.tool_budget import ToolBudget
+from app.domain.agent_core.tool_deps import (
+    ToolCall,
+    ToolDependencyError,
+    plan_parallel_batches,
+    tool_call_from_definition,
+)
 from app.domain.agent_core.tools import (
     ToolCallResult,
     ToolDefinition,
@@ -28,6 +38,7 @@ from app.domain.agent_core.tools import (
 )
 from app.domain.llm.entities import LLMMessage, LLMToolCall
 
+logger = getLogger(__name__)
 
 @dataclass(slots=True)
 class ToolCallRequest:
@@ -216,12 +227,15 @@ class StepAgentLoop:
         registry: ToolRegistry,
         llm_service: LLMService | None = None,
         uow: UnitOfWork | None = None,
+        budget_factory: Callable[[], ToolBudget] | None = None,
     ) -> None:
         self.registry = registry
         self.llm_service = llm_service or LLMService()
         self.runtime = ToolRuntime(registry, uow=uow)
         self.tool_definitions = registry.list_tools()
         self.tool_schemas = to_openai_tool_schemas(self.tool_definitions)
+        # 预算工厂：每个步骤新建一个预算实例，避免额度跨步骤泄漏。
+        self._budget_factory = budget_factory or ToolBudget.from_settings
 
     async def run_step(
         self,
@@ -236,7 +250,8 @@ class StepAgentLoop:
         initial_messages = self._build_initial_messages(
             plan=plan, step=step, index=index, context=context
         )
-
+        # 单步骤工具调用预算（默认 12 次 / 单工具 4 次 / token 估算上限）。
+        budget = self._budget_factory()
         if not self.llm_service.is_configured():
             return await self._run_rule_fallback(
                 plan=plan,
@@ -244,8 +259,8 @@ class StepAgentLoop:
                 index=index,
                 context=context,
                 execution_context=execution_context,
+                budget=budget,
             )
-
         for strategy in self._ordered_strategies():
             messages = [
                 LLMMessage(
@@ -260,16 +275,17 @@ class StepAgentLoop:
                 strategy=strategy,
                 messages=messages,
                 execution_context=execution_context,
+                budget=budget,
             )
             if result is not None:
                 return result
-
         return await self._run_rule_fallback(
             plan=plan,
             step=step,
             index=index,
             context=context,
             execution_context=execution_context,
+            budget=budget,
         )
 
     async def _run_loop(
@@ -278,6 +294,7 @@ class StepAgentLoop:
         strategy: ToolCallStrategy,
         messages: list[LLMMessage],
         execution_context: ToolExecutionContext,
+        budget: ToolBudget,
     ) -> StepLoopResult | None:
         executed: list[StepToolCall] = []
         total_tool_calls = 0
@@ -301,15 +318,34 @@ class StepAgentLoop:
             if total_tool_calls + len(outcome.tool_calls) > settings.agent_step_max_tool_calls:
                 break
 
-            # 顺序执行：工具共用同一个 async DB session，并发 flush 会触发
-            # "Session is already flushing"。
-            results = []
-            for offset, request in enumerate(outcome.tool_calls):
-                results.append(
-                    await self._execute_tool(request, execution_context, turn, offset)
-                )
+            # 批次执行：按工具 provides/requires 声明做依赖规划，
+            # 同批内无依赖的调用用 asyncio.gather 并行，批间串行等待；
+            # tool_parallel_batches_enabled 关闭时退回顺序执行（有共享 async DB
+            # 会话时并发写调用记录可能争抢 flush，可配置关闭）。
+            offset_to_result: dict[int, tuple[str, ToolCallResult]] = {}
+            for batch in self._plan_batches(outcome.tool_calls):
+                if len(batch) > 1 and settings.tool_parallel_batches_enabled:
+                    batch_results = await asyncio.gather(
+                        *(
+                            self._execute_with_budget(
+                                request, execution_context, turn, offset, budget
+                            )
+                            for offset, request in batch
+                        )
+                    )
+                else:
+                    batch_results = [
+                        await self._execute_with_budget(
+                            request, execution_context, turn, offset, budget
+                        )
+                        for offset, request in batch
+                    ]
+                for (offset, _), result in zip(batch, batch_results):
+                    offset_to_result[offset] = result
+            results = [offset_to_result[offset] for offset in range(len(outcome.tool_calls))]
 
             messages.append(strategy.build_assistant_message(outcome))
+            budget_exceeded_this_turn = False
             for request, (call_id, result) in zip(outcome.tool_calls, results):
                 executed.append(StepToolCall(turn=turn, tool_call_id=call_id, result=result))
                 messages.append(
@@ -327,17 +363,41 @@ class StepAgentLoop:
                         )
                     )
                     repeat_count = 0
+                if (result.audit or {}).get("budget_exceeded"):
+                    budget_exceeded_this_turn = True
+            if budget_exceeded_this_turn:
+                # 超预算时把结构化结果回喂后，明确提示模型收尾，避免继续空转。
+                messages.append(
+                    LLMMessage(
+                        role="system",
+                        content=(
+                            "工具调用预算已用尽：请停止调用工具，"
+                            "基于已获得的结果直接给出该步骤的结论。"
+                        ),
+                    )
+                )
 
         return StepLoopResult(tool_calls=executed, summary=self._fallback_summary(executed))
 
-    async def _execute_tool(
+    async def _execute_with_budget(
         self,
         request: ToolCallRequest,
         base_context: ToolExecutionContext,
         turn: int,
         offset: int,
+        budget: ToolBudget,
     ) -> tuple[str, ToolCallResult]:
+        """执行一次工具调用（带预算控制）。
+
+        超预算时不抛异常：返回结构化 budget_exceeded 结果（JSON 输出 +
+        audit 标记），回喂给模型后由模型自己决定如何收尾。
+        """
         call_id = request.id or f"call_{turn}_{offset}"
+        check = budget.check_call(request.name)
+        if not check.allowed:
+            return call_id, budget.build_exceeded_result(
+                request.name, check, request.arguments
+            )
         context = replace(
             base_context,
             idempotency_key=f"{base_context.idempotency_key or 'step'}:{turn}:{offset}",
@@ -352,7 +412,41 @@ class StepAgentLoop:
                 status=ToolInvocationStatus.failed,
                 risk_level=ToolRiskLevel.low,
             )
+        budget.record_call(request.name, result.output)
         return call_id, result
+
+    def _plan_batches(
+        self, requests: list[ToolCallRequest]
+    ) -> list[list[tuple[int, ToolCallRequest]]]:
+        """按工具的 provides/requires 声明生成并行批次。
+
+        返回批次数组，每个批次是 (原始下标, 工具调用) 对，批次内保持输入
+        顺序且无相互依赖，可并行执行。未知工具或无依赖声明的工具视为
+        无依赖；发现循环依赖时降级为逐个串行批次，不因此让整步失败。
+        """
+        calls: list[ToolCall] = []
+        for request in requests:
+            try:
+                definition = self.registry.get(request.name).definition
+            except AppException:
+                definition = None
+            if definition is None:
+                calls.append(ToolCall(name=request.name, arguments=request.arguments))
+            else:
+                calls.append(tool_call_from_definition(definition, request.arguments))
+        try:
+            batches = plan_parallel_batches(calls)
+        except ToolDependencyError as error:
+            logger.warning(
+                "tool dependency plan failed, fallback to sequential batches: %s",
+                error.message,
+            )
+            return [[(index, request)] for index, request in enumerate(requests)]
+        index_by_id = {id(call): index for index, call in enumerate(calls)}
+        return [
+            [(index_by_id[id(tool_call)], requests[index_by_id[id(tool_call)]]) for tool_call in batch]
+            for batch in batches
+        ]
 
     async def _run_rule_fallback(
         self,
@@ -362,7 +456,13 @@ class StepAgentLoop:
         index: int,
         context: str,
         execution_context: ToolExecutionContext,
+        budget: ToolBudget,
     ) -> StepLoopResult:
+        """规则兜底路径：单工具调用，执行后对步骤预算记账并写入审计快照。
+
+        该路径每个步骤只执行一次调用，而预算下限均为 1 次，
+        因此不会触发超预算拒绝；这里记账是为了预算快照可审计。
+        """
         from app.application.tool_selection_service import ModelToolSelectionService
 
         selector = ModelToolSelectionService(
@@ -377,6 +477,8 @@ class StepAgentLoop:
             agent_context=context,
             execution_context=execution_context,
         )
+        budget.record_call(result.tool_name, result.output)
+        result.audit = {**(result.audit or {}), "budget": budget.to_audit()}
         tool_call = StepToolCall(
             turn=1,
             tool_call_id=result.invocation_id or "rule",

@@ -42,7 +42,13 @@ class ToolParameter:
 # ===================== 第2步：定义工具描述结构 =====================
 @dataclass(slots=True)
 class ToolDefinition:
-    """一个可以被 Agent 调用的工具。"""
+    """一个可以被 Agent 调用的工具。
+
+    provides / requires 是能力标签（capability tags），用于按依赖关系
+    把一轮内的多个工具调用分成可并行的批次：例如 browser_open 声明
+    provides=("page_opened",)，browser_read 声明 requires=("page_opened",)，
+    则同一轮里 browser_read 必须排在 browser_open 之后的批次执行。
+    """
 
     name: str
     description: str
@@ -53,7 +59,8 @@ class ToolDefinition:
     idempotent: bool = True
     timeout_seconds: float = 30.0
     output_mode: str = "inline_or_artifact"
-
+    provides: tuple[str, ...] = ()
+    requires: tuple[str, ...] = ()
 
 # ===================== 第3步：定义工具执行结果 =====================
 @dataclass(slots=True)
@@ -70,6 +77,8 @@ class ToolCallResult:
     artifact_id: str | None = None
     output_truncated: bool = False
     audit: dict[str, Any] | None = None
+    # 结果来自工具结果缓存（Result Cache）时为 True，审计记录同步注明。
+    cache_hit: bool = False
 
 
 # ===================== 第4步：封装真实 Python 函数和工具 schema =====================
@@ -86,12 +95,30 @@ class AgentTool:
 
     definition: ToolDefinition
     handler: Callable[..., str] | Callable[..., Awaitable[str]]
-
+    # 是否允许把成功结果写入结果缓存（仍需低风险 + 幂等才真正生效）。
+    cacheable: bool = False
+    # 结果缓存有效期（秒），仅对 cacheable 工具生效。
+    cache_ttl_seconds: int = 300
+    # 降级工具：本工具失败（失败/超时）时自动改用的工具名，须接受同名参数。
+    fallback_tool: str | None = None
     @property
     def is_async(self) -> bool:
         """handler 是否为协程函数。"""
 
         return iscoroutinefunction(self.handler)
+
+    @property
+    def is_cache_eligible(self) -> bool:
+        """成功结果是否允许写入结果缓存。
+
+        必须同时满足：显式声明 cacheable、低风险（low）、幂等。
+        这是 Result Cache 的准入条件，避免把有副作用的结果缓存起来。
+        """
+        return bool(
+            self.cacheable
+            and self.definition.idempotent
+            and self.definition.risk_level is ToolRiskLevel.low
+        )
 
     def call(self, arguments: dict[str, Any]) -> ToolCallResult:
         """同步执行工具函数，并包装成统一结果。
@@ -221,6 +248,11 @@ def agent_tool(
     required_permissions: tuple[str, ...] = (),
     idempotent: bool = True,
     timeout_seconds: float = 30.0,
+    cacheable: bool = False,
+    cache_ttl_seconds: int = 300,
+    fallback_tool: str | None = None,
+    provides: tuple[str, ...] = (),
+    requires: tuple[str, ...] = (),
 ) -> Callable[[Callable[..., str] | Callable[..., Awaitable[str]]], AgentTool]:
     """工具装饰器。
 
@@ -245,8 +277,13 @@ def agent_tool(
                 required_permissions=required_permissions,
                 idempotent=idempotent,
                 timeout_seconds=timeout_seconds,
+                provides=provides,
+                requires=requires,
             ),
             handler=func,
+            cacheable=cacheable,
+            cache_ttl_seconds=cache_ttl_seconds,
+            fallback_tool=fallback_tool,
         )
 
     return decorator
