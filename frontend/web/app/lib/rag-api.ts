@@ -44,6 +44,35 @@ export type RetrievedChunk = {
   final_score: number;
   matched_terms: string[];
   citation: string;
+  /** 引用置信度（0-1）：相关分 × 文档新鲜度 × 来源类型加权；旧版后端不返回该字段。 */
+  confidence?: number | null;
+};
+
+/**
+ * 检索过程元数据：键名与后端 build_retrieval_metadata 输出一致。
+ * 未升级的后端不会返回该对象，所有字段均为可选，缺失时前端跳过渲染。
+ */
+export type RetrievalMetadata = {
+  /** 检索总耗时（毫秒） */
+  elapsed_ms?: number;
+  /** 召回候选数 */
+  candidate_count?: number;
+  /** 实际参与检索的查询变体（原始 + 改写） */
+  queries?: string[];
+  /** 查询改写策略：llm / rule */
+  query_expand_method?: string;
+  /** RRF 融合常数 k（仅多查询时存在） */
+  rrf_k?: number | null;
+  /** 是否触发 LLM 重排 */
+  reranked?: boolean;
+  /** 参与重排的 Top N（未重排时为 null） */
+  rerank_top_n?: number | null;
+  /** 是否做了父块扩展 */
+  parent_expanded?: boolean;
+  /** 最终分融合权重（vector/lexical/rerank） */
+  weights?: Record<string, number>;
+  /** 允许后端后续新增键而不破坏类型 */
+  [key: string]: unknown;
 };
 
 export type RagQueryResult = {
@@ -56,6 +85,8 @@ export type RagQueryResult = {
   total_chars: number;
   context_text: string;
   chunks: RetrievedChunk[];
+  /** 检索过程元数据（耗时/候选数/查询变体/重排）；旧版后端不返回该字段。 */
+  retrieval_metadata?: RetrievalMetadata;
 };
 
 // ===================== RAG 知识库 API =====================

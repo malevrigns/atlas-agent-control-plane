@@ -26,6 +26,7 @@ import type {
   KnowledgeBase,
   KnowledgeDocument,
   RagQueryResult,
+  RetrievalMetadata,
 } from "../lib/rag-api";
 
 const DOCUMENT_STATUS_LABELS: Record<string, string> = {
@@ -34,6 +35,108 @@ const DOCUMENT_STATUS_LABELS: Record<string, string> = {
   ready: "已就绪",
   failed: "失败",
 };
+/** 引用置信度配色阈值：>=0.7 绿 / 0.5-0.7 黄 / <0.5 灰（与后端 confidence 0-1 对齐）。 */
+const WEIGHT_LABELS: Record<string, string> = {
+  vector: "向量",
+  lexical: "词法",
+  rerank: "重排",
+};
+
+/**
+ * 引用置信度指示：3 个色点（按阈值填充数量与颜色）+ 百分比徽章。
+ * 仅当后端返回 chunk.confidence 时由调用方渲染。
+ */
+function ConfidenceDots({ value }: { value: number }) {
+  const level = value >= 0.7 ? 3 : value >= 0.5 ? 2 : 1;
+  const dotClass =
+    level === 3 ? "bg-emerald-500" : level === 2 ? "bg-amber-500" : "bg-(--fill-3)";
+  const textClass =
+    level === 3 ? "text-emerald-500" : level === 2 ? "text-amber-500" : "text-(--text-4)";
+  return (
+    <span className="inline-flex items-center gap-1" title={`引用置信度 ${(value * 100).toFixed(0)}%`}>
+      <span className="inline-flex items-center gap-0.5" aria-hidden="true">
+        {[1, 2, 3].map((index) => (
+          <span
+            key={index}
+            className={`h-1.5 w-1.5 rounded-full ${index <= level ? dotClass : "bg-(--fill-2)"}`}
+          />
+        ))}
+      </span>
+      <span className={`text-[11px] font-medium ${textClass}`}>
+        {(value * 100).toFixed(0)}%
+      </span>
+    </span>
+  );
+}
+
+/**
+ * 检索元数据折叠面板：耗时 / 候选数 / 查询变体 / 重排 / 融合权重。
+ * 字段名与后端 build_retrieval_metadata 输出一致；缺失的字段自动跳过，
+ * 全部缺失时不渲染任何内容（兼容未升级的后端）。
+ */
+function RetrievalMetadataPanel({ metadata }: { metadata: RetrievalMetadata }) {
+  const weightEntries = Object.entries(metadata.weights ?? {});
+  return (
+    <details className="rounded-xl border border-(--line) bg-(--surface) px-3 py-2">
+      <summary className="cursor-pointer select-none text-xs text-(--text-4) transition hover:text-(--text-2)">
+        检索元数据（耗时 / 查询变体 / 重排）
+      </summary>
+      <dl className="mt-2 grid gap-1.5 text-xs text-(--text-3)">
+        {typeof metadata.elapsed_ms === "number" ? (
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-(--text-5)">耗时</dt>
+            <dd className="font-medium text-(--text-2)">{metadata.elapsed_ms} ms</dd>
+          </div>
+        ) : null}
+        {typeof metadata.candidate_count === "number" ? (
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-(--text-5)">候选数</dt>
+            <dd className="font-medium text-(--text-2)">{metadata.candidate_count}</dd>
+          </div>
+        ) : null}
+        {Array.isArray(metadata.queries) && metadata.queries.length > 0 ? (
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-(--text-5)">查询变体</dt>
+            <dd className="flex flex-wrap gap-1">
+              {metadata.queries.map((variant, index) => (
+                <span
+                  key={`${variant}-${index}`}
+                  className="rounded-full border border-(--line) px-2 py-0.5 text-[11px] text-(--text-3)"
+                >
+                  {index === 0 ? `原始 · ${variant}` : variant}
+                </span>
+              ))}
+            </dd>
+          </div>
+        ) : null}
+        {typeof metadata.reranked === "boolean" ? (
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-(--text-5)">LLM 重排</dt>
+            <dd className="font-medium text-(--text-2)">
+              {metadata.reranked
+                ? `是（top ${typeof metadata.rerank_top_n === "number" ? metadata.rerank_top_n : "?"}）`
+                : "未触发"}
+            </dd>
+          </div>
+        ) : null}
+        {metadata.query_expand_method ? (
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-(--text-5)">改写策略</dt>
+            <dd className="font-medium text-(--text-2)">{metadata.query_expand_method}</dd>
+          </div>
+        ) : null}
+        {weightEntries.length > 0 ? (
+          <div className="flex gap-2">
+            <dt className="w-16 shrink-0 text-(--text-5)">融合权重</dt>
+            <dd className="font-medium text-(--text-2)">
+              {weightEntries.map(([key, weight]) => `${WEIGHT_LABELS[key] ?? key} ${weight}`).join(" · ")}
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+    </details>
+  );
+}
 
 /**
  * Web 版 RAG 知识库管理台：建库、摄取文档、重建索引、检索验证。
@@ -379,6 +482,9 @@ export function KnowledgeWorkspace() {
                       后端 {queryResult.backend} · 候选 {queryResult.candidate_count} · 命中{" "}
                       {queryResult.chunks.length}
                     </p>
+                    {queryResult.retrieval_metadata && Object.keys(queryResult.retrieval_metadata).length > 0 ? (
+                      <RetrievalMetadataPanel metadata={queryResult.retrieval_metadata} />
+                    ) : null}
                     {queryResult.chunks.length ? (
                       queryResult.chunks.map((chunk) => (
                         <div
@@ -389,7 +495,10 @@ export function KnowledgeWorkspace() {
                             <span className="text-xs font-semibold text-(--accent)">
                               {chunk.citation}
                             </span>
-                            <span className="shrink-0 text-[11px] text-(--text-4)">
+                            <span className="flex shrink-0 items-center gap-2 text-[11px] text-(--text-4)">
+                              {typeof chunk.confidence === "number" && chunk.confidence >= 0 ? (
+                                <ConfidenceDots value={chunk.confidence} />
+                              ) : null}
                               综合 {chunk.final_score.toFixed(2)}
                             </span>
                           </div>
