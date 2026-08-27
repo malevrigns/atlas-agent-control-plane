@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" role="img" aria-labelledby="title desc">
+  <title id="title">AtlasAgent — An Auditable AI Agent Control Plane</title>
+  <desc id="desc">Dark GitHub social preview: AtlasAgent wordmark on the left, evidence chain (事件 → 记忆 → 工具 → 审计) diagram on the right.</desc>
+
+  <defs>
+    <!-- 背景微渐变：从 GitHub 深底 #0d1117 到 README badge labelColor #1a1a2e -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#111427"/>
+    </linearGradient>
+    <!-- 右侧面板背后的青色微光晕 -->
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#00d9ff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#00d9ff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 与 hero.svg 同款开放式箭头 -->
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M1 1L6 4L1 7" fill="none" stroke="#4ecdc4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <clipPath id="frame">
+      <rect width="1200" height="600" rx="28"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="600" fill="url(#bg)"/>
+
+    <!-- 右上角装饰同心圆（呼应 hero.svg 的浅色圆，深色版） -->
+    <circle cx="1130" cy="-20" r="230" fill="#101828"/>
+    <circle cx="1130" cy="-20" r="150" fill="#0e1420"/>
+    <!-- 面板微光 -->
+    <ellipse cx="895" cy="300" rx="330" ry="260" fill="url(#glow)"/>
+
+    <!-- ============ 左侧：品牌区 ============ -->
+    <g id="identity" transform="translate(64 64)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif">
+      <!-- 眉题：小圆点 + 等宽小标 -->
+      <circle cx="7" cy="6" r="7" fill="#00d9ff"/>
+      <text x="26" y="13" fill="#8b949e" font-family="ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace" font-size="19" font-weight="650" letter-spacing="2.4">AI AGENT CONTROL PLANE</text>
+
+      <!-- 主标题：等宽感大字 -->
+      <text x="-4" y="128" fill="#e6edf3" font-family="ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace" font-size="86" font-weight="700" letter-spacing="-2">AtlasAgent</text>
+
+      <!-- 副标题 -->
+      <text x="0" y="180" fill="#9aa4b2" font-size="28" font-weight="650">An Auditable AI Agent Control Plane</text>
+
+      <!-- 分隔线 -->
+      <path d="M0 222H560" stroke="#22304a" stroke-width="1.5"/>
+
+      <!-- 三个亮点词横排 -->
+      <text x="0" y="262" fill="#b0bac9" font-size="18" font-weight="600">Evidence-backed Memory <tspan fill="#00d9ff">·</tspan> Governed Tools <tspan fill="#4ecdc4">·</tspan> Checkpoint Recovery</text>
+
+      <!-- 技术栈 -->
+      <text x="0" y="304" fill="#6b7686" font-family="ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace" font-size="17">FastAPI  ·  Next.js  ·  PostgreSQL  ·  Redis</text>
+    </g>
+
+    <!-- ============ 右侧：证据链面板 ============ -->
+    <g id="evidence-chain" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif">
+      <!-- 面板 -->
+      <rect x="650" y="96" width="490" height="408" rx="20" fill="#0f1524" stroke="#22304a" stroke-width="1.5"/>
+
+      <!-- 面板标题 -->
+      <text x="684" y="140" fill="#4ecdc4" font-family="ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace" font-size="18" font-weight="650" letter-spacing="2">EVIDENCE CHAIN</text>
+      <text x="1106" y="140" text-anchor="end" fill="#6b7686" font-family="ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace" font-size="17">01 → 04</text>
+
+      <!-- 贯穿四节点的连线（箭头落在最后一个节点上） -->
+      <path d="M712 196V432" fill="none" stroke="#2e3d55" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- 01 事件 -->
+      <g transform="translate(0 196)">
+        <circle cx="712" cy="0" r="24" fill="#0d1117" stroke="#00d9ff" stroke-width="2"/>
+        <text x="712" y="6" text-anchor="middle" fill="#00d9ff" font-family="ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace" font-size="17" font-weight="700">01</text>
+        <text x="758" y="-2" fill="#e6edf3" font-size="24" font-weight="700">事件 <tspan fill="#8b949e" font-size="19" font-weight="600">Event</tspan></text>
+        <text x="758" y="26" fill="#8b949e" font-size="17">Inputs, traces &amp; logs</text>
+      </g>
+
+      <!-- 02 记忆 -->
+      <g transform="translate(0 276)">
+        <circle cx="712" cy="0" r="24" fill="#0d1117" stroke="#00d9ff" stroke-width="2"/>
+        <text x="712" y="6" text-anchor="middle" fill="#00d9ff" font-family="ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace" font-size="17" font-weight="700">02</text>
+        <text x="758" y="-2" fill="#e6edf3" font-size="24" font-weight="700">记忆 <tspan fill="#8b949e" font-size="19" font-weight="600">Memory</tspan></text>
+        <text x="758" y="26" fill="#8b949e" font-size="17">Source-linked facts only</text>
+      </g>
+
+      <!-- 03 工具 -->
+      <g transform="translate(0 356)">
+        <circle cx="712" cy="0" r="24" fill="#0d1117" stroke="#00d9ff" stroke-width="2"/>
+        <text x="712" y="6" text-anchor="middle" fill="#00d9ff" font-family="ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace" font-size="17" font-weight="700">03</text>
+        <text x="758" y="-2" fill="#e6edf3" font-size="24" font-weight="700">工具 <tspan fill="#8b949e" font-size="19" font-weight="600">Tool</tspan></text>
+        <text x="758" y="26" fill="#8b949e" font-size="17">Permissioned side effects</text>
+      </g>
+
+      <!-- 04 审计（终止节点：对勾，呼应 hero.svg 的 Checkpoint） -->
+      <g transform="translate(0 436)">
+        <circle cx="712" cy="0" r="24" fill="#0e2a28" stroke="#4ecdc4" stroke-width="2"/>
+        <path d="M702 0L709 7L723 -7" fill="none" stroke="#4ecdc4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="758" y="-2" fill="#e6edf3" font-size="24" font-weight="700">审计 <tspan fill="#8b949e" font-size="19" font-weight="600">Audit</tspan></text>
+        <text x="758" y="26" fill="#8b949e" font-size="17">Every step verifiable</text>
+      </g>
+    </g>
+
+    <!-- ============ 底部条：仓库地址 ============ -->
+    <g id="footer" font-family="ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace">
+      <path d="M0 528H1200" stroke="#1d2536" stroke-width="1.5"/>
+      <rect y="528" width="1200" height="72" fill="#0b0f16"/>
+      <text x="64" y="572" fill="#52607a" font-size="16">github.com/malevrigns/atlas-agent-control-plane</text>
+      <text x="1136" y="572" text-anchor="end" fill="#4ecdc4" font-size="16" font-weight="700" letter-spacing="2">MIT</text>
+    </g>
+  </g>
+
+  <!-- 外框 -->
+  <rect x="0.75" y="0.75" width="1198.5" height="598.5" rx="27.25" fill="none" stroke="#22304a" stroke-width="1.5"/>
+</svg>
