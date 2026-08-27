@@ -150,3 +150,7 @@ CLEAN_VOLUMES=true ./scripts/stop.sh # 连同数据库、Redis、上传文件一
 - [第五十四章. 知识库自动召回与带引用作答](chapters/54-知识库自动召回与带引用作答.md) <sub>Automatic Knowledge Recall & Cited Answers</sub>
 - [第五十五章. 浏览器读页作答与工具自愈](chapters/55-浏览器读页作答与工具自愈.md) <sub>Reading Web Pages with the Browser & Tool Self-healing</sub>
 - [第五十六章. 任务卡片、锚定滚动与界面主题化](chapters/56-任务卡片、锚定滚动与界面主题化.md) <sub>Task Cards, Anchored Scrolling & UI Theming</sub>
+- [第五十七章. 查询扩展与混合重排](chapters/57-查询扩展与混合重排.md) <sub>Query Expansion & Hybrid Reranking</sub>
+- [第五十八章. 记忆生命周期与冲突消解](chapters/58-记忆生命周期与冲突消解.md) <sub>Memory Lifecycle & Conflict Resolution</sub>
+- [第五十九章. 记忆图谱与上下文扩展](chapters/59-记忆图谱与上下文扩展.md) <sub>Memory Graph & Context Expansion</sub>
+- [第六十章. 工具缓存、依赖与韧性](chapters/60-工具缓存、依赖与韧性.md) <sub>Tool Caching, Dependency Batching & Resilience</sub>
