@@ -6,6 +6,7 @@ from app.presentation.http.routes.sessions import build_agent_runner_service, ro
 
 
 EXPECTED_ROUTES = [
+    ("GET", "/sessions/{session_id}/sandbox-files/download", "download_sandbox_file", ["build_session_service"]),
     ("POST", "/sessions", "create_session", ["build_session_service"]),
     ("GET", "/sessions", "list_sessions", ["build_session_service"]),
     ("GET", "/sessions/{session_id}", "get_session", ["build_session_service"]),
@@ -25,6 +26,7 @@ EXPECTED_ROUTES = [
     ("GET", "/sessions/{session_id}/tasks/latest", "recover_latest_session_task", ["get_task_queue"]),
     ("POST", "/sessions/{session_id}/files", "upload_session_file", ["build_file_service"]),
     ("GET", "/sessions/{session_id}/files", "list_session_files", ["build_file_service"]),
+    ("DELETE", "/sessions/{session_id}/files/{session_file_id}", "delete_session_file", ["build_file_service"]),
     ("DELETE", "/sessions/{session_id}", "delete_session", ["build_session_service"]),
 ]
 
