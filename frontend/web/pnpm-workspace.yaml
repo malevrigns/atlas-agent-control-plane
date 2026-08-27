@@ -2,6 +2,6 @@ onlyBuiltDependencies:
   - sharp
 
 overrides:
-  nanoid: 3.3.17
+  nanoid: 3.3.18
   postcss: 8.5.23
   sharp: 0.35.3
