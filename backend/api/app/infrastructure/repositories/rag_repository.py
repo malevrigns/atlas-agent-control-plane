@@ -269,6 +269,7 @@ class SqlAlchemyKnowledgeChunkRepository(KnowledgeChunkRepository):
                 char_start=chunk.char_start,
                 char_end=chunk.char_end,
                 token_estimate=chunk.token_estimate,
+                parent_seq=chunk.parent_seq,
                 metadata_json=chunk.metadata,
             )
             for chunk in chunks
@@ -281,6 +282,17 @@ class SqlAlchemyKnowledgeChunkRepository(KnowledgeChunkRepository):
         if not chunk_ids:
             return []
         stmt = select(KnowledgeChunkModel).where(KnowledgeChunkModel.id.in_(chunk_ids))
+        result = await self.db_session.execute(stmt)
+        return [model.to_entity() for model in result.scalars()]
+
+    async def get_by_document(self, document_id: UUID) -> list[KnowledgeChunk]:
+        """某文档的全部 chunk（按 seq 升序），供父块拼回与邻块扩展。"""
+
+        stmt = (
+            select(KnowledgeChunkModel)
+            .where(KnowledgeChunkModel.document_id == document_id)
+            .order_by(KnowledgeChunkModel.seq.asc())
+        )
         result = await self.db_session.execute(stmt)
         return [model.to_entity() for model in result.scalars()]
 

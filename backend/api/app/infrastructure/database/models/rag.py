@@ -151,6 +151,8 @@ class KnowledgeChunkModel(Base):
     char_start: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     char_end: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     token_estimate: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # 父文档检索：子块所属父块序号；单级切分的旧数据保持 NULL。
+    parent_seq: Mapped[int | None] = mapped_column(Integer)
     metadata_json: Mapped[dict[str, object]] = mapped_column(
         "metadata",
         JSONB,
@@ -172,6 +174,7 @@ class KnowledgeChunkModel(Base):
             char_start=self.char_start,
             char_end=self.char_end,
             token_estimate=self.token_estimate,
+            parent_seq=self.parent_seq,
             metadata=dict(self.metadata_json or {}),
             created_at=self.created_at,
         )

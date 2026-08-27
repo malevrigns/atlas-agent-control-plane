@@ -124,6 +124,11 @@ class KnowledgeChunkRepository(Protocol):
     async def get_many(self, chunk_ids: list[UUID]) -> list[KnowledgeChunk]:
         raise NotImplementedError
 
+    async def get_by_document(self, document_id: UUID) -> list[KnowledgeChunk]:
+        """返回某文档的全部 chunk（按 seq 升序），供父块拼回与邻块扩展。"""
+
+        raise NotImplementedError
+
     async def count_by_knowledge_base(self, knowledge_base_id: UUID) -> int:
         raise NotImplementedError
 

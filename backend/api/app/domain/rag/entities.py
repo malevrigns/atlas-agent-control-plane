@@ -95,6 +95,8 @@ class KnowledgeChunk:
     char_start: int
     char_end: int
     token_estimate: int
+    # 父文档检索（small-to-big）：子块所属父块的序号；None 表示传统单级切分。
+    parent_seq: int | None = None
     metadata: dict[str, object] = field(default_factory=dict)
     created_at: datetime | None = None
 
@@ -114,6 +116,12 @@ class RetrievedChunk:
     final_score: float
     matched_terms: list[str] = field(default_factory=list)
     citation: str = ""
+    # RRF 多查询融合信号（归一化到 0-1）；单查询检索时等于 1。
+    fusion_score: float | None = None
+    # 重排器给出的相关分（0-1）；None 表示该候选未参与重排。
+    rerank_score: float | None = None
+    # 引用置信度（0-1）：相关分 × 文档新鲜度 × 来源类型加权的综合评估。
+    confidence: float | None = None
 
 
 @dataclass(slots=True)
@@ -133,3 +141,27 @@ class RagQueryResult:
     chunks: list[RetrievedChunk] = field(default_factory=list)
     total_chars: int = 0
     context_text: str = ""
+    # 检索过程元数据：耗时、候选数、使用的查询变体、是否触发重排等，
+    # 供前端展示与运维审计（答案溯源链中“怎么找到的”一环）。
+    retrieval_metadata: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class ExpandedQuery:
+    """改写后的查询与变体列表。
+
+    ``original`` 是规范化后的原始查询，``variants`` 是 2-3 个改写变体
+    （同义改写、上位词扩展、子问题分解）；``method`` 记录生成策略：
+    ``llm`` 表示由 LLM 改写，``rule`` 表示降级为规则改写（停用词/
+    同义词表/中英扩展）。变体为空时检索退化为单查询，行为与旧版一致。
+    """
+
+    original: str
+    variants: list[str] = field(default_factory=list)
+    method: str = "rule"
+
+    @property
+    def all_queries(self) -> list[str]:
+        """参与检索的完整查询列表：主查询在前，变体依次跟随。"""
+
+        return [self.original, *self.variants]
