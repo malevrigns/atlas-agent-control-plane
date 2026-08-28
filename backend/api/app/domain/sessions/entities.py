@@ -28,6 +28,18 @@ class SessionEventType(StrEnum):
     step_blocked = "step_blocked"
     task_done = "task_done"
     task_error = "task_error"
+    # 范围审计（summarize 前）完成事件：记录规则层/LLM 复核结论与违规文件。
+    scope_audit_finished = "scope_audit_finished"
+    # 验收门禁：任务完成（summarize）前的客观验证
+    acceptance_gate_started = "acceptance_gate_started"
+    acceptance_gate_finished = "acceptance_gate_finished"
+    # Todo 清单状态变更（T6）：payload 记 todo_id / status / progress 快照。
+    todo_updated = "todo_updated"
+    # 覆盖度评审：任务进入 summarize 前的 LLM 测试覆盖评审结论（建议性，失败开放）。
+    coverage_review_finished = "coverage_review_finished"
+    # 验收链汇总：summarize 前链（验收门禁/范围审计/覆盖度评审）全部跑完后，
+    # 一条事件汇总各 stage 结论（passed/skipped + detail）。
+    acceptance_chain_finished = "acceptance_chain_finished"
 
 
 @dataclass(slots=True)

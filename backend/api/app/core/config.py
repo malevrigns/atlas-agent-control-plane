@@ -100,7 +100,34 @@ class Settings(BaseSettings):
     agent_step_max_iterations: int = 15
     agent_step_max_tool_calls: int = 20
     agent_step_repeat_call_limit: int = 3
+    # ===================== 上下文预算（Context Budget） =====================
+    # 步骤历史进入模型上下文的总字符硬上限（三段分层压缩：title-only/digest/full）。
+    context_budget_max_history_chars: int = 24000
+    # 最近多少步保留全文。
+    context_budget_recent_steps_full: int = 2
+    # 更早步骤压缩成的 digest 摘要上限（字符）。
+    context_budget_digest_chars: int = 400
+    # ===================== 范围审计（Scope Audit） =====================
+    # 任务完成（summarize）前是否先做范围审计：程序化 diff + LLM 复核，
+    # 防止模型越界改动计划声明范围之外的文件。
+    scope_audit_enabled: bool = True
+    # LLM 复核触发阈值：allowed 范围内单文件变更行数（新增+删除）超过该值即视为体积异常。
+    scope_audit_llm_review_threshold: int = 500
     max_upload_size: int = 10 * 1024 * 1024
+    # ===================== 验收门禁（Acceptance Gate） =====================
+    # 是否在任务进入 summarize 前执行 plan 里声明的验收命令（硬性验证完成）。
+    acceptance_gate_enabled: bool = True
+    # 验收命令的默认超时（秒）。
+    acceptance_gate_timeout_seconds: int = 600
+    # 验收门禁失败后最多重试几次；超出后任务直接 failed。
+    acceptance_gate_max_retries: int = 2
+    # ===================== 覆盖度评审（Coverage Review） =====================
+    # 任务进入 summarize 前是否让 LLM 评审测试用例对任务目标/验收标准的覆盖度。
+    # 评审是增强项：失败开放（LLM 不可用/解析失败 → skipped 不阻塞），
+    # 仅当 plan 声明 acceptance.enforce_coverage=true 时 inadequate 才触发重试路径。
+    coverage_review_enabled: bool = True
+    # 写 coverage_review_finished 审计事件时最多保留几条 gaps（防事件膨胀）。
+    coverage_review_max_gaps_in_event: int = 10
     max_file_preview_size: int = 64 * 1024
     sandbox_api_base_url: str = "http://localhost:8100/api"
     sandbox_auth_enabled: bool = False

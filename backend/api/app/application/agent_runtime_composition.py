@@ -4,17 +4,23 @@ from app.application.agent_direct_chat_service import AgentDirectChatService
 from app.application.agent_execution_machine import AgentExecutionMachine
 from app.application.agent_loop import StepAgentLoop
 from app.application.agent_summary_service import AgentSummaryService
+from app.application.acceptance_gate_service import AcceptanceGateService
 from app.application.context_engineering_service import ContextEngineeringService
 from app.application.critic_service import CriticService
+from app.application.coverage_review_service import CoverageReviewService
 from app.application.llm_service import LLMService
 from app.application.planner_service import PlannerService
 from app.application.react_agent_service import ReActAgentService
 from app.application.react_step_executor import ReActStepExecutor
+from app.application.scope_audit_service import ScopeAuditService
 from app.application.session_file_sync_service import SessionFileSyncService
 from app.application.session_service import SessionService
 from app.application.unit_of_work import UnitOfWork
 from app.core.config import settings
+from app.domain.acceptance.gate import AcceptanceGate
 from app.domain.agent_runtime.router import AgentStateRouter
+from app.infrastructure.acceptance.command_runner import SubprocessCommandRunner
+from app.infrastructure.acceptance.diff_provider import GitDiffProvider
 from app.infrastructure.agent_tools.builtin import build_builtin_tool_registry
 from app.infrastructure.sandbox.file_client import SandboxFileClient
 from app.infrastructure.storage.factory import build_file_storage
@@ -55,6 +61,33 @@ def compose_agent_runtime(
         summarizer=summary,
         event_sink=uow.session_events,
         router=AgentStateRouter(),
+        # ===== 长任务治理门禁链（顺序：验收命令 → 范围审计 → 覆盖度评审）=====
+        # 只在配置开启时注入；plan 不带 acceptance/scope 字段时各级自然跳过。
+        acceptance_gate=(
+            AcceptanceGateService(
+                uow,
+                AcceptanceGate(SubprocessCommandRunner()),
+                event_writer=uow.session_events,
+            )
+            if settings.acceptance_gate_enabled
+            else None
+        ),
+        acceptance_gate_max_retries=settings.acceptance_gate_max_retries,
+        scope_auditor=(
+            ScopeAuditService(
+                uow,
+                model,
+                write_audit_event=False,  # 事件由状态机统一写，避免重复
+            )
+            if settings.scope_audit_enabled
+            else None
+        ),
+        scope_diff_provider=GitDiffProvider(),
+        coverage_reviewer=(
+            CoverageReviewService(uow, model, event_writer=uow.session_events)
+            if settings.coverage_review_enabled
+            else None
+        ),
     )
     react_service = ReActAgentService(
         uow,
