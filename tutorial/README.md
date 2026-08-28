@@ -154,3 +154,6 @@ CLEAN_VOLUMES=true ./scripts/stop.sh # 连同数据库、Redis、上传文件一
 - [第五十八章. 记忆生命周期与冲突消解](chapters/58-记忆生命周期与冲突消解.md) <sub>Memory Lifecycle & Conflict Resolution</sub>
 - [第五十九章. 记忆图谱与上下文扩展](chapters/59-记忆图谱与上下文扩展.md) <sub>Memory Graph & Context Expansion</sub>
 - [第六十章. 工具缓存、依赖与韧性](chapters/60-工具缓存、依赖与韧性.md) <sub>Tool Caching, Dependency Batching & Resilience</sub>
+- [第六十一章. 验收门禁与任务边界](chapters/61-验收门禁与任务边界.md) <sub>Acceptance Gates & Task Boundaries</sub>
+- [第六十二章. 规划粒度与任务拆分](chapters/62-规划粒度与任务拆分.md) <sub>Planning Granularity & Task Decomposition</sub>
+- [第六十三章. 上下文预算与长任务耐力](chapters/63-上下文预算与长任务耐力.md) <sub>Context Budgeting & Long-Task Endurance</sub>
