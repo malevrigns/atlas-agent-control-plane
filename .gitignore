@@ -45,3 +45,6 @@ backend/api/runtime-config/
 # Logs
 *.log
 logs/
+
+# Windows 保留设备名误创建的空文件（脚本重定向写错目标时产生）
+nul
