@@ -50,7 +50,10 @@ class CriticService:
                 content=(
                     "Evaluate the executed plan step. Reply with one JSON object containing "
                     'only "action" and "reason". action must be one of: accept, retry, '
-                    "replan, fail. reason must explain the decision."
+                    "replan, fail. reason must explain the decision. "
+                    "The step count itself is not a quality standard — what matters is "
+                    "whether each step can be independently verified. Do not reject a step "
+                    "solely because the number of steps differs from the plan."
                 ),
             ),
             LLMMessage(
