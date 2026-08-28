@@ -21,6 +21,7 @@ from app.presentation.http.routes import (
     sessions,
     skills,
     status,
+    todos,
 )
 
 api_router = APIRouter()
@@ -29,6 +30,7 @@ api_router.include_router(a2a.router)
 api_router.include_router(acceptance.router)
 api_router.include_router(status.router)
 api_router.include_router(sessions.router)
+api_router.include_router(todos.router)
 api_router.include_router(files.router)
 api_router.include_router(harness.router)
 api_router.include_router(config.router)
