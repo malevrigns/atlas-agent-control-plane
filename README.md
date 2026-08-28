@@ -39,6 +39,9 @@ Frameworks like LangChain are great for wiring LLM features together quickly. At
 
 ### 🎉 What's New
 
+- [2026.08] 🎯 **Next-generation RAG**: query rewriting with multi-query RRF fusion, parent-document retrieval, LLM listwise reranking with graceful lexical fallback, and per-citation confidence scores — every answer now shows how much to trust it.
+- [2026.08] 🎯 **Living memory**: Ebbinghaus-style decay, automatic consolidation of frequently-verified facts, conflict resolution (latest/authority/manual), and a typed memory graph that pulls related facts into context — memory that forgets like you do, and connects like you need.
+- [2026.08] 🎯 **Hardened tool runtime**: result caching for idempotent low-risk calls, dependency-aware parallel batching, exponential-backoff retries with fallback tools, and per-step budgets that hand control back to the model instead of throwing.
 - [2026.08] 🎯 **Multi-round tool calling inside a single step + native Function Calling**: the model now calls tools repeatedly within one step, observes the results, and decides what to do next — the way a real agent works.
 - [2026.08] 🎯 **Web client is now a PWA**: installable on desktop and mobile with an offline app shell; the Electron desktop client is retired in favor of a focused Web + TUI pair.
 - [2026.08] 🎯 **Resume failed tasks from a checkpoint**: reuse the existing plan, skip completed steps, and continue from the failure point — no re-running from scratch.
@@ -54,8 +57,8 @@ Frameworks like LangChain are great for wiring LLM features together quickly. At
 
 | Boundary | How AtlasAgent handles it | Key mechanisms |
 | --- | --- | --- |
-| **Evidence-backed Memory** | Only facts that are still valid, source-attributed, and passed the write gate are injected into context | Typed memory, Write Gate, evidence chains, scopes, TTL, supersession, explainable retrieval |
-| **RAG Knowledge Base** | Makes team documents a retrievable, citable, verifiable source of evidence | Chunking with overlap, swappable vector backends (pgvector / Qdrant), hybrid vector + lexical reranking, numbered citations, retrieval audit, multimodal ingestion, per-turn auto-recall with source attribution |
+| **Evidence-backed Memory** | Only facts that are still valid, source-attributed, and passed the write gate are injected into context | Typed memory, Write Gate, evidence chains, scopes, TTL, supersession, Ebbinghaus decay, consolidation, conflict resolution, memory graph links, usage tracking, explainable retrieval |
+| **RAG Knowledge Base** | Makes team documents a retrievable, citable, verifiable source of evidence | Chunking with overlap, swappable vector backends (pgvector / Qdrant), query rewriting + multi-query RRF fusion, parent-document retrieval, LLM reranking with lexical fallback, numbered citations with confidence scores, retrieval audit, multimodal ingestion, per-turn auto-recall with source attribution |
 | **Transparent Reasoning** | Surfaces the model's thinking and answering process live | Direct-answer vs. pipeline routing, plan/execute/direct thinking deltas, reasoning persisted for replay, throttled typewriter rendering |
 | **Multi-round Tool Calling** | The model calls tools repeatedly inside a step and decides after observing results | Native Function Calling, JSON fallback, concurrent tool execution, duplicate-call guardrails |
 | **Skill Registry** | Turns team operating playbooks into governed, traceable behavior specs | draft/published/deprecated lifecycle, semver versions, enable/disable decoupling, relevance-based injection |
@@ -305,6 +308,9 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 
 ### 🎉 最近更新
 
+- [2026.08] 🎯 **新一代 RAG**：查询改写 + 多查询 RRF 融合、父文档检索、LLM listwise 重排（词法信号优雅降级）、逐条引用置信度——每个答案都告诉你该多信它。
+- [2026.08] 🎯 **会遗忘的记忆**：艾宾浩斯式衰减、高频验证自动巩固、冲突消解（最新/权威/人工）、类型化记忆图谱把关联事实带进上下文——像人一样遗忘，像你需要的一样关联。
+- [2026.08] 🎯 **加固的工具运行时**：幂等低风险调用结果缓存、依赖感知的并行分批、指数退避重试 + 降级工具、步骤级预算（超限交还模型决策而不是抛异常）。
 - [2026.08] 🎯 **步骤内多轮工具调用 + 原生 Function Calling**：模型在单个步骤内自主多次调用工具、观察结果再决策，真正像 Agent 一样工作。
 - [2026.08] 🎯 **Web 端升级为 PWA**：可安装到桌面 / 移动端，离线缓存应用外壳；移除 Electron 桌面客户端，收敛为 Web + TUI 双客户端。
 - [2026.08] 🎯 **任务失败后从断点续跑**：复用已有计划、跳过已完成步骤，从失败处继续，不必从头再来。
@@ -320,8 +326,8 @@ AtlasAgent 是一套可运行的 AI Agent 控制平面与中文工程教程。�
 
 | 控制边界 | AtlasAgent 如何处理 | 关键机制 |
 | --- | --- | --- |
-| **Evidence-backed Memory** | 只把仍然有效、来源明确且通过门禁的事实注入上下文 | 类型化记忆、Write Gate、证据链、作用域、有效期、替代关系、可解释检索 |
-| **RAG Knowledge Base** | 让团队文档成为可检索、可引用、可验证的证据来源 | 段落切分与重叠、可替换向量后端（pgvector / Qdrant）、向量+词法混合重排、编号引用、检索审计、多模态摄取、每轮对话自动召回并标注来源 |
+| **Evidence-backed Memory** | 只把仍然有效、来源明确且通过门禁的事实注入上下文 | 类型化记忆、Write Gate、证据链、作用域、有效期、替代关系、艾宾浩斯衰减、自动巩固、冲突消解、记忆图谱、使用统计、可解释检索 |
+| **RAG Knowledge Base** | 让团队文档成为可检索、可引用、可验证的证据来源 | 段落切分与重叠、可替换向量后端（pgvector / Qdrant）、查询改写+多查询 RRF 融合、父文档检索、LLM 重排与词法降级、编号引用与置信度、检索审计、多模态摄取、每轮对话自动召回并标注来源 |
 | **Transparent Reasoning** | 把模型的思考与作答过程实时暴露给使用者 | 直答与流水线分流、规划/执行/直答三阶段 thinking 增量、推理落库可回看、打字机节流展示 |
 | **Multi-round Tool Calling** | 步骤内模型自主多次调用工具、看结果再决策 | 原生 Function Calling、JSON 兜底、并发工具执行、重复调用护栏 |
 | **Skill Registry** | 把团队沉淀的操作指引变成受治理、可回溯的行为规范 | draft/published/deprecated 生命周期、semver 版本、启停分离、相关度注入 |
