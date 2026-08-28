@@ -8,6 +8,7 @@ from uuid import UUID
 from app.application.agent_loop import StepAgentLoop
 from app.application.tool_runtime import ToolExecutionContext
 from app.application.unit_of_work import UnitOfWork
+from app.domain.agent_core.context_budget import ContextBudget
 from app.domain.agent_core.tools import ToolCallResult, ToolInvocationStatus
 from app.domain.agent_runtime.entities import StepObservation
 from app.domain.agent_runtime.router import SUCCESS_STATUSES
@@ -122,11 +123,14 @@ class ReActStepExecutor:
         tool_caller: ToolCaller | None = None,
         step_loop: StepAgentLoop | None = None,
         output_summarizer: OutputSummarizer | None = None,
+        context_budget: ContextBudget | None = None,
     ) -> None:
         self._uow = uow
         self._tool_caller = tool_caller
         self._step_loop = step_loop
         self._output_summarizer = output_summarizer or self._default_summary
+        # 上下文预算：默认从 settings 构建，渲染 agent context 前压缩历史（纯函数，可注入测试）。
+        self._context_budget = context_budget or ContextBudget.from_settings()
 
     async def execute(self, request: StepExecutionRequest) -> StepExecutionOutcome:
         started = await self._add_started_event(request)
@@ -277,7 +281,10 @@ class ReActStepExecutor:
         context = self._merge_memory_context(request)
         if not request.step_history:
             return context
-        history = "\n".join(request.step_history)
+        # 上下文预算压缩：只压缩「喂给模型」的渲染副本，原始 step_history 不动
+        # （审计事件里的历史保持全文，两条线互不影响）。
+        compressed = self._context_budget.compress(request.step_history)
+        history = "\n".join(compressed)
         heading = "本轮已完成步骤的结果（不要重复做）："
         return f"{context}\n\n{heading}\n{history}" if context else f"{heading}\n{history}"
 
