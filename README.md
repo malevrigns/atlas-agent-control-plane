@@ -45,11 +45,20 @@ One more thing: the whole system is paired with a [64-chapter tutorial](tutorial
 
 ### Run it
 
-Git, Docker, Docker Compose v2. That's the list.
+Just Python 3.11+ — no Docker, no PostgreSQL, no Redis:
 
 ```bash
 git clone https://github.com/malevrigns/atlas-agent-control-plane.git
-cd atlas-agent-control-plane && cp .env.example .env
+cd atlas-agent-control-plane
+python scripts/quickstart.py
+```
+
+That's SQLite plus an in-process queue, swapped in through two environment variables. Same application, same models, same routes, same migration chain as production. Open <http://localhost:8000/docs>.
+
+For the full stack — Web workbench, Postgres, Redis, Nginx, sandbox container — you need Git, Docker and Docker Compose v2:
+
+```bash
+cp .env.example .env
 BUILD=true ./scripts/start.sh
 ```
 
@@ -96,7 +105,7 @@ More: [Memory & Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md) · [RAG &
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` |
 | Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 8100:8100 atlas-sandbox` |
 
-Tests: `cd backend/api && uv run python -m unittest discover -s tests` (456 passing).
+Tests: `cd backend/api && uv run python -m unittest discover -s tests` (499 passing).
 
 </details>
 
@@ -151,11 +160,20 @@ Issues and PRs are welcome — [CONTRIBUTING.md](CONTRIBUTING.md) has the setup,
 
 ### 跑起来
 
-Git、Docker、Docker Compose v2，就这三样。
+只要 Python 3.11+，不用 Docker、不用 PostgreSQL、不用 Redis：
 
 ```bash
 git clone https://github.com/malevrigns/atlas-agent-control-plane.git
-cd atlas-agent-control-plane && cp .env.example .env
+cd atlas-agent-control-plane
+python scripts/quickstart.py
+```
+
+数据库换成 SQLite、队列换成进程内实现，靠两个环境变量切过去——应用、模型、路由、迁移链和生产完全是同一套。打开 <http://localhost:8000/docs> 就能调。
+
+要完整形态（Web 工作台、Postgres、Redis、Nginx、沙箱容器），才需要 Git、Docker、Docker Compose v2：
+
+```bash
+cp .env.example .env
 BUILD=true ./scripts/start.sh
 ```
 
@@ -202,7 +220,7 @@ curl -H "X-Atlas-API-Key: ${ATLAS_KEY}" \
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` |
 | Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 8100:8100 atlas-sandbox` |
 
-测试：`cd backend/api && uv run python -m unittest discover -s tests`（456 个通过）。
+测试：`cd backend/api && uv run python -m unittest discover -s tests`（499 个通过）。
 
 </details>
 

@@ -26,6 +26,8 @@ jobs:
       - name: API tests
         working-directory: backend/api
         run: uv run --frozen python -m unittest discover -s tests -v
+      - name: Zero-dependency quickstart (SQLite, no Docker/Postgres/Redis)
+        run: python scripts/quickstart.py --check
       - name: API dependency audit
         working-directory: backend/api
         run: uv run --frozen --with pip-audit pip-audit --local

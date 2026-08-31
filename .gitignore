@@ -35,6 +35,13 @@ backend/sandbox/workspace/
 runtime-config/
 backend/api/runtime-config/
 
+# 单机模式的本地状态：SQLite 数据库与进程内队列文件
+var/
+backend/api/var/
+*.db
+*.db-wal
+*.db-shm
+
 # OS and editor files
 .DS_Store
 .idea/
