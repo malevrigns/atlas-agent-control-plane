@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     database_echo: bool = False
     redis_url: str = "redis://localhost:6379/0"
     agent_task_stream: str = "agent:tasks"
+    # 任务队列后端：redis（多副本部署）或 local（单机 SQLite 持久化）。
+    agent_task_backend: str = "redis"
+    # local 后端的 SQLite 文件位置。
+    agent_task_local_path: str = "var/agent-tasks.db"
     agent_task_consumer_group: str = "atlas-agent-runners"
     agent_task_claim_idle_ms: int = 30_000
     agent_task_max_concurrency: int = 4

@@ -2,7 +2,7 @@ from app.application.agent_runner_service import AgentRunnerStreamItem
 from app.domain.agent_core.planner import AgentPlan
 from app.domain.files.entities import SessionFile
 from app.domain.sessions.entities import Session, SessionEvent, SessionMessage
-from app.infrastructure.task_queue import AgentTask
+from app.domain.tasks.entities import AgentTask
 from app.presentation.http.routes.files import to_file_response
 from app.schemas.file import SessionFileResponse
 from app.schemas.session import (

@@ -8,26 +8,25 @@ from app.application.agent_runner_service import AgentRunnerService
 from app.application.unit_of_work import UnitOfWork
 from app.core.config import settings
 from app.domain.sessions.entities import SessionEvent, SessionEventType
-from app.infrastructure.task_queue import (
-    AgentTask,
-    AgentTaskStatus,
-    QueuedTaskMessage,
-    RedisAgentTaskQueue,
-)
+from app.domain.tasks.entities import AgentTask, QueuedTaskMessage
+from app.domain.tasks.queue import AgentTaskQueue
 
 
 class AgentTaskRunner:
-    """从 Redis Stream 消费 Agent 任务，并在后台执行。
+    """从任务队列消费 Agent 任务，并在后台执行。
 
     第 19 章的执行接口是同步请求：浏览器要等执行结束。
     第 20 章把执行请求拆成两段：
-    1. API 只负责把任务放进 Redis Stream。
+    1. API 只负责把任务放进队列。
     2. Runner 在后台读取任务并执行。
+
+    依赖的是 ``AgentTaskQueue`` 端口，因此同一套调度逻辑既能跑在 Redis
+    上，也能跑在单机的进程内队列上。
     """
 
     def __init__(
         self,
-        queue: RedisAgentTaskQueue,
+        queue: AgentTaskQueue,
         session_factory: async_sessionmaker,
     ) -> None:
         # ===================== 第1步：保存队列和数据库会话工厂 =====================
@@ -74,19 +73,19 @@ class AgentTaskRunner:
         active.cancel()
         return True
 
-    # ===================== 第4步：循环读取 Redis Stream =====================
+    # ===================== 第4步：循环读取任务队列 =====================
     async def _run_loop(self) -> None:
-        """不断读取 Stream 中的新任务。"""
+        """不断读取队列中的新任务。"""
 
-        await self.queue.ensure_consumer_group()
-        recovered = await self.queue.claim_stale_messages()
+        await self.queue.start()
+        recovered = await self.queue.reclaim_stale_messages()
         for message in recovered:
             self._start_message(message)
 
         while self._running:
             try:
                 await self._wait_for_capacity()
-                for message in await self.queue.read_messages(count=1):
+                for message in await self.queue.reserve_messages(count=1):
                     self._start_message(message)
             except asyncio.CancelledError:
                 raise
@@ -120,11 +119,7 @@ class AgentTaskRunner:
                 # 进程关闭造成的协程取消不 ACK，让 pending 消息由下一实例接管。
                 task_id = str(message.payload.get("task_id") or "")
                 task = await asyncio.shield(self.queue.get_task(task_id)) if task_id else None
-                should_acknowledge = bool(
-                    task
-                    and task.status
-                    in {AgentTaskStatus.stopped, AgentTaskStatus.cancelled}
-                )
+                should_acknowledge = bool(task and task.is_aborted)
                 raise
             finally:
                 if should_acknowledge:
@@ -206,10 +201,7 @@ class AgentTaskRunner:
 
     @staticmethod
     def _is_stopped_or_cancelled(task: AgentTask) -> bool:
-        return task.status in {
-            AgentTaskStatus.stopped,
-            AgentTaskStatus.cancelled,
-        }
+        return task.is_aborted
 
     # ===================== 第6步：真正调用 ReActAgentService =====================
     async def _execute_plan(self, session_id: UUID):

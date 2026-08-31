@@ -8,8 +8,8 @@ from app.application.llm_service import LLMService
 from app.application.planner_service import PlannerService
 from app.application.session_service import SessionService
 from app.application.unit_of_work import UnitOfWork
+from app.domain.tasks.queue import AgentTaskQueue
 from app.infrastructure.database.session import get_db_session
-from app.infrastructure.task_queue import RedisAgentTaskQueue
 
 
 def build_session_service(
@@ -42,5 +42,5 @@ def build_agent_runner_service(
     return AgentRunnerService.from_uow(UnitOfWork(db_session))
 
 
-def get_task_queue(request: Request) -> RedisAgentTaskQueue:
+def get_task_queue(request: Request) -> AgentTaskQueue:
     return request.app.state.task_queue

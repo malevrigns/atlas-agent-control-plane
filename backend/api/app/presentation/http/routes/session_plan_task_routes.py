@@ -6,7 +6,7 @@ from app.application.agent_runner_service import AgentRunnerService
 from app.application.planner_service import PlannerService
 from app.application.session_service import SessionService
 from app.core.exceptions import AppException
-from app.infrastructure.task_queue import RedisAgentTaskQueue
+from app.domain.tasks.queue import AgentTaskQueue
 from app.presentation.http.routes.session_route_dependencies import (
     build_agent_runner_service,
     build_planner_service,
@@ -70,7 +70,7 @@ async def execute_plan(
 async def start_plan_task(
     session_id: UUID,
     service: SessionService = Depends(build_session_service),
-    queue: RedisAgentTaskQueue = Depends(get_task_queue),
+    queue: AgentTaskQueue = Depends(get_task_queue),
 ) -> ApiResponse[AgentTaskResponse]:
     await service.get_session(session_id)
     task = await queue.enqueue_execute_plan(session_id)
@@ -83,7 +83,7 @@ async def start_plan_task(
 )
 async def get_agent_task(
     task_id: str,
-    queue: RedisAgentTaskQueue = Depends(get_task_queue),
+    queue: AgentTaskQueue = Depends(get_task_queue),
 ) -> ApiResponse[AgentTaskResponse]:
     task = await queue.get_task(task_id)
     return ApiResponse(data=to_agent_task_response(_require_task(task)))
@@ -96,7 +96,7 @@ async def get_agent_task(
 async def cancel_agent_task(
     task_id: str,
     request: Request,
-    queue: RedisAgentTaskQueue = Depends(get_task_queue),
+    queue: AgentTaskQueue = Depends(get_task_queue),
 ) -> ApiResponse[AgentTaskResponse]:
     task = _require_task(await queue.cancel_task(task_id))
     request.app.state.task_runner.cancel_task(task_id)
@@ -109,7 +109,7 @@ async def cancel_agent_task(
 )
 async def retry_agent_task(
     task_id: str,
-    queue: RedisAgentTaskQueue = Depends(get_task_queue),
+    queue: AgentTaskQueue = Depends(get_task_queue),
 ) -> ApiResponse[AgentTaskResponse]:
     task = await queue.retry_task(task_id)
     return ApiResponse(data=to_agent_task_response(_require_task(task)))
@@ -121,7 +121,7 @@ async def retry_agent_task(
 )
 async def recover_latest_session_task(
     session_id: UUID,
-    queue: RedisAgentTaskQueue = Depends(get_task_queue),
+    queue: AgentTaskQueue = Depends(get_task_queue),
 ) -> ApiResponse[AgentTaskResponse]:
     task = await queue.recover_session_task(session_id)
     return ApiResponse(data=to_agent_task_response(_require_task(task)))

@@ -3,38 +3,7 @@ from uuid import uuid4
 
 from app.infrastructure.task_queue import AgentTaskStatus, RedisAgentTaskQueue
 
-
-class FakeRedis:
-    """用内存字典模拟 Redis Hash 和 Stream，避免单元测试依赖真实 Redis。"""
-
-    def __init__(self) -> None:
-        self.hashes: dict[str, dict] = {}
-        self.streams: list[tuple[str, dict]] = []
-        self.group_start_id: str | None = None
-        self.acked: list[str] = []
-
-    async def hset(self, key: str, mapping: dict) -> None:
-        self.hashes[key] = dict(mapping)
-
-    async def hgetall(self, key: str) -> dict:
-        return dict(self.hashes.get(key, {}))
-
-    async def xadd(self, stream_name: str, payload: dict) -> str:
-        self.streams.append((stream_name, dict(payload)))
-        return f"{len(self.streams)}-0"
-
-    async def xgroup_create(self, stream_name: str, group: str, id: str, mkstream: bool) -> None:
-        self.group_start_id = id
-
-    async def xreadgroup(self, group: str, consumer: str, streams: dict, block: int, count: int):
-        messages = [(f"{index}-0", payload) for index, (_, payload) in enumerate(self.streams, start=1)]
-        return [(next(iter(streams)), messages[:count])]
-
-    async def xautoclaim(self, *args, **kwargs):
-        return ["0-0", [], []]
-
-    async def xack(self, stream_name: str, group: str, message_id: str) -> None:
-        self.acked.append(message_id)
+from tests.support.fake_redis import FakeRedis
 
 
 class RedisAgentTaskQueueRecoveryTest(unittest.IsolatedAsyncioTestCase):
@@ -43,8 +12,8 @@ class RedisAgentTaskQueueRecoveryTest(unittest.IsolatedAsyncioTestCase):
         queue = RedisAgentTaskQueue(redis)
         task = await queue.enqueue_execute_plan(uuid4())
 
-        await queue.ensure_consumer_group()
-        messages = await queue.read_messages()
+        await queue.start()
+        messages = await queue.reserve_messages()
         await queue.acknowledge(messages[0].id)
 
         self.assertEqual(redis.group_start_id, "0-0")

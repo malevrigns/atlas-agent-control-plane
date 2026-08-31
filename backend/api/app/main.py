@@ -12,9 +12,10 @@ from app.core.handlers import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.request_id import RequestIdMiddleware
 from app.domain.memories.lifecycle import MemoryLifecycleService
+from app.domain.tasks.queue import AgentTaskQueue
 from app.infrastructure.database.session import AsyncSessionLocal
 from app.infrastructure.repositories.memory_repository import SqlAlchemyAgentMemoryRepository
-from app.infrastructure.task_queue import RedisAgentTaskQueue, create_redis_client
+from app.infrastructure.tasks.factory import build_task_queue
 from app.presentation.http.router import api_router
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,15 +60,15 @@ async def _memory_lifecycle_loop(session_factory) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ===================== 第1步：创建 Redis 连接和任务队列 =====================
-    redis = create_redis_client()
-    queue = RedisAgentTaskQueue(redis)
+    # ===================== 第1步：按配置创建任务队列 =====================
+    # 组装根是唯一知道具体后端的地方；其余代码只见 AgentTaskQueue 端口。
+    queue: AgentTaskQueue = build_task_queue()
 
     # ===================== 第2步：启动 AgentTaskRunner 后台循环 =====================
     runner = AgentTaskRunner(queue=queue, session_factory=AsyncSessionLocal)
     app.state.task_queue = queue
     app.state.task_runner = runner
-    await redis.ping()
+    await queue.start()
     runner.start()
     await _reset_stale_running_sessions()
 
@@ -88,7 +89,7 @@ async def lifespan(app: FastAPI):
             except asyncio.CancelledError:
                 pass
         await runner.stop()
-        await redis.aclose()
+        await queue.close()
 
 
 def create_app() -> FastAPI:
