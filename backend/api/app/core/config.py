@@ -147,8 +147,9 @@ class Settings(BaseSettings):
     search_timeout_seconds: float = 10.0
     search_max_results: int = 5
     # ===================== RAG 检索增强生成 =====================
-    # 向量后端：pgvector（默认，复用 PostgreSQL）或 qdrant（独立服务）。
-    rag_vector_backend: str = "pgvector"
+    # 向量后端：auto（默认，PostgreSQL 用 pgvector，其余方言用可移植 SQL 实现）、
+    # pgvector（复用 PostgreSQL）、qdrant（独立服务）或 sql（方言中立，应用层余弦）。
+    rag_vector_backend: str = "auto"
     # embedding 实现：auto（按 llm.yaml 与密钥自动选择）或 local_hash（强制本地）。
     rag_embedding_provider: str = "auto"
     rag_embedding_dim: int = 256
