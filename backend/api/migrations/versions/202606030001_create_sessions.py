@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from migrations.portable import UUID
 
 revision: str = "202606030001"
 down_revision: str | None = None
@@ -19,7 +19,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "sessions",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", UUID, nullable=False),
         sa.Column("title", sa.String(length=200), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("unread_count", sa.Integer(), nullable=False),

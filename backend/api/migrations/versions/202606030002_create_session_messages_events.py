@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from migrations.portable import JSONB, UUID
 
 revision: str = "202606030002"
 down_revision: str | None = "202606030001"
@@ -19,8 +19,8 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "session_messages",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("session_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", UUID, nullable=False),
+        sa.Column("session_id", UUID, nullable=False),
         sa.Column("role", sa.String(length=32), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
@@ -35,10 +35,10 @@ def upgrade() -> None:
 
     op.create_table(
         "session_events",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("session_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", UUID, nullable=False),
+        sa.Column("session_id", UUID, nullable=False),
         sa.Column("type", sa.String(length=64), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", JSONB, nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["session_id"], ["sessions.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

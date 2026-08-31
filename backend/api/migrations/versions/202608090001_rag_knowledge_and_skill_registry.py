@@ -20,15 +20,14 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
+
+from migrations.portable import JSONB, UUID, json_server_default, raw_types
 
 revision: str = "202608090001"
 down_revision: str | None = "202608010001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-JSONB = postgresql.JSONB(astext_type=sa.Text())
-UUID = postgresql.UUID(as_uuid=True)
 
 
 def _pgvector_available() -> bool:
@@ -65,7 +64,7 @@ def upgrade() -> None:
         sa.Column("chunk_overlap", sa.Integer(), nullable=False, server_default="120"),
         sa.Column("document_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("chunk_count", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column("metadata", JSONB, nullable=False, server_default=json_server_default("{}")),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
@@ -85,7 +84,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(32), nullable=False, server_default="pending"),
         sa.Column("chunk_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("error", sa.Text(), nullable=False, server_default=""),
-        sa.Column("metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column("metadata", JSONB, nullable=False, server_default=json_server_default("{}")),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["knowledge_base_id"], ["knowledge_bases.id"], ondelete="CASCADE"),
@@ -108,7 +107,7 @@ def upgrade() -> None:
         sa.Column("char_start", sa.BigInteger(), nullable=False, server_default="0"),
         sa.Column("char_end", sa.BigInteger(), nullable=False, server_default="0"),
         sa.Column("token_estimate", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column("metadata", JSONB, nullable=False, server_default=json_server_default("{}")),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["document_id"], ["knowledge_documents.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["knowledge_base_id"], ["knowledge_bases.id"], ondelete="CASCADE"),
@@ -117,17 +116,18 @@ def upgrade() -> None:
     op.create_index("ix_knowledge_chunks_kb", "knowledge_chunks", ["knowledge_base_id"])
 
     # ===================== 第4步：pgvector 向量表（带优雅降级） =====================
+    t = raw_types()
     if _pgvector_available():
         op.execute("CREATE EXTENSION IF NOT EXISTS vector")
         op.execute(
-            """
+            f"""
             CREATE TABLE knowledge_chunk_embeddings (
-                chunk_id UUID PRIMARY KEY REFERENCES knowledge_chunks(id) ON DELETE CASCADE,
-                document_id UUID NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
-                knowledge_base_id UUID NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+                chunk_id {t["uuid"]} PRIMARY KEY REFERENCES knowledge_chunks(id) ON DELETE CASCADE,
+                document_id {t["uuid"]} NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+                knowledge_base_id {t["uuid"]} NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
                 embedding vector NOT NULL,
                 embedding_dim INTEGER NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                created_at {t["timestamptz"]} NOT NULL DEFAULT {t["now"]}
             )
             """
         )
@@ -135,14 +135,14 @@ def upgrade() -> None:
         # 建索引的工作由 PgVectorStore.ensure_ready 在首次写入时完成。
     else:
         op.execute(
-            """
+            f"""
             CREATE TABLE knowledge_chunk_embeddings (
-                chunk_id UUID PRIMARY KEY REFERENCES knowledge_chunks(id) ON DELETE CASCADE,
-                document_id UUID NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
-                knowledge_base_id UUID NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
-                embedding JSONB NOT NULL,
+                chunk_id {t["uuid"]} PRIMARY KEY REFERENCES knowledge_chunks(id) ON DELETE CASCADE,
+                document_id {t["uuid"]} NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+                knowledge_base_id {t["uuid"]} NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+                embedding {t["json"]} NOT NULL,
                 embedding_dim INTEGER NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                created_at {t["timestamptz"]} NOT NULL DEFAULT {t["now"]}
             )
             """
         )
@@ -160,21 +160,34 @@ def upgrade() -> None:
     # ===================== 第5步：激活技能注册中心 =====================
     op.add_column("skills", sa.Column("name", sa.String(160), nullable=False, server_default=""))
     op.add_column("skills", sa.Column("instructions", sa.Text(), nullable=False, server_default=""))
-    op.add_column("skills", sa.Column("tags", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")))
+    op.add_column("skills", sa.Column("tags", JSONB, nullable=False, server_default=json_server_default("[]")))
     op.add_column("skills", sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("false")))
     op.add_column("skills", sa.Column("created_by", sa.String(128), nullable=False, server_default="system"))
     op.add_column("skills", sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
     op.add_column("skills", sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True))
     # 第 45 章的默认状态 candidate 并入新的 draft 生命周期。
     op.execute("UPDATE skills SET status = 'draft' WHERE status = 'candidate'")
-    op.alter_column("skills", "status", server_default="draft")
+    # 改默认值在 SQLite 上同样只能靠重建表，batch 模式两边通吃。
+    with op.batch_alter_table("skills") as batch:
+        batch.alter_column(
+            "status",
+            existing_type=sa.String(32),
+            existing_nullable=False,
+            server_default="draft",
+        )
     op.create_index("ix_skills_key_status", "skills", ["skill_key", "status", "enabled"])
 
 
 def downgrade() -> None:
     op.drop_index("ix_skills_key_status", table_name="skills")
     op.execute("UPDATE skills SET status = 'candidate' WHERE status = 'draft'")
-    op.alter_column("skills", "status", server_default="candidate")
+    with op.batch_alter_table("skills") as batch:
+        batch.alter_column(
+            "status",
+            existing_type=sa.String(32),
+            existing_nullable=False,
+            server_default="candidate",
+        )
     for column in ["deleted_at", "updated_at", "created_by", "enabled", "tags", "instructions", "name"]:
         op.drop_column("skills", column)
 

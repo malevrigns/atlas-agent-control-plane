@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from migrations.portable import JSONB, UUID, json_server_default
 
 revision: str = "202606230001"
 down_revision: str | None = "202606040002"
@@ -19,19 +19,19 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "agent_memories",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", UUID, nullable=False),
         sa.Column("kind", sa.String(length=64), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("importance", sa.Integer(), nullable=False, server_default="3"),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column("source_session_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column("source_event_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("source_session_id", UUID, nullable=True),
+        sa.Column("source_event_id", UUID, nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "metadata",
-            postgresql.JSONB(astext_type=sa.Text()),
+            JSONB,
             nullable=False,
-            server_default=sa.text("'{}'::jsonb"),
+            server_default=json_server_default("{}"),
         ),
         sa.Column(
             "created_at",

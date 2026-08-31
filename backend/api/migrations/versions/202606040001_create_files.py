@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from migrations.portable import UUID
 
 revision: str = "202606040001"
 down_revision: str | None = "202606030002"
@@ -19,7 +19,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "files",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", UUID, nullable=False),
         sa.Column("original_name", sa.String(length=255), nullable=False),
         sa.Column("stored_name", sa.String(length=255), nullable=False),
         sa.Column("content_type", sa.String(length=120), nullable=False),

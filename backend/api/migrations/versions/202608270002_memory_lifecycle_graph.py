@@ -1,7 +1,7 @@
 """add memory lifecycle, usage tracking, graph links and audit events
 
-Revision ID: 202608270001
-Revises: 202608200001
+Revision ID: 202608270002
+Revises: 202608270001
 Create Date: 2026-08-27 00:00:00
 
 为长期记忆升级生命周期能力：
@@ -13,22 +13,20 @@ from collections.abc import Sequence
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from migrations.portable import JSONB, UUID, json_server_default
 
-revision: str = "202608270001"
-down_revision: str | None = "202608200001"
+revision: str = "202608270002"
+down_revision: str | None = "202608270001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-JSONB = postgresql.JSONB(astext_type=sa.Text())
-UUID = postgresql.UUID(as_uuid=True)
 
 
 def upgrade() -> None:
     # 1. 记忆主体新增使用统计与图谱关联字段。
     op.add_column(
         "agent_memories",
-        sa.Column("related_ids", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
+        sa.Column("related_ids", JSONB, nullable=False, server_default=json_server_default("[]")),
     )
     op.add_column(
         "agent_memories",
@@ -50,7 +48,7 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("event_type", sa.String(64), nullable=False),
-        sa.Column("payload", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column("payload", JSONB, nullable=False, server_default=json_server_default("{}")),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
