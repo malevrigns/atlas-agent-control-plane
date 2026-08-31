@@ -2,34 +2,34 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, Integer, String, func
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.sessions.entities import Session, SessionStatus
 from app.infrastructure.database.base import Base
+from app.infrastructure.database.types import UtcDateTime, UuidValue
 
 
 class SessionModel(Base):
     __tablename__ = "sessions"
 
-    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(UuidValue, primary_key=True, default=uuid4)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default=SessionStatus.idle.value)
     unread_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     workspace_dir: Mapped[str] = mapped_column(String(512), nullable=False, default="", server_default="")
     full_access: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime,
         nullable=False,
         server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime,
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
 
     def to_entity(self) -> Session:
         return Session(

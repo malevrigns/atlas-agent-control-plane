@@ -2,26 +2,26 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.sessions.entities import MessageRole, SessionMessage
 from app.infrastructure.database.base import Base
+from app.infrastructure.database.types import UtcDateTime, UuidValue
 
 
 class SessionMessageModel(Base):
     __tablename__ = "session_messages"
 
-    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(UuidValue, primary_key=True, default=uuid4)
     session_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True),
+        UuidValue,
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime,
         nullable=False,
         server_default=func.now(),
     )

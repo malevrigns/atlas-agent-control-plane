@@ -2,13 +2,12 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, String, Text, func, text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.agent_core.tools import ToolRiskLevel
 from app.domain.skills.entities import Skill, SkillStatus
 from app.infrastructure.database.base import Base
+from app.infrastructure.database.types import JsonValue, UtcDateTime, UuidValue, json_default
 
 
 class SkillModel(Base):
@@ -21,7 +20,7 @@ class SkillModel(Base):
 
     __tablename__ = "skills"
 
-    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(UuidValue, primary_key=True, default=uuid4)
     skill_key: Mapped[str] = mapped_column(String(128), nullable=False)
     version: Mapped[str] = mapped_column(String(32), nullable=False)
     name: Mapped[str] = mapped_column(String(160), nullable=False, default="")
@@ -29,7 +28,7 @@ class SkillModel(Base):
     # instructions 是技能的核心资产：注入模型上下文的操作指引正文。
     instructions: Mapped[str] = mapped_column(Text, nullable=False, default="")
     definition: Mapped[dict[str, object]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+        JsonValue, nullable=False, default=dict, server_default=json_default("{}")
     )
     risk_level: Mapped[str] = mapped_column(String(16), nullable=False, default="low")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
@@ -37,23 +36,23 @@ class SkillModel(Base):
         Boolean, nullable=False, default=False, server_default=text("false")
     )
     tags: Mapped[list[object]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+        JsonValue, nullable=False, default=list, server_default=json_default("[]")
     )
     test_record: Mapped[dict[str, object]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+        JsonValue, nullable=False, default=dict, server_default=json_default("{}")
     )
     created_by: Mapped[str] = mapped_column(String(128), nullable=False, default="system")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        UtcDateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime,
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
     )
-    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
 
     def to_entity(self) -> Skill:
         # 兼容第 45 章迁移创建的历史行：status 可能仍是 candidate。

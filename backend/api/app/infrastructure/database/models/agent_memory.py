@@ -2,8 +2,6 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func, text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.memories.entities import (
@@ -15,6 +13,7 @@ from app.domain.memories.entities import (
     MemoryStatus,
 )
 from app.infrastructure.database.base import Base
+from app.infrastructure.database.types import JsonValue, UtcDateTime, UuidValue, json_default
 
 
 class AgentMemoryModel(Base):
@@ -27,7 +26,7 @@ class AgentMemoryModel(Base):
     __tablename__ = "agent_memories"
 
     # ===================== 第1步：定义记忆主体字段 =====================
-    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(UuidValue, primary_key=True, default=uuid4)
     # kind 保存稳定的业务分类，例如 user_preference、project_fact。
     kind: Mapped[str] = mapped_column(String(64), nullable=False)
     # content 是后续可能注入模型上下文的记忆正文。
@@ -39,22 +38,22 @@ class AgentMemoryModel(Base):
 
     # ===================== 第2步：保存记忆来源和生命周期 =====================
     source_session_id: Mapped[UUID | None] = mapped_column(
-        PgUUID(as_uuid=True),
+        UuidValue,
         ForeignKey("sessions.id", ondelete="SET NULL"),
     )
     source_event_id: Mapped[UUID | None] = mapped_column(
-        PgUUID(as_uuid=True),
+        UuidValue,
         ForeignKey("session_events.id", ondelete="SET NULL"),
     )
     # expires_at 为空表示长期有效；有值时，第41章检索会过滤过期记忆。
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     # metadata 保存抽取规则、来源类型等可扩展信息。
     metadata_json: Mapped[dict[str, object]] = mapped_column(
         "metadata",
-        JSONB,
+        JsonValue,
         nullable=False,
         default=dict,
-        server_default=text("'{}'::jsonb"),
+        server_default=json_default("{}"),
     )
 
     # ===================== Memory Control Plane fields =====================
@@ -63,52 +62,52 @@ class AgentMemoryModel(Base):
     subject: Mapped[str] = mapped_column(Text, nullable=False, default="")
     predicate: Mapped[str] = mapped_column(String(128), nullable=False, default="states")
     value_json: Mapped[dict[str, object]] = mapped_column(
-        "value", JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+        "value", JsonValue, nullable=False, default=dict, server_default=json_default("{}")
     )
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     authority: Mapped[str] = mapped_column(String(32), nullable=False, default="explicit_user")
-    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    valid_from: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    valid_to: Mapped[datetime | None] = mapped_column(UtcDateTime)
     ttl_seconds: Mapped[int | None] = mapped_column(Integer)
     provenance_json: Mapped[list[object]] = mapped_column(
-        "provenance", JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+        "provenance", JsonValue, nullable=False, default=list, server_default=json_default("[]")
     )
     supersedes: Mapped[UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("agent_memories.id", ondelete="SET NULL")
+        UuidValue, ForeignKey("agent_memories.id", ondelete="SET NULL")
     )
     sensitivity: Mapped[str] = mapped_column(String(32), nullable=False, default="internal")
     project_id: Mapped[str | None] = mapped_column(String(128))
     task_id: Mapped[UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("agent_tasks.id", ondelete="SET NULL")
+        UuidValue, ForeignKey("agent_tasks.id", ondelete="SET NULL")
     )
     user_id: Mapped[str | None] = mapped_column(String(128))
     created_by: Mapped[str] = mapped_column(String(128), nullable=False, default="system")
     verification_json: Mapped[dict[str, object]] = mapped_column(
-        "verification", JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+        "verification", JsonValue, nullable=False, default=dict, server_default=json_default("{}")
     )
 
     # ===================== Memory Lifecycle fields =====================
     # related_ids 保存图谱关联的记忆 id，检索命中时用于扩展上下文。
     related_ids_json: Mapped[list[object]] = mapped_column(
-        "related_ids", JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+        "related_ids", JsonValue, nullable=False, default=list, server_default=json_default("[]")
     )
     # access_count 累计检索命中次数，last_accessed_at 是艾宾浩斯衰减的时间锚点。
     access_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    last_accessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_accessed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
 
     # ===================== 第3步：记录审计时间 =====================
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime,
         nullable=False,
         server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime,
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
 
     # ===================== 第4步：把 ORM 模型转换为领域实体 =====================
     def to_entity(self) -> AgentMemory:
@@ -152,7 +151,7 @@ class AgentMemoryModel(Base):
 
     @staticmethod
     def _parse_uuid_list(raw: list[object] | None) -> list[UUID]:
-        """把 JSONB 中保存的关联 id 解析回 UUID，跳过非法条目。"""
+        """把 JsonValue 中保存的关联 id 解析回 UUID，跳过非法条目。"""
 
         result: list[UUID] = []
         for item in raw or []:
@@ -172,16 +171,16 @@ class MemoryAuditEventModel(Base):
 
     __tablename__ = "memory_audit_events"
 
-    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(UuidValue, primary_key=True, default=uuid4)
     # memory_id 为空表示事件不绑定单条记忆（例如整批衰减汇总）。
     memory_id: Mapped[UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("agent_memories.id", ondelete="SET NULL")
+        UuidValue, ForeignKey("agent_memories.id", ondelete="SET NULL")
     )
     # event_type 例如 conflict_resolved / conflict_manual_review / consolidated / decay_applied。
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+        JsonValue, nullable=False, default=dict, server_default=json_default("{}")
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        UtcDateTime, nullable=False, server_default=func.now()
     )

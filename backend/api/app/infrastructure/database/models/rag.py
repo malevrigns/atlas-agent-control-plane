@@ -2,8 +2,6 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, func, text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.rag.entities import (
@@ -14,6 +12,7 @@ from app.domain.rag.entities import (
     KnowledgeSourceType,
 )
 from app.infrastructure.database.base import Base
+from app.infrastructure.database.types import JsonValue, UtcDateTime, UuidValue, json_default
 
 
 class KnowledgeBaseModel(Base):
@@ -26,7 +25,7 @@ class KnowledgeBaseModel(Base):
 
     __tablename__ = "knowledge_bases"
 
-    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(UuidValue, primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     project_id: Mapped[str] = mapped_column(String(128), nullable=False, default="default")
@@ -40,21 +39,21 @@ class KnowledgeBaseModel(Base):
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     metadata_json: Mapped[dict[str, object]] = mapped_column(
         "metadata",
-        JSONB,
+        JsonValue,
         nullable=False,
         default=dict,
-        server_default=text("'{}'::jsonb"),
+        server_default=json_default("{}"),
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        UtcDateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime,
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
 
     def to_entity(self) -> KnowledgeBase:
         return KnowledgeBase(
@@ -81,9 +80,9 @@ class KnowledgeDocumentModel(Base):
 
     __tablename__ = "knowledge_documents"
 
-    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(UuidValue, primary_key=True, default=uuid4)
     knowledge_base_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True),
+        UuidValue,
         ForeignKey("knowledge_bases.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -97,16 +96,16 @@ class KnowledgeDocumentModel(Base):
     error: Mapped[str] = mapped_column(Text, nullable=False, default="")
     metadata_json: Mapped[dict[str, object]] = mapped_column(
         "metadata",
-        JSONB,
+        JsonValue,
         nullable=False,
         default=dict,
-        server_default=text("'{}'::jsonb"),
+        server_default=json_default("{}"),
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        UtcDateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime,
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
@@ -135,14 +134,14 @@ class KnowledgeChunkModel(Base):
 
     __tablename__ = "knowledge_chunks"
 
-    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(UuidValue, primary_key=True, default=uuid4)
     document_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True),
+        UuidValue,
         ForeignKey("knowledge_documents.id", ondelete="CASCADE"),
         nullable=False,
     )
     knowledge_base_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True),
+        UuidValue,
         ForeignKey("knowledge_bases.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -155,13 +154,13 @@ class KnowledgeChunkModel(Base):
     parent_seq: Mapped[int | None] = mapped_column(Integer)
     metadata_json: Mapped[dict[str, object]] = mapped_column(
         "metadata",
-        JSONB,
+        JsonValue,
         nullable=False,
         default=dict,
-        server_default=text("'{}'::jsonb"),
+        server_default=json_default("{}"),
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        UtcDateTime, nullable=False, server_default=func.now()
     )
 
     def to_entity(self) -> KnowledgeChunk:
