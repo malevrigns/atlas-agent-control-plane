@@ -3,6 +3,7 @@
 import {
   BookOpenText,
   Bot,
+  Gauge,
   PanelLeftClose,
   Plus,
   Puzzle,
@@ -18,7 +19,12 @@ import { workspaceSurface } from "../lib/design-tokens";
 import type { LoadState, SessionItem } from "../types";
 
 /** 主区域可切换的视图。 */
-export type MainView = "workspace" | "settings" | "knowledge" | "skills";
+export type MainView =
+  | "workspace"
+  | "control-plane"
+  | "settings"
+  | "knowledge"
+  | "skills";
 
 type AppSidebarProps = {
   actionError: string | null;
@@ -157,6 +163,20 @@ export function AppSidebar({
         </button>
         <div className="flex items-center gap-1">
           <button
+            aria-label="任务驾驶舱"
+            className={`relative flex h-8 w-8 items-center justify-center rounded-full transition ${
+              activeView === "control-plane"
+                ? "text-white"
+                : "text-(--text-5) hover:bg-(--fill-2) hover:text-(--text-1)"
+            }`}
+            onClick={() => onViewChange("control-plane")}
+            ref={registerViewButton("control-plane")}
+            title="任务驾驶舱（长程任务与检查点）"
+            type="button"
+          >
+            <Gauge size={15} aria-hidden="true" />
+          </button>
+          <button
             aria-label="知识库管理"
             className={`relative flex h-8 w-8 items-center justify-center rounded-full transition ${
               activeView === "knowledge"
@@ -203,27 +223,36 @@ export function AppSidebar({
       </div>
 
       {showCreateForm ? (
-        <div className="mt-6 flex flex-col gap-2 rounded-xl border border-(--line) bg-(--fill-1) p-3">
-          <label className="text-xs font-medium text-(--text-3)">
-            本地工作区目录（例如 D:/projects/myapp，留空则使用整个 D 盘）
-          </label>
-          <input
-            className="rounded-lg border border-(--line) bg-(--field) px-3 py-2 text-sm text-(--text-1) outline-none placeholder:text-(--text-5) focus:border-(--accent)"
-            placeholder="例如 D:/projects/myapp"
-            value={workspaceDir}
-            onChange={(event) => setWorkspaceDir(event.target.value)}
-          />
-          <label className="flex items-center gap-2 text-xs text-(--text-3)">
+        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-(--line) bg-(--fill-1) p-4 shadow-sm">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-(--text-2)">
+              本地工作区目录
+            </label>
+            <input
+              className="w-full rounded-lg border border-(--line) bg-(--field) px-3 py-2 text-sm text-(--text-1) outline-none transition placeholder:text-(--text-5) focus:border-(--accent) focus:ring-2 focus:ring-(--accent)/20"
+              placeholder="D:/projects/myapp"
+              value={workspaceDir}
+              onChange={(event) => setWorkspaceDir(event.target.value)}
+            />
+            <p className="text-[11px] leading-relaxed text-(--text-5)">
+              留空则使用整个 D 盘
+            </p>
+          </div>
+          <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-(--text-3)">
             <input
               type="checkbox"
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-(--accent)"
               checked={fullAccess}
               onChange={(event) => setFullAccess(event.target.checked)}
             />
-            最高权限（可访问整个挂载盘，忽略工作区）
+            <span>
+              最高权限
+              <span className="text-(--text-5)">（可访问整个挂载盘，忽略工作区）</span>
+            </span>
           </label>
-          <div className="flex gap-2">
+          <div className="mt-1 flex gap-2">
             <button
-              className="brand-gradient flex-1 rounded-lg py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="brand-gradient flex h-9 flex-1 items-center justify-center rounded-lg text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
               disabled={submitting}
               onClick={() => {
                 onCreateSession(workspaceDir.trim(), fullAccess);
@@ -236,7 +265,7 @@ export function AppSidebar({
               创建
             </button>
             <button
-              className="rounded-lg border border-(--line) px-3 py-2 text-sm text-(--text-3)"
+              className="flex h-9 items-center rounded-lg border border-(--line) px-4 text-sm text-(--text-3) transition hover:bg-(--fill-2) hover:text-(--text-1)"
               onClick={() => {
                 setShowCreateForm(false);
                 setWorkspaceDir("");

@@ -89,14 +89,28 @@ export function ToolCallLog({ events, running }: ToolCallLogProps) {
   }
 
   return (
-    <div className="ml-11 max-w-4xl overflow-hidden rounded-2xl border border-(--line) bg-(--surface) shadow-xl shadow-black/10">
-      <div className="flex items-center gap-2 border-b border-(--line-soft) px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-(--text-4)">
-        <Terminal className="text-(--accent)" size={14} aria-hidden="true" />
-        执行日志
+    <div className="ml-11 max-w-4xl overflow-hidden rounded-xl border border-zinc-700/60 bg-zinc-950 shadow-lg shadow-black/30">
+      {/* 终端标题栏：红绿灯 + 标题 + 运行状态 */}
+      <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/80 px-4 py-2">
+        <span className="flex gap-1.5" aria-hidden="true">
+          <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-400/80" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
+        </span>
+        <span className="ml-1 flex items-center gap-1.5 font-mono text-[11px] text-zinc-400">
+          <Terminal size={12} aria-hidden="true" />
+          执行日志
+        </span>
+        {running ? (
+          <span className="ml-auto flex items-center gap-1.5 font-mono text-[11px] text-emerald-400">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+            running
+          </span>
+        ) : null}
       </div>
       <div
         ref={scrollRef}
-        className="max-h-64 overflow-y-auto bg-black/40 px-4 py-3 font-mono text-xs leading-6 text-(--text-2)"
+        className="max-h-72 overflow-y-auto px-4 py-3 font-mono text-xs leading-6 text-zinc-300"
       >
         {toolEvents.map((event, index) => {
           const output = getString(event.payload.output);
@@ -106,16 +120,16 @@ export function ToolCallLog({ events, running }: ToolCallLogProps) {
           const visibleLines =
             isLast && running ? lines.slice(0, streamedLines) : lines;
           return (
-            <div className="py-1" key={event.id ?? index}>
-              <div className="text-(--accent)">
-                <span className="select-none">$ </span>
+            <div className="py-0.5" key={event.id ?? index}>
+              <div className="text-emerald-400">
+                <span className="select-none text-zinc-500">$ </span>
                 {commandOf(event)}
                 {status === "failed" ? (
                   <span className="ml-2 text-rose-400">[失败]</span>
                 ) : null}
                 {writtenPath(event) ? (
                   <a
-                    className="ml-2 inline-flex items-center gap-1 rounded-md border border-(--accent)/40 bg-(--accent)/10 px-2 py-0.5 text-[11px] font-medium text-(--accent) no-underline transition hover:bg-(--accent)/20"
+                    className="ml-2 inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-px text-[10px] font-medium text-emerald-300 no-underline transition hover:bg-emerald-500/20"
                     href={`/api/sessions/${event.session_id}/sandbox-files/download?path=${encodeURIComponent(writtenPath(event))}`}
                     download
                   >
@@ -124,13 +138,16 @@ export function ToolCallLog({ events, running }: ToolCallLogProps) {
                 ) : null}
               </div>
               {output ? (
-                <div className="whitespace-pre-wrap text-(--text-4)">
+                <div className="whitespace-pre-wrap text-zinc-500">
                   {visibleLines.join("\n")}
                 </div>
               ) : null}
             </div>
           );
         })}
+        {running ? (
+          <span className="inline-block h-4 w-2 animate-pulse bg-emerald-400/80 align-text-bottom" />
+        ) : null}
       </div>
     </div>
   );
