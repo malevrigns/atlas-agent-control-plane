@@ -45,6 +45,8 @@ export function AgentRunBlock({
     return livePlan && livePlan.id === parsed.id ? livePlan : parsed;
   }, [livePlan, planEvent]);
   // 只认属于本次运行的终结事件：优先按 plan_id 匹配；
+  // resume 重跑复用同一 plan_id，旧 run 的 task_error 会先命中，
+  // 所以按 plan_id 匹配时必须取时间最晚的一条，而不是第一条；
   // 旧数据没有 plan_id 时退回时间窗（本计划之后、下一个计划之前），
   // 并排除直答路径的 task_done（mode=chat），避免旧任务卡吞掉新对话的结果。
   const finalEvent = useMemo(() => {
@@ -52,9 +54,9 @@ export function AgentRunBlock({
       (event) => event.type === "task_done" || event.type === "task_error",
     );
     if (plan.id) {
-      const byPlanId = terminals.find(
-        (event) => getString(event.payload.plan_id) === plan.id,
-      );
+      const byPlanId = [...terminals]
+        .reverse()
+        .find((event) => getString(event.payload.plan_id) === plan.id);
       if (byPlanId) {
         return byPlanId;
       }
