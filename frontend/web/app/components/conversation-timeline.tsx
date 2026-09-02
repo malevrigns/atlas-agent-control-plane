@@ -1,4 +1,5 @@
 import { ArrowDown } from "lucide-react";
+import { useMemo } from "react";
 
 import { AgentRunBlock } from "./conversation/agent-run-block";
 import { MessageBubble } from "./conversation/message-bubble";
@@ -67,6 +68,17 @@ export function ConversationTimeline({
   } = useAutoScroll({ sessionKey, lastUserMessageId });
   // 思考流打字机节流：模型思考瞬间灌入大段文本，按稳定速度放出更易读。
   const pacedThinking = useTypewriter(liveThinking);
+  // 流式回答的气泡对象按内容缓存，避免每轮渲染重建（含新的时间戳）。
+  const liveAnswerMessage = useMemo<ChatMessage>(
+    () => ({
+      id: "live-answer",
+      session_id: "",
+      role: "assistant",
+      content: liveAnswer,
+      created_at: new Date().toISOString(),
+    }),
+    [liveAnswer],
+  );
 
   if (messages.type === "loading" || events.type === "loading") {
     return <TimelineLoadingState />;
@@ -140,15 +152,7 @@ export function ConversationTimeline({
             ) : null}
             {liveAnswer ? (
               <div className="stream-in">
-                <MessageBubble
-                  message={{
-                    id: "live-answer",
-                    session_id: "",
-                    role: "assistant",
-                    content: liveAnswer,
-                    created_at: new Date().toISOString(),
-                  }}
-                />
+                <MessageBubble message={liveAnswerMessage} />
               </div>
             ) : null}
             <TaskStatusCard task={task} />

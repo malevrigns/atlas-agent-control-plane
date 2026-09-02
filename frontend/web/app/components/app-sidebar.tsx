@@ -4,12 +4,14 @@ import {
   BookOpenText,
   Bot,
   Gauge,
+  Loader2,
   PanelLeftClose,
   Plus,
   Puzzle,
   RefreshCw,
   Search,
   Settings,
+  X,
 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 
@@ -110,7 +112,7 @@ export function AppSidebar({
         </div>
         <button
           aria-label="隐藏侧边栏"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-(--text-4) transition hover:bg-(--fill-2) hover:text-(--text-1)"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-(--text-4) transition hover:bg-(--fill-2) hover:text-(--text-1) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--accent)/60"
           onClick={onCollapse}
           title="隐藏侧边栏"
           type="button"
@@ -223,19 +225,62 @@ export function AppSidebar({
       </div>
 
       {showCreateForm ? (
-        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-(--line) bg-(--fill-1) p-4 shadow-sm">
+        <form
+          className="palette-in mt-6 flex flex-col gap-3 rounded-xl border border-(--line) bg-(--fill-1) p-4 shadow-sm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (submitting) {
+              return;
+            }
+            onCreateSession(workspaceDir.trim(), fullAccess);
+            setShowCreateForm(false);
+            setWorkspaceDir("");
+            setFullAccess(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              setShowCreateForm(false);
+              setWorkspaceDir("");
+              setFullAccess(false);
+            }
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-(--text-3)">
+              新建工作区
+            </span>
+            <button
+              aria-label="关闭新建工作区表单"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-(--text-5) transition hover:bg-(--fill-2) hover:text-(--text-1) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--accent)/60"
+              onClick={() => {
+                setShowCreateForm(false);
+                setWorkspaceDir("");
+                setFullAccess(false);
+              }}
+              type="button"
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-(--text-2)">
+            <label
+              className="text-xs font-semibold text-(--text-2)"
+              htmlFor="new-workspace-dir"
+            >
               本地工作区目录
             </label>
             <input
-              className="w-full rounded-lg border border-(--line) bg-(--field) px-3 py-2 text-sm text-(--text-1) outline-none transition placeholder:text-(--text-5) focus:border-(--accent) focus:ring-2 focus:ring-(--accent)/20"
+              autoFocus
+              className="w-full rounded-lg border border-(--line) bg-(--field) px-3 py-2 font-mono text-[13px] text-(--text-1) outline-none transition placeholder:font-sans placeholder:text-(--text-5) focus:border-(--accent) focus:ring-2 focus:ring-(--accent)/20"
+              id="new-workspace-dir"
               placeholder="D:/projects/myapp"
+              spellCheck={false}
               value={workspaceDir}
               onChange={(event) => setWorkspaceDir(event.target.value)}
             />
             <p className="text-[11px] leading-relaxed text-(--text-5)">
-              留空则使用整个 D 盘
+              支持 D:\xxx 完整路径（自动规范化）；留空则使用整个 D 盘
             </p>
           </div>
           <label className="flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-(--text-3)">
@@ -250,19 +295,21 @@ export function AppSidebar({
               <span className="text-(--text-5)">（可访问整个挂载盘，忽略工作区）</span>
             </span>
           </label>
+          {fullAccess ? (
+            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-200">
+              最高权限下 Agent 可读写整个挂载盘，请确认目录来源可信。
+            </p>
+          ) : null}
           <div className="mt-1 flex gap-2">
             <button
-              className="brand-gradient flex h-9 flex-1 items-center justify-center rounded-lg text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+              className="brand-gradient sheen-btn flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={submitting}
-              onClick={() => {
-                onCreateSession(workspaceDir.trim(), fullAccess);
-                setShowCreateForm(false);
-                setWorkspaceDir("");
-                setFullAccess(false);
-              }}
-              type="button"
+              type="submit"
             >
-              创建
+              {submitting ? (
+                <Loader2 className="animate-spin" size={15} aria-hidden="true" />
+              ) : null}
+              {submitting ? "创建中…" : "创建"}
             </button>
             <button
               className="flex h-9 items-center rounded-lg border border-(--line) px-4 text-sm text-(--text-3) transition hover:bg-(--fill-2) hover:text-(--text-1)"
@@ -276,7 +323,10 @@ export function AppSidebar({
               取消
             </button>
           </div>
-        </div>
+          <p className="text-center text-[10px] text-(--text-5)">
+            Enter 创建 · Esc 取消
+          </p>
+        </form>
       ) : (
         <button
           className="brand-gradient sheen-btn mt-6 flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 max-sm:mt-4"
@@ -299,7 +349,7 @@ export function AppSidebar({
         </div>
         <button
           aria-label="刷新任务列表"
-          className="flex h-8 w-8 items-center justify-center rounded-md text-(--text-4) transition hover:bg-(--fill-2) hover:text-(--text-1)"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-(--text-4) transition hover:bg-(--fill-2) hover:text-(--text-1) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--accent)/60"
           onClick={onRefresh}
           title="刷新"
           type="button"

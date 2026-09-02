@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, CheckCircle2, Clock3, PanelLeftOpen, Wifi } from "lucide-react";
+import { Bot, CheckCircle2, Clock3, Loader2, PanelLeftOpen, Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AppSidebar } from "./components/app-sidebar";
@@ -8,6 +8,7 @@ import type { MainView } from "./components/app-sidebar";
 import { ChatWorkspace } from "./components/chat-workspace";
 import { CommandPalette } from "./components/command-palette";
 import { KnowledgeWorkspace } from "./components/knowledge-workspace";
+import { ControlPlaneWorkspace } from "./components/control-plane-workspace";
 import { SettingsWorkspace } from "./components/settings-workspace";
 import { SkillsWorkspace } from "./components/skills-workspace";
 import { StatusBadge } from "./components/status-badge";
@@ -47,7 +48,10 @@ export default function Home() {
   if (access === "checking") {
     return (
       <main className="grid h-[100dvh] place-items-center bg-(--page) text-sm text-(--text-4)">
-        正在验证控制平面…
+        <span className="flex items-center gap-2">
+          <Loader2 className="animate-spin" size={15} aria-hidden="true" />
+          正在验证控制平面…
+        </span>
       </main>
     );
   }
@@ -78,62 +82,110 @@ function AccessGate({ onAuthenticated }: { onAuthenticated: () => void }) {
   }
 
   return (
-    <main className="login-scene relative grid h-[100dvh] place-items-center overflow-hidden px-5">
+    <main className="login-scene relative flex h-[100dvh] overflow-hidden">
       {/* 背景：极光光斑 + 渐隐网格，纯装饰。 */}
       <div aria-hidden="true" className="login-aurora login-aurora-a" />
       <div aria-hidden="true" className="login-aurora login-aurora-b" />
       <div aria-hidden="true" className="login-grid" />
 
-      <div className="relative w-full max-w-md">
-        <form
-          className="palette-in rounded-[28px] border border-white/12 bg-white/6 p-8 shadow-2xl shadow-black/50 backdrop-blur-2xl"
-          onSubmit={submit}
-        >
-          <div className="flex items-center gap-3">
-            <div className="brand-gradient squircle flex h-12 w-12 items-center justify-center rounded-2xl border border-white/25 text-white shadow-lg shadow-blue-500/40">
-              <Bot size={26} aria-hidden="true" />
+      {/* 左栏：品牌叙事 + 产品承诺（移动端隐藏）。 */}
+      <section className="relative hidden flex-1 flex-col justify-between p-12 lg:flex xl:p-16">
+        <div className="flex items-center gap-3">
+          <div className="brand-gradient squircle flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 text-white shadow-lg shadow-blue-500/40">
+            <Bot size={20} aria-hidden="true" />
+          </div>
+          <div>
+            <div className="text-base font-bold tracking-wide text-white">
+              AtlasAgent
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.24em] text-slate-500">
+              Agent Control Plane
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h1 className="max-w-lg text-4xl font-semibold leading-snug text-white xl:text-[44px]">
+            每一次执行，
+            <br />
+            都有证据可查。
+          </h1>
+          <p className="mt-5 max-w-sm text-sm leading-7 text-slate-400">
+            规划、工具、验收、检查点——把 Agent
+            的每一步变成可回放、可审计、可恢复的记录。
+          </p>
+        </div>
+
+        <div className="font-mono text-xs leading-7 text-slate-500">
+          <div>
+            <span className="select-none text-slate-600">$ </span>
+            atlas tasks run --watch
+          </div>
+          <div className="text-emerald-400/75">
+            ✓ acceptance gate passed · exit 0
+          </div>
+          <div className="text-emerald-400/75">
+            ✓ checkpoint #17 verified
+          </div>
+          <div className="text-slate-400">→ resuming from step 17 of 38</div>
+        </div>
+      </section>
+
+      {/* 右栏：认证表单，移动端占满全屏。 */}
+      <section className="relative flex flex-1 items-center justify-center px-5 lg:max-w-xl lg:border-l lg:border-white/8 lg:bg-white/[0.03] lg:backdrop-blur-xl xl:max-w-2xl">
+        <div className="w-full max-w-sm">
+          {/* 移动端品牌头（桌面端由左栏承担）。 */}
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <div className="brand-gradient squircle flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 text-white shadow-lg shadow-blue-500/40">
+              <Bot size={20} aria-hidden="true" />
             </div>
             <div>
-              <div className="text-lg font-bold tracking-wide text-white">
+              <div className="text-base font-bold tracking-wide text-white">
                 AtlasAgent
               </div>
-              <div className="mt-0.5 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+              <div className="text-[10px] uppercase tracking-[0.24em] text-slate-500">
                 Agent Control Plane
               </div>
             </div>
           </div>
 
-          <h1 className="mt-7 text-2xl font-semibold text-white">进入控制平面</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            输入启动脚本打印的 API Key。密钥只用于换取 HttpOnly
-            会话，不会保存在浏览器存储中。
-          </p>
+          <form className="palette-in" onSubmit={submit}>
+            <h2 className="text-2xl font-semibold text-white">进入控制平面</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              输入启动脚本打印的 API Key。密钥只用于换取 HttpOnly
+              会话，不会保存在浏览器存储中。
+            </p>
 
-          <label className="mt-6 block text-xs font-medium text-slate-300">
-            API Key
-            <input
-              autoComplete="current-password"
-              autoFocus
-              className="mt-2 h-12 w-full rounded-xl border border-white/12 bg-black/30 px-4 font-mono text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400/60 focus:shadow-[0_0_0_3px_rgba(96,165,250,0.15)]"
-              onChange={(event) => setApiKey(event.target.value)}
-              placeholder="sk-••••••••"
-              type="password"
-              value={apiKey}
-            />
-          </label>
-          {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
-          <button
-            className="brand-gradient sheen-btn mt-6 h-12 w-full rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={!apiKey || submitting}
-            type="submit"
-          >
-            {submitting ? "验证中…" : "验证并进入"}
-          </button>
-        </form>
-        <p className="mt-5 text-center text-xs text-slate-500">
-          可追溯记忆 · 受治理工具 · 可验证恢复
-        </p>
-      </div>
+            <label className="mt-7 block text-xs font-medium text-slate-300">
+              API Key
+              <input
+                autoComplete="current-password"
+                autoFocus
+                className="mt-2 h-12 w-full rounded-xl border border-white/12 bg-black/30 px-4 font-mono text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400/60 focus:shadow-[0_0_0_3px_rgba(96,165,250,0.15)]"
+                onChange={(event) => setApiKey(event.target.value)}
+                placeholder="sk-••••••••"
+                type="password"
+                value={apiKey}
+              />
+            </label>
+            {error ? (
+              <p className="mt-3 text-sm text-rose-300" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <button
+              className="brand-gradient sheen-btn mt-6 h-12 w-full rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+              disabled={!apiKey || submitting}
+              type="submit"
+            >
+              {submitting ? "验证中…" : "验证并进入"}
+            </button>
+          </form>
+          <p className="mt-6 text-xs text-slate-500">
+            可追溯记忆 · 受治理工具 · 可验证恢复
+          </p>
+        </div>
+      </section>
     </main>
   );
 }
@@ -395,7 +447,7 @@ function WorkspaceHome() {
 
           <div
             className={`min-h-0 flex-1 ${
-              activeView === "workspace"
+              activeView === "workspace" || activeView === "control-plane"
                 ? "overflow-hidden p-0"
                 : "overflow-y-auto p-5 max-md:p-3"
             }`}
@@ -449,6 +501,7 @@ function WorkspaceHome() {
             ) : null}
             {activeView === "knowledge" ? <KnowledgeWorkspace /> : null}
             {activeView === "skills" ? <SkillsWorkspace /> : null}
+            {activeView === "control-plane" ? <ControlPlaneWorkspace /> : null}
           </div>
         </section>
       </div>
@@ -464,20 +517,20 @@ function getBadge<T>(
   if (state.type === "ready") {
     return {
       label: readyLabel,
-      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      className: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
       icon: CheckCircle2,
     };
   }
   if (state.type === "error") {
     return {
       label: errorLabel,
-      className: "border-rose-200 bg-rose-50 text-rose-700",
+      className: "border-rose-400/30 bg-rose-500/10 text-rose-300",
       icon: Wifi,
     };
   }
   return {
     label: "检测中",
-    className: "border-slate-200 bg-white text-slate-600",
+    className: "border-white/15 bg-white/5 text-slate-300",
     icon: Clock3,
   };
 }

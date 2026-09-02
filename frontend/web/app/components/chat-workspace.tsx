@@ -20,6 +20,10 @@ import type {
   VncStatusData,
 } from "../types";
 
+/** 右侧预览工作区（工具详情 / 文件预览 / 上下文）共用的外壳样式，高度统一 70dvh。 */
+const previewPanelClass =
+  "relative z-20 h-full w-[600px] shrink-0 border-l border-(--line) bg-(--surface)/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[70dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2";
+
 type ChatWorkspaceProps = {
   attachments: SessionFileItem[];
   draft: string;
@@ -145,7 +149,7 @@ export function ChatWorkspace({
           onRetry={onRetry}
         />
         <div className="mt-auto shrink-0 bg-(--page)/85 px-8 py-4 backdrop-blur-2xl max-md:px-4 max-sm:py-2">
-          <div className="mx-auto mb-3 h-px w-[220px] bg-gradient-to-r from-transparent via-blue-500/30 to-transparent max-sm:mb-2" />
+          <div className="mx-auto mb-3 h-px w-[220px] bg-gradient-to-r from-transparent via-(--accent)/30 to-transparent max-sm:mb-2" />
           <div className="mx-auto max-w-5xl">
             <div className="mb-2 flex flex-wrap items-center justify-start gap-2">
               <div className="flex items-center gap-3">
@@ -176,7 +180,7 @@ export function ChatWorkspace({
       {hasToolPreview ? (
         <aside
           aria-label="当前工具详情工作区"
-          className="relative z-20 h-full w-[600px] shrink-0 border-l border-(--line) bg-(--surface)/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[70dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2"
+          className={previewPanelClass}
         >
           <ToolPreviewPanel
             events={events}
@@ -190,7 +194,7 @@ export function ChatWorkspace({
       {hasFilePreview ? (
         <aside
           aria-label="文件预览工作区"
-          className="relative z-20 h-full w-[600px] shrink-0 border-l border-(--line) bg-(--surface)/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[70dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2"
+          className={previewPanelClass}
         >
           <FilePreviewPanel
             onClose={() => onSelectFile(null)}
@@ -203,7 +207,7 @@ export function ChatWorkspace({
       {showContextPreview ? (
         <aside
           aria-label="上下文工作区"
-          className="relative z-20 h-full w-[600px] shrink-0 border-l border-(--line) bg-(--surface)/95 py-2 pr-2 shadow-2xl shadow-black/40 max-xl:absolute max-xl:inset-x-3 max-xl:bottom-3 max-xl:h-[76dvh] max-xl:w-auto max-xl:rounded-3xl max-xl:border max-xl:p-2"
+          className={previewPanelClass}
         >
           <ContextPanel
             context={context}

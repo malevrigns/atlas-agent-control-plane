@@ -3,6 +3,7 @@
 import {
   BookOpenText,
   CornerDownLeft,
+  Gauge,
   MessageSquare,
   Monitor,
   Moon,
@@ -54,6 +55,9 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  // 打开时记下触发元素，关闭时把焦点还回去。
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [, setThemePreference] = useThemePreference();
 
   const items = useMemo<PaletteItem[]>(() => {
@@ -87,6 +91,11 @@ export function CommandPalette({
 
     const navigation: Array<[MainView, string, ReactNode]> = [
       ["workspace", "回到对话", <MessageSquare key="w" size={15} aria-hidden="true" />],
+      [
+        "control-plane",
+        "打开任务驾驶舱",
+        <Gauge key="g" size={15} aria-hidden="true" />,
+      ],
       ["knowledge", "打开知识库", <BookOpenText key="k" size={15} aria-hidden="true" />],
       ["skills", "打开技能中心", <Puzzle key="s" size={15} aria-hidden="true" />],
       ["settings", "打开设置", <Settings key="c" size={15} aria-hidden="true" />],
@@ -123,18 +132,35 @@ export function CommandPalette({
     return matched;
   }, [query, sessions, onSelectSession, onCreateSession, onViewChange, setThemePreference]);
 
-  // 打开时重置并聚焦；列表变化时收敛选中项。
+  // 打开时重置并聚焦、记住触发元素；关闭时把焦点还给触发元素。
   useEffect(() => {
     if (open) {
+      previousFocusRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       setQuery("");
       setActiveIndex(0);
       window.setTimeout(() => inputRef.current?.focus(), 30);
+      return;
     }
+    previousFocusRef.current?.focus();
+    previousFocusRef.current = null;
   }, [open]);
 
   useEffect(() => {
     setActiveIndex((index) => Math.min(index, Math.max(items.length - 1, 0)));
   }, [items.length]);
+
+  // 键盘移动时保证当前选中项留在可视区内。
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    listRef.current
+      ?.querySelector('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, open]);
 
   // 全局快捷键：⌘K / Ctrl+K 开合；打开时接管方向键与回车。
   useEffect(() => {
@@ -189,7 +215,13 @@ export function CommandPalette({
         <div className="flex items-center gap-2.5 border-b border-(--line-soft) px-4">
           <Search aria-hidden="true" className="shrink-0 text-(--text-4)" size={16} />
           <input
+            aria-activedescendant={
+              items[activeIndex] ? `palette-option-${items[activeIndex].id}` : undefined
+            }
+            aria-controls="command-palette-list"
+            aria-expanded="true"
             aria-label="搜索会话或输入命令"
+            role="combobox"
             className="h-12 w-full bg-transparent text-sm text-(--text-1) outline-none placeholder:text-(--text-5)"
             onChange={(event) => {
               setQuery(event.target.value);
@@ -203,7 +235,12 @@ export function CommandPalette({
             Esc
           </kbd>
         </div>
-        <div className="max-h-[46dvh] overflow-y-auto p-2">
+        <div
+          className="max-h-[46dvh] overflow-y-auto p-2"
+          id="command-palette-list"
+          ref={listRef}
+          role="listbox"
+        >
           {items.length === 0 ? (
             <div className="px-3 py-8 text-center text-sm text-(--text-4)">
               没有匹配的结果
@@ -220,6 +257,9 @@ export function CommandPalette({
                     </div>
                   ) : null}
                   <button
+                    aria-selected={index === activeIndex}
+                    id={`palette-option-${item.id}`}
+                    role="option"
                     className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition ${
                       index === activeIndex
                         ? "bg-(--accent)/14 text-(--text-1)"

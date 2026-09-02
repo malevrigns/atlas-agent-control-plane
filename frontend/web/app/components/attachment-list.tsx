@@ -44,7 +44,7 @@ export function AttachmentList({
             </button>
             <div className="flex shrink-0 items-center gap-1">
               <a
-                className="rounded-md p-1 text-(--text-4) hover:bg-(--fill-2) hover:text-(--text-1)"
+                className="rounded-md p-1 text-(--text-4) hover:bg-(--fill-2) hover:text-(--text-1) focus-visible:ring-2 focus-visible:ring-(--accent)/60"
                 href={getDownloadUrl(file.file)}
                 title="下载文件"
               >

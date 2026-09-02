@@ -57,7 +57,7 @@ export function SessionControlBar({
         </button>
         <button
           aria-label="停止当前任务"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-rose-500/30 bg-rose-500/5 text-rose-300 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:border-(--line) disabled:bg-(--fill-1) disabled:text-(--text-5)"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-rose-500/30 bg-rose-500/5 text-(--error-text) transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:border-(--line) disabled:bg-(--fill-1) disabled:text-(--text-5)"
           disabled={!selectedSession || !isRunning || stopping}
           onClick={onStop}
           title="停止任务"

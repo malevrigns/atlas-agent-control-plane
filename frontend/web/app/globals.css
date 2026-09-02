@@ -36,6 +36,9 @@
   /* 错误语义：深浅主题下都清晰可读的红 */
   --error-text: #fda4af;
   --error-text-strong: #fecdd3;
+  /* 成功/警示语义：与 error-text 一样按深浅主题各配一档 */
+  --success-text: #6ee7b7;
+  --warn-text: #fcd34d;
   /* 背景网格与滚动条 */
   --grid-line: rgba(80, 96, 130, 0.13);
   --grid-line-soft: rgba(255, 255, 255, 0.035);
@@ -71,6 +74,9 @@
   /* 错误语义：深浅主题下都清晰可读的红 */
   --error-text: #b91c1c;
   --error-text-strong: #991b1b;
+  /* 成功/警示语义：与 error-text 一样按深浅主题各配一档 */
+  --success-text: #047857;
+  --warn-text: #b45309;
   --grid-line: rgba(30, 41, 59, 0.07);
   --grid-line-soft: rgba(15, 23, 42, 0.045);
   --sb-from: rgba(59, 130, 246, 0.32);
@@ -94,7 +100,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .agent-grid-bg {
@@ -529,6 +535,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .animate-spin,
+  .animate-pulse,
   .stream-in,
   .shimmer-text,
   .ticker-value,

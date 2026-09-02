@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 
 import type { AgentTaskItem } from "../../types";
 import { AgentAvatar } from "./agent-avatar";
@@ -35,8 +35,11 @@ export function TimelineEmptyState() {
 
 export function TimelineLoadingState() {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-8 py-8 text-sm text-(--text-4) max-sm:px-5 max-sm:py-5">
-      对话加载中...
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-8 py-10 text-sm text-(--text-4) max-sm:px-5 max-sm:py-6">
+      <span className="flex items-center gap-2">
+        <Loader2 className="animate-spin" size={16} aria-hidden="true" />
+        对话加载中...
+      </span>
     </div>
   );
 }

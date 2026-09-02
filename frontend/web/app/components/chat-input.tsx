@@ -229,7 +229,7 @@ export function ChatInput({
         />
         <button
           aria-label={sending ? "任务执行中" : "发送任务"}
-          className="sheen-btn mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--line) bg-(--fill-2) text-(--text-1) shadow-lg shadow-black/30 transition hover:border-(--accent)/40 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-(--fill-1) disabled:text-(--text-5) disabled:shadow-none max-sm:h-9 max-sm:w-9"
+          className="sheen-btn mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--line) bg-(--fill-2) text-(--text-1) shadow-lg shadow-black/30 transition hover:border-(--accent)/40 hover:bg-(--accent-strong) disabled:cursor-not-allowed disabled:bg-(--fill-1) disabled:text-(--text-5) disabled:shadow-none max-sm:h-9 max-sm:w-9"
           disabled={disabled || sending || !draft.trim()}
           title={sending ? "任务执行中" : "发送并开始执行（Enter）"}
           type="submit"

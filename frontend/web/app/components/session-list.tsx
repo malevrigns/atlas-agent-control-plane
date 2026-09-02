@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 
 import { formatDate } from "../lib/format";
 import type { LoadState, SessionItem } from "../types";
@@ -28,7 +28,12 @@ export function SessionList({
   state,
 }: SessionListProps) {
   if (state.type === "loading") {
-    return <div className="mt-4 text-sm text-(--text-4)">加载中...</div>;
+    return (
+      <div className="mt-4 flex items-center gap-2 text-sm text-(--text-4)">
+        <Loader2 className="animate-spin" size={15} aria-hidden="true" />
+        加载中...
+      </div>
+    );
   }
 
   if (state.type === "error") {
@@ -86,7 +91,8 @@ export function SessionList({
                 </div>
               </button>
               <button
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-(--text-5) opacity-0 transition hover:bg-rose-500/10 hover:text-rose-300 group-hover:opacity-100"
+                aria-label={`删除会话 ${session.title}`}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-(--text-5) opacity-0 transition hover:bg-rose-500/10 hover:text-rose-300 focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100"
                 onClick={() => onDelete(session.id)}
                 title="删除会话"
                 type="button"
