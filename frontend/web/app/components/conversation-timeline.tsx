@@ -1,4 +1,5 @@
 import { ArrowDown } from "lucide-react";
+import { useMemo } from "react";
 
 import { AgentRunBlock } from "./conversation/agent-run-block";
 import { MessageBubble } from "./conversation/message-bubble";
@@ -80,8 +81,14 @@ export function ConversationTimeline({
     return <ErrorBlock message={events.message} />;
   }
 
-  const viewModel = buildAgentRunViewModel(messages.data, events.data);
-  const reasoningMap = buildReasoningMap(events.type === "ready" ? events.data : []);
+  const viewModel = useMemo(
+    () => buildAgentRunViewModel(messages.data, events.data),
+    [messages.data, events.data],
+  );
+  const reasoningMap = useMemo(
+    () => buildReasoningMap(events.type === "ready" ? events.data : []),
+    [events],
+  );
   // 执行态只属于最新的任务卡；历史卡片一律静止。
   const lastPlanItemId =
     [...viewModel.timelineItems]
@@ -139,16 +146,15 @@ export function ConversationTimeline({
               </div>
             ) : null}
             {liveAnswer ? (
-              <div className="stream-in">
-                <MessageBubble
-                  message={{
-                    id: "live-answer",
-                    session_id: "",
-                    role: "assistant",
-                    content: liveAnswer,
-                    created_at: new Date().toISOString(),
-                  }}
-                />
+              <div className="stream-in flex gap-3">
+                <div className="min-w-0 max-w-4xl flex-1 pt-1">
+                  <div className="text-base font-semibold text-(--accent)">
+                    AtlasAgent
+                  </div>
+                  <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-[15px] leading-7 text-(--text-3)">
+                    {liveAnswer}
+                  </pre>
+                </div>
               </div>
             ) : null}
             <TaskStatusCard task={task} />

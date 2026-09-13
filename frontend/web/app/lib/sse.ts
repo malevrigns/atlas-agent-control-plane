@@ -1,16 +1,20 @@
 import type { StreamEvent } from "../types";
 
 function parseSseBlock(block: string): StreamEvent | null {
-  const lines = block.split("\n");
+  const lines = block.split(/\r?\n/);
   let event = "message";
   const dataLines: string[] = [];
 
   for (const line of lines) {
+    if (!line || line.startsWith(":")) {
+      continue;
+    }
     if (line.startsWith("event:")) {
       event = line.slice("event:".length).trim();
+      continue;
     }
     if (line.startsWith("data:")) {
-      dataLines.push(line.slice("data:".length).trim());
+      dataLines.push(line.slice("data:".length).trimStart());
     }
   }
 
@@ -18,15 +22,20 @@ function parseSseBlock(block: string): StreamEvent | null {
     return null;
   }
 
-  return {
-    event,
-    data: JSON.parse(dataLines.join("\n")) as Record<string, unknown>,
-  };
+  try {
+    return {
+      event,
+      data: JSON.parse(dataLines.join("\n")) as Record<string, unknown>,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function readSseStream(
   response: Response,
   onEvent: (event: StreamEvent) => void | Promise<void>,
+  signal?: AbortSignal,
 ) {
   if (!response.body) {
     throw new Error("empty stream response");
@@ -36,27 +45,48 @@ export async function readSseStream(
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
+  const abort = () => {
+    void reader.cancel().catch(() => undefined);
+  };
+  if (signal?.aborted) {
+    abort();
+    throw new DOMException("Aborted", "AbortError");
+  }
+  signal?.addEventListener("abort", abort, { once: true });
 
-    buffer += decoder.decode(value, { stream: true });
-    const blocks = buffer.split("\n\n");
-    buffer = blocks.pop() ?? "";
+  try {
+    while (true) {
+      if (signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
 
-    for (const block of blocks) {
-      const event = parseSseBlock(block.trim());
-      if (event) {
-        await onEvent(event);
+      buffer += decoder.decode(value, { stream: true });
+      const blocks = buffer.split(/\r?\n\r?\n/);
+      buffer = blocks.pop() ?? "";
+
+      for (const block of blocks) {
+        const parsed = parseSseBlock(block.trim());
+        if (parsed) {
+          await onEvent(parsed);
+        }
       }
     }
-  }
 
-  buffer += decoder.decode();
-  const event = parseSseBlock(buffer.trim());
-  if (event) {
-    await onEvent(event);
+    buffer += decoder.decode();
+    const parsed = parseSseBlock(buffer.trim());
+    if (parsed) {
+      await onEvent(parsed);
+    }
+  } finally {
+    signal?.removeEventListener("abort", abort);
+    try {
+      reader.releaseLock();
+    } catch {
+      // already cancelled / released
+    }
   }
 }

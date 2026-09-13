@@ -1,9 +1,21 @@
 "use client";
 
 import { Check, Copy } from "lucide-react";
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const SAFE_HREF = /^(https?:|mailto:)/i;
+
+function isSafeHref(href: string | undefined): href is string {
+  if (!href) {
+    return false;
+  }
+  if (href.startsWith("#") || href.startsWith("/")) {
+    return !href.toLowerCase().includes("javascript:");
+  }
+  return SAFE_HREF.test(href);
+}
 
 /** 代码块容器：右上角悬浮复制按钮，点击复制整段代码。 */
 function PreBlock({ children }: { children?: React.ReactNode }) {
@@ -120,14 +132,17 @@ function buildComponents(compact: boolean): Components {
       </blockquote>
     ),
     a: ({ children, href }) => {
-      if (href && /[\u4E00-\u9FFF\u3000-\u303F\uFF00-\uFFEF]/.test(href)) {
+      if (
+        !isSafeHref(href) ||
+        /[\u4E00-\u9FFF\u3000-\u303F\uFF00-\uFFEF]/.test(href)
+      ) {
         return <span>{children}</span>;
       }
       return (
         <a
           className="text-(--accent) underline-offset-4 hover:underline"
           href={href}
-          rel="noreferrer"
+          rel="noreferrer noopener"
           target="_blank"
         >
           {children}
@@ -176,7 +191,7 @@ function buildComponents(compact: boolean): Components {
 const defaultComponents = buildComponents(false);
 const compactComponents = buildComponents(true);
 
-export function MarkdownContent({
+export const MarkdownContent = memo(function MarkdownContent({
   className = "",
   content,
   compact = false,
@@ -191,4 +206,4 @@ export function MarkdownContent({
       </ReactMarkdown>
     </div>
   );
-}
+});

@@ -62,9 +62,9 @@ fi
 # ===================== 第3步：按需选择是否重新构建镜像 =====================
 # BUILD=true ./scripts/start.sh 会在启动前重新构建 API、UI 和 Sandbox。
 if [[ "${BUILD:-false}" == "true" ]]; then
-  docker compose up -d --build
+  docker compose up -d --build --wait --wait-timeout 180
 else
-  docker compose up -d
+  docker compose up -d --wait --wait-timeout 180
 fi
 
 # ===================== 第4步：展示服务状态，方便用户确认入口是否可用 =====================

@@ -1,7 +1,7 @@
 import unittest
 
 from app.core.exceptions import AppException
-from app.domain.llm.entities import LLMMessage
+from app.domain.llm.entities import LLMChatRequest, LLMMessage
 from app.infrastructure.llm.openai_compatible import OpenAICompatibleClient
 
 
@@ -43,6 +43,23 @@ class OpenAICompatibleMessagePayloadTest(unittest.TestCase):
         client = self._client()
         with self.assertRaises(AppException):
             client._build_message_payload(LLMMessage(role="tool", content="ok"))
+
+    def test_extra_body_is_merged_for_stream_and_non_stream(self) -> None:
+        client = self._client()
+        request = LLMChatRequest(
+            messages=[LLMMessage(role="user", content="hi")],
+            model="demo",
+            provider="test",
+            temperature=0.2,
+            max_tokens=128,
+            extra_body={"enable_thinking": True},
+        )
+        stream = client.build_chat_payload(request, stream=True)
+        complete = client.build_chat_payload(request, stream=False)
+        self.assertTrue(stream["enable_thinking"])
+        self.assertTrue(stream["stream"])
+        self.assertTrue(complete["enable_thinking"])
+        self.assertNotIn("stream", complete)
 
 
 if __name__ == "__main__":

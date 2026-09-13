@@ -85,6 +85,12 @@ class AgentTaskRunner:
         while self._running:
             try:
                 await self._wait_for_capacity()
+                # Reclaim on every poll so a hung claim is recovered without
+                # waiting for process restart. _start_message skips task ids
+                # already in _active_tasks, so a still-running local task is
+                # not double-started.
+                for message in await self.queue.reclaim_stale_messages():
+                    self._start_message(message)
                 for message in await self.queue.reserve_messages(count=1):
                     self._start_message(message)
             except asyncio.CancelledError:

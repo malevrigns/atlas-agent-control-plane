@@ -180,7 +180,8 @@ export function ChatInput({
         ) : null}
         <textarea
           aria-label="任务输入框"
-          className="w-full flex-1 resize-none border-0 bg-transparent py-2.5 text-base font-medium leading-6 text-(--text-1) outline-none placeholder:text-(--text-5) disabled:bg-transparent max-sm:py-2 max-sm:text-sm"
+          enterKeyHint="send"
+          className="w-full flex-1 resize-none border-0 bg-transparent py-2.5 text-base font-medium leading-6 text-(--text-1) outline-none placeholder:text-(--text-5) disabled:bg-transparent max-sm:py-2"
           disabled={disabled || sending}
           onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={(event) => {

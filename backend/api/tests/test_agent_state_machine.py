@@ -215,5 +215,30 @@ class AgentStateRouterTest(unittest.TestCase):
                     )
 
 
+class AgentRunStateResumeTest(unittest.TestCase):
+    def test_resume_past_last_step_enters_summarizing(self) -> None:
+        payload = plan_payload()
+        state = AgentRunState.from_plan(
+            uuid4(),
+            payload,
+            run_id=uuid4(),
+            plan_revision=1,
+            start_step_index=len(payload["steps"]),
+        )
+        self.assertEqual(state.phase, AgentPhase.summarizing)
+        self.assertEqual(state.step_index, len(payload["steps"]) - 1)
+
+    def test_resume_at_first_step_stays_executing(self) -> None:
+        state = AgentRunState.from_plan(
+            uuid4(),
+            plan_payload(),
+            run_id=uuid4(),
+            plan_revision=1,
+            start_step_index=0,
+        )
+        self.assertEqual(state.phase, AgentPhase.executing)
+        self.assertEqual(state.step_index, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

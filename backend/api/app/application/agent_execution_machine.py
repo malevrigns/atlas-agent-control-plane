@@ -886,6 +886,8 @@ class AgentExecutionMachine:
         steps = snapshot.plan.get("steps")
         if not isinstance(steps, (list, tuple)):
             raise AppException(message="plan steps must be a sequence")
+        if snapshot.state.step_index < 0 or snapshot.state.step_index >= len(steps):
+            raise AppException(message="plan step index is out of range")
         step = steps[snapshot.state.step_index]
         if not isinstance(step, Mapping):
             raise AppException(message="plan step must be an object")

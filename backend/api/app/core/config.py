@@ -33,7 +33,9 @@ class Settings(BaseSettings):
     # local 后端的 SQLite 文件位置。
     agent_task_local_path: str = "var/agent-tasks.db"
     agent_task_consumer_group: str = "atlas-agent-runners"
-    agent_task_claim_idle_ms: int = 30_000
+    # Idle window before another replica may XCLAIM a running task.
+    # Agent plans routinely exceed 30s; 15 minutes matches long tool runs.
+    agent_task_claim_idle_ms: int = 900_000
     agent_task_max_concurrency: int = 4
     agent_task_poll_timeout_ms: int = 1000
     context_message_limit: int = 8

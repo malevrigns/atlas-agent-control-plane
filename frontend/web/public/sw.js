@@ -1,5 +1,5 @@
 // AtlasAgent PWA service worker：缓存应用外壳，API/SSE 始终走网络。
-const CACHE = "atlas-web-v1";
+const CACHE = "atlas-web-v2";
 const APP_SHELL = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -27,11 +27,17 @@ self.addEventListener("fetch", (event) => {
   }
 
   const url = new URL(request.url);
-  // API 与沙箱代理（含 SSE）走网络，不缓存。
+  // API、沙箱、RSC 飞行载荷和 HMR 走网络，不缓存。
   if (
     url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/sandbox-api/")
+    url.pathname.startsWith("/sandbox-api/") ||
+    url.pathname.startsWith("/_next/") ||
+    request.headers.has("RSC") ||
+    request.headers.has("Next-Router-Prefetch")
   ) {
+    return;
+  }
+  if (!/\.(?:js|css|png|jpe?g|webp|svg|ico|woff2?)$/i.test(url.pathname)) {
     return;
   }
 

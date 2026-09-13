@@ -90,6 +90,9 @@ async def lifespan(app: FastAPI):
                 pass
         await runner.stop()
         await queue.close()
+        from app.infrastructure.http import aclose_http_client
+
+        await aclose_http_client()
 
 
 def create_app() -> FastAPI:

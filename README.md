@@ -22,7 +22,7 @@ The answer I settled on: a general agent is a good knife; a vertical agent is a 
 
 Along the way I kept running into the same wall: the demos were impressive, but the moment you ask *"where did this fact come from?"* or *"what did the agent do while I was asleep?"* — nothing holds up. AtlasAgent is what that wall looks like when you take it seriously. Every fact carries its source. Every tool call passes a gate before it runs. Every long task leaves behind checkpoints you can resume from. And when a task claims it's done, an acceptance command has to exit 0 before the system believes it.
 
-One more thing: the whole system is paired with a [64-chapter tutorial](tutorial/README.md) that rebuilds it from an empty directory — because reading source code tells you *what*, but rarely *why*. The trade-offs, the dead ends, the reasons things are the way they are: that's what the tutorial keeps. [写在前面](tutorial/README.md) has the full story, in my own words.
+One more thing: the whole system is paired with a [62-chapter tutorial](tutorial/README.md) that rebuilds it from an empty directory — because reading source code tells you *what*, but rarely *why*. The trade-offs, the dead ends, the reasons things are the way they are: that's what the tutorial keeps. [写在前面](tutorial/README.md) has the full story, in my own words.
 
 <br>
 
@@ -59,7 +59,8 @@ For the full stack — Web workbench, Postgres, Redis, Nginx, sandbox container 
 
 ```bash
 cp .env.example .env
-BUILD=true ./scripts/start.sh
+BUILD=true ./scripts/start.sh        # Git Bash / WSL
+# Windows PowerShell: $env:BUILD="true"; ./scripts/start.ps1
 ```
 
 Open <http://localhost:8088> — the Web workbench. The start script prints the API key you'll log in with. No LLM key? Everything still boots; a local hash embedding powers offline mode, and any OpenAI-compatible endpoint (DeepSeek, Qwen, DashScope, Ollama…) plugs in via one line in `backend/api/config/llm.yaml`.
@@ -103,9 +104,9 @@ More: [Memory & Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md) · [RAG &
 | API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` |
 | Web | `cd frontend/web && pnpm install && pnpm dev` |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` |
-| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 8100:8100 atlas-sandbox` |
+| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 127.0.0.1:8100:8100 -e SANDBOX_AUTH_ENABLED=true atlas-sandbox` |
 
-Tests: `cd backend/api && uv run python -m unittest discover -s tests` (499 passing).
+Tests: `cd backend/api && uv run python -m unittest discover -s tests`.
 
 </details>
 
@@ -121,11 +122,11 @@ atlas-agent-control-plane/
 │   ├── web/        Next.js client (PWA)
 │   └── tui/        Textual terminal client
 ├── backend/
-│   ├── api/        FastAPI control plane · migrations · 456 tests
+│   ├── api/        FastAPI control plane · migrations · unit tests
 │   └── sandbox/    Isolated files / shell / browser / VNC
 ├── docs/           Deep-dive documentation
-├── tutorial/       64-chapter engineering tutorial (62,000+ lines)
-├── scripts/        start.sh / stop.sh
+├── tutorial/       62-chapter engineering tutorial (62,000+ lines)
+├── scripts/        start.sh / start.ps1 / stop.sh
 └── docker-compose.yml
 ```
 
@@ -143,7 +144,7 @@ Issues and PRs are welcome — [CONTRIBUTING.md](CONTRIBUTING.md) has the setup,
 
 做的过程中反复撞到同一堵墙：演示都很惊艳，但只要你问一句「这条事实从哪来的」「我睡着的时候 Agent 到底干了什么」，就没有一样东西站得住。AtlasAgent 就是把这堵墙当真之后的样子：每条事实带来源，每个工具调用先过门禁，每个长任务留下可以恢复的 Checkpoint，任务说自己完成了，验收命令必须 exit 0，系统才信它。
 
-还有一件事：整个系统配了一套 [64 章的教程](tutorial/README.md)，从空目录开始把它重新造一遍。因为读源码能知道「是什么」，很难知道「为什么」——那些取舍、死路、和「为什么它是现在这个样子」，教程里都留着。[写在前面](tutorial/README.md) 里有完整的来龙去脉。
+还有一件事：整个系统配了一套 [62 章的教程](tutorial/README.md)，从空目录开始把它重新造一遍。因为读源码能知道「是什么」，很难知道「为什么」——那些取舍、死路、和「为什么它是现在这个样子」，教程里都留着。[写在前面](tutorial/README.md) 里有完整的来龙去脉。
 
 <br>
 
@@ -174,7 +175,8 @@ python scripts/quickstart.py
 
 ```bash
 cp .env.example .env
-BUILD=true ./scripts/start.sh
+BUILD=true ./scripts/start.sh        # Git Bash / WSL
+# Windows PowerShell: $env:BUILD="true"; ./scripts/start.ps1
 ```
 
 打开 <http://localhost:8088> 就是 Web 工作台，启动脚本会打印登录用的 API Key。没配模型密钥也能跑——本地哈希 embedding 撑起离线模式；要接模型的话，DeepSeek、Qwen、DashScope、Ollama，任何 OpenAI 兼容接口在 `backend/api/config/llm.yaml` 里改一行就行。
@@ -218,9 +220,9 @@ curl -H "X-Atlas-API-Key: ${ATLAS_KEY}" \
 | API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` |
 | Web | `cd frontend/web && pnpm install && pnpm dev` |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` |
-| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 8100:8100 atlas-sandbox` |
+| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 127.0.0.1:8100:8100 -e SANDBOX_AUTH_ENABLED=true atlas-sandbox` |
 
-测试：`cd backend/api && uv run python -m unittest discover -s tests`（499 个通过）。
+测试：`cd backend/api && uv run python -m unittest discover -s tests`。
 
 </details>
 
@@ -232,11 +234,11 @@ atlas-agent-control-plane/
 │   ├── web/        Next.js 客户端（PWA）
 │   └── tui/        Textual 终端客户端
 ├── backend/
-│   ├── api/        FastAPI 控制平面 · 迁移 · 456 个测试
+│   ├── api/        FastAPI 控制平面 · 迁移 · 单元测试
 │   └── sandbox/    文件 / Shell / 浏览器 / VNC 隔离执行
 ├── docs/           专题深潜文档
-├── tutorial/       64 章中文工程教程（62000+ 行）
-├── scripts/        start.sh / stop.sh
+├── tutorial/       62 章中文工程教程（62000+ 行）
+├── scripts/        start.sh / start.ps1 / stop.sh
 └── docker-compose.yml
 ```
 

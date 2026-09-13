@@ -34,7 +34,7 @@ docker compose up -d postgres redis
 | API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` | `http://localhost:8000` |
 | Web | `cd frontend/web && pnpm install && pnpm dev` | `http://localhost:3000` |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` | Falls back to demo mode when the backend is unreachable |
-| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 8100:8100 -p 6080:6080 -e SANDBOX_AUTH_ENABLED=false atlas-sandbox` | `http://localhost:8100` |
+| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 127.0.0.1:8100:8100 -p 127.0.0.1:6080:6080 -e SANDBOX_AUTH_ENABLED=true atlas-sandbox` | `http://127.0.0.1:8100` |
 
 ### 2. Running the checks
 
@@ -127,7 +127,7 @@ docker compose up -d postgres redis
 | API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` | `http://localhost:8000` |
 | Web | `cd frontend/web && pnpm install && pnpm dev` | `http://localhost:3000` |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` | 后端不可达时自动进入演示模式 |
-| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 8100:8100 -p 6080:6080 -e SANDBOX_AUTH_ENABLED=false atlas-sandbox` | `http://localhost:8100` |
+| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 127.0.0.1:8100:8100 -p 127.0.0.1:6080:6080 -e SANDBOX_AUTH_ENABLED=true atlas-sandbox` | `http://127.0.0.1:8100` |
 
 ### 2. 运行检查
 

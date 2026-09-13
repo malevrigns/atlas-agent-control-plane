@@ -9,7 +9,7 @@
 先看项目目录地图：
 
 ```text
-atlas-agents/
+atlas-agent-control-plane/
 ├── frontend/
 │   ├── web/                 # Next.js 浏览器工作台（PWA）
 │   └── tui/                 # Textual 键盘优先终端客户端
@@ -28,7 +28,7 @@ atlas-agents/
 │   └── sandbox/             # 文件、Shell、浏览器与 VNC 隔离环境
 ├── nginx/                   # 统一网关配置
 ├── docs/                    # 架构与客户端专题文档
-├── tutorial/                # 0–56 章中文工程教程
+├── tutorial/                # 0–63 章中文工程教程（47、52 随桌面客户端一并退役）
 ├── scripts/                 # 启停与运行时配置脚本
 ├── docker-compose.yml       # 本地多服务编排
 └── README.md
@@ -37,7 +37,7 @@ atlas-agents/
 再看运行时调用关系：
 
 ```text
-Web / Electron / TUI
+Web / TUI
   |
   v
 Nginx Gateway / FastAPI
@@ -390,7 +390,6 @@ schemas
 
 ```text
 ARCHITECTURE.md
-docs/course/outline.md
 对应章节教程
 ```
 
@@ -411,6 +410,5 @@ backend/api/uv.lock
 涉及前端交互最终形态时，更新：
 
 ```text
-docs/course/outline.md
 相关章节教程
 ```

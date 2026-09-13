@@ -11,6 +11,7 @@ import type { StepView } from "./types";
 import {
   buildStepViews,
   buildToolObservation,
+  eventsForPlanWindow,
   getString,
   parsePlanPayload,
   parseToolOutput,
@@ -44,13 +45,17 @@ export function AgentRunBlock({
     const parsed = parsePlanPayload(planEvent.payload);
     return livePlan && livePlan.id === parsed.id ? livePlan : parsed;
   }, [livePlan, planEvent]);
+  const scopedEvents = useMemo(
+    () => eventsForPlanWindow(events, planEvent),
+    [events, planEvent],
+  );
   // 只认属于本次运行的终结事件：优先按 plan_id 匹配；
   // resume 重跑复用同一 plan_id，旧 run 的 task_error 会先命中，
   // 所以按 plan_id 匹配时必须取时间最晚的一条，而不是第一条；
   // 旧数据没有 plan_id 时退回时间窗（本计划之后、下一个计划之前），
   // 并排除直答路径的 task_done（mode=chat），避免旧任务卡吞掉新对话的结果。
   const finalEvent = useMemo(() => {
-    const terminals = events.filter(
+    const terminals = scopedEvents.filter(
       (event) => event.type === "task_done" || event.type === "task_error",
     );
     if (plan.id) {
@@ -61,25 +66,17 @@ export function AgentRunBlock({
         return byPlanId;
       }
     }
-    const nextPlanAt = events.find(
-      (event) =>
-        event.type === "plan_created" && event.created_at > planEvent.created_at,
-    )?.created_at;
     return (
       terminals.find(
-        (event) =>
-          event.created_at > planEvent.created_at &&
-          (!nextPlanAt || event.created_at < nextPlanAt) &&
-          getString(event.payload.mode) !== "chat",
+        (event) => getString(event.payload.mode) !== "chat",
       ) ?? null
     );
-  }, [events, plan.id, planEvent]);
-  const steps = useMemo(() => buildStepViews(plan, events), [events, plan]);
-  const runningStep = steps.find((step) => step.status === "running") ?? null;
+  }, [scopedEvents, plan.id]);
+  const steps = useMemo(() => buildStepViews(plan, scopedEvents), [scopedEvents, plan]);
   const failed = finalEvent?.type === "task_error";
   // 不用 steps.some(pending) 推断运行中——被中断的历史任务没有终结事件，
   // 会导致旧卡片永远转圈；执行态只信当前会话的 planning/executing。
-  const running = !finalEvent && (planning || executing || Boolean(runningStep));
+  const running = !finalEvent && (planning || executing);
   // 规划阶段的模型思考已随 plan_created 落库，这里提供事后回看。
   const planReasoning = getString(planEvent.payload.reasoning);
 
@@ -105,7 +102,7 @@ export function AgentRunBlock({
         </div>
       </div>
 
-      <ToolCallLog events={events} running={running} />
+      <ToolCallLog events={scopedEvents} running={running} />
 
       {finalEvent ? <FinalAnswer event={finalEvent} steps={steps} onRetry={onRetry} /> : null}
     </div>

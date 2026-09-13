@@ -99,12 +99,22 @@ class AgentRunState:
             or plan_revision < 0
         ):
             raise ValueError("plan_revision must be non-negative")
+        run_plan = RunPlan.from_payload(plan_payload)
+        step_count = len(run_plan.steps)
+        index = max(start_step_index, 0)
+        phase = AgentPhase.executing
+        # Resume after a summarize-phase failure reports every step as
+        # completed; starting at len(steps) IndexErrors in _execution_request.
+        # Skip straight to summarizing so the gate chain can run again.
+        if step_count and index >= step_count:
+            phase = AgentPhase.summarizing
+            index = step_count - 1
         return cls(
             session_id=session_id,
             run_id=run_id,
             plan_revision=plan_revision,
-            plan=RunPlan.from_payload(plan_payload),
-            phase=AgentPhase.executing,
-            step_index=start_step_index,
+            plan=run_plan,
+            phase=phase,
+            step_index=index,
             attempt=1,
         )

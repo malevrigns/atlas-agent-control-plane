@@ -18,7 +18,7 @@ services:
       sandbox:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,6 +53,8 @@ services:
       context: ./backend/api
     container_name: atlas-api
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       API_APP_NAME: ${API_APP_NAME:-AtlasAgent API}
       API_ENV: ${API_ENV:-development}
@@ -71,7 +73,15 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       AGENT_TASK_STREAM: ${AGENT_TASK_STREAM:-agent:tasks}
       AGENT_TASK_CONSUMER_GROUP: ${AGENT_TASK_CONSUMER_GROUP:-atlas-agent-runners}
-      AGENT_TASK_CLAIM_IDLE_MS: ${AGENT_TASK_CLAIM_IDLE_MS:-30000}
+      AGENT_TASK_CLAIM_IDLE_MS: ${AGENT_TASK_CLAIM_IDLE_MS:-900000}
+      RAG_VECTOR_BACKEND: ${RAG_VECTOR_BACKEND:-auto}
+      RAG_EMBEDDING_PROVIDER: ${RAG_EMBEDDING_PROVIDER:-auto}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      CONTEXT_SKILL_LIMIT: ${CONTEXT_SKILL_LIMIT:-3}
+      CONTEXT_SKILL_MAX_CHARS: ${CONTEXT_SKILL_MAX_CHARS:-2000}
+      CONTEXT_SKILL_MIN_SCORE: ${CONTEXT_SKILL_MIN_SCORE:-0.1}
       AGENT_TASK_MAX_CONCURRENCY: ${AGENT_TASK_MAX_CONCURRENCY:-4}
       AGENT_TASK_POLL_TIMEOUT_MS: ${AGENT_TASK_POLL_TIMEOUT_MS:-1000}
       CONTEXT_MESSAGE_LIMIT: ${CONTEXT_MESSAGE_LIMIT:-8}
@@ -215,7 +225,7 @@ services:
     networks:
       - atlas-network
     healthcheck:
-      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333 && echo -e \"GET /readyz HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q \"HTTP/1\" <&3'"]
       interval: 10s
       timeout: 5s
       retries: 5

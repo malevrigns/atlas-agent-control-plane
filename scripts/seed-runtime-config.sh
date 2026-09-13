@@ -19,7 +19,7 @@ done
 # 默认不覆盖已有运行时配置，避免把用户在设置页保存过的 LLM/MCP/A2A 配置冲掉。
 # 如果确实要重置，可以执行：OVERWRITE=true ./scripts/seed-runtime-config.sh
 OVERWRITE="${OVERWRITE:-false}"
-COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-atlas-agents}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-$(basename "${ROOT_DIR}")}"
 RUNTIME_CONFIG_VOLUME="${RUNTIME_CONFIG_VOLUME:-${COMPOSE_PROJECT_NAME}_api_runtime_config}"
 
 docker run --rm \

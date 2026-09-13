@@ -4,7 +4,6 @@ from app.application.agent_direct_chat_service import AgentDirectChatService
 from app.application.agent_execution_machine import AgentExecutionMachine
 from app.application.agent_loop import StepAgentLoop
 from app.application.agent_summary_service import AgentSummaryService
-from app.application.acceptance_gate_service import AcceptanceGateService
 from app.application.context_engineering_service import ContextEngineeringService
 from app.application.critic_service import CriticService
 from app.application.coverage_review_service import CoverageReviewService
@@ -64,11 +63,10 @@ def compose_agent_runtime(
         # ===== 长任务治理门禁链（顺序：验收命令 → 范围审计 → 覆盖度评审）=====
         # 只在配置开启时注入；plan 不带 acceptance/scope 字段时各级自然跳过。
         acceptance_gate=(
-            AcceptanceGateService(
-                uow,
-                AcceptanceGate(SubprocessCommandRunner()),
-                event_writer=uow.session_events,
-            )
+            # The machine calls AcceptanceGateProtocol.verify(); the
+            # application service wraps that with its own audit events.
+            # Inject the domain gate so summarize does not AttributeError.
+            AcceptanceGate(SubprocessCommandRunner())
             if settings.acceptance_gate_enabled
             else None
         ),
@@ -84,7 +82,7 @@ def compose_agent_runtime(
         ),
         scope_diff_provider=GitDiffProvider(),
         coverage_reviewer=(
-            CoverageReviewService(uow, model, event_writer=uow.session_events)
+            CoverageReviewService(uow, model, write_audit_event=False)
             if settings.coverage_review_enabled
             else None
         ),

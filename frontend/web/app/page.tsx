@@ -8,6 +8,7 @@ import type { MainView } from "./components/app-sidebar";
 import { ChatWorkspace } from "./components/chat-workspace";
 import { CommandPalette } from "./components/command-palette";
 import { KnowledgeWorkspace } from "./components/knowledge-workspace";
+import { ObservabilityPanel } from "./components/observability-panel";
 import { SettingsWorkspace } from "./components/settings-workspace";
 import { SkillsWorkspace } from "./components/skills-workspace";
 import { StatusBadge } from "./components/status-badge";
@@ -402,6 +403,7 @@ function WorkspaceHome() {
           >
             {activeView === "workspace" ? (
               <ChatWorkspace
+                key={workspace.selectedSessionId ?? "none"}
                 attachments={workspace.attachments}
                 clearingUnread={workspace.clearingUnread}
                 context={workspace.context}
@@ -449,6 +451,22 @@ function WorkspaceHome() {
             ) : null}
             {activeView === "knowledge" ? <KnowledgeWorkspace /> : null}
             {activeView === "skills" ? <SkillsWorkspace /> : null}
+            {activeView === "control-plane" ? (
+              <div className="mx-auto max-w-4xl">
+                <header className="mb-5">
+                  <div className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-(--accent)/80">
+                    Control Plane
+                  </div>
+                  <h1 className="text-3xl font-semibold text-(--text-1)">
+                    任务驾驶舱
+                  </h1>
+                  <p className="mt-2 text-sm text-(--text-4)">
+                    系统诊断、检查点与长程任务排查入口
+                  </p>
+                </header>
+                <ObservabilityPanel />
+              </div>
+            ) : null}
           </div>
         </section>
       </div>

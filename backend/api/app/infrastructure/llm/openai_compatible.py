@@ -23,29 +23,19 @@ class OpenAICompatibleClient:
         self.timeout_seconds = timeout_seconds
 
     async def chat(self, request: LLMChatRequest) -> LLMChatResult:
-        # ===================== 第2步：组装 /chat/completions 请求体 =====================
-        payload: dict[str, Any] = {
-            "model": request.model,
-            "messages": self._build_message_payloads(request.messages),
-            "temperature": request.temperature,
-            "max_tokens": request.max_tokens,
-        }
-        if request.tools:
-            payload["tools"] = request.tools
-        if request.tool_choice:
-            payload["tool_choice"] = request.tool_choice
+        payload = self.build_chat_payload(request, stream=False)
 
         # ===================== 第3步：向模型服务商发送 HTTP 请求 =====================
         try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                response = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                )
+            response = await self._http().post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=self.timeout_seconds,
+            )
         except httpx.HTTPError as exc:
             detail = str(exc).strip() or type(exc).__name__
             raise AppException(
@@ -122,17 +112,15 @@ class OpenAICompatibleClient:
             "max_tokens": max_tokens,
         }
         try:
-            async with httpx.AsyncClient(
-                timeout=timeout_seconds or self.timeout_seconds
-            ) as client:
-                response = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                )
+            response = await self._http().post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=timeout_seconds or self.timeout_seconds,
+            )
         except httpx.HTTPError as exc:
             raise AppException(
                 message=f"vision model request failed: {exc}",
@@ -165,27 +153,19 @@ class OpenAICompatibleClient:
         会先在 delta.reasoning_content 输出思考过程。`data: [DONE]` 表示结束。
         """
 
-        payload = {
-            "model": request.model,
-            "messages": self._build_message_payloads(request.messages),
-            "temperature": request.temperature,
-            "max_tokens": request.max_tokens,
-            "stream": True,
-        }
-        if request.extra_body:
-            payload.update(request.extra_body)
+        payload = self.build_chat_payload(request, stream=True)
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                async with client.stream(
-                    "POST",
-                    f"{self.base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                ) as response:
+            async with self._http().stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=self.timeout_seconds,
+            ) as response:
                     if response.status_code >= 400:
                         raise AppException(
                             message=f"LLM provider returned HTTP {response.status_code}",
@@ -219,6 +199,39 @@ class OpenAICompatibleClient:
                 code=502,
                 status_code=502,
             ) from exc
+
+    def _http(self) -> httpx.AsyncClient:
+        from app.infrastructure.http import http_client
+
+        return http_client()
+
+    def build_chat_payload(
+        self,
+        request: LLMChatRequest,
+        *,
+        stream: bool,
+    ) -> dict[str, Any]:
+        """Assemble the OpenAI-compatible chat body, including extra_body.
+
+        Non-stream ``chat()`` used to drop ``extra_body``, so thinking-mode
+        flags such as ``enable_thinking`` only reached the streaming path.
+        """
+
+        payload: dict[str, Any] = {
+            "model": request.model,
+            "messages": self._build_message_payloads(request.messages),
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+        }
+        if stream:
+            payload["stream"] = True
+        if request.tools:
+            payload["tools"] = request.tools
+        if request.tool_choice:
+            payload["tool_choice"] = request.tool_choice
+        if request.extra_body:
+            payload.update(request.extra_body)
+        return payload
 
     @staticmethod
     def _build_message_payload(message) -> dict[str, Any]:

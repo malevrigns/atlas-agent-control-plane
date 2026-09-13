@@ -108,6 +108,20 @@ function sleep(ms: number) {
   });
 }
 
+function isAbortError(error: unknown) {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError")
+  );
+}
+
+let activeStream: AbortController | null = null;
+
+function abortActiveStream() {
+  activeStream?.abort();
+  activeStream = null;
+}
+
 function getPresentationDelay(eventName: string) {
   // ===================== 第1步：给不同事件留出可感知的展示节奏 =====================
   // 这里不是伪造后端耗时，而是避免浏览器把 SSE 瞬间批量刷出，导致用户看不清执行顺序。
@@ -347,6 +361,7 @@ export const useSessionStore = create<SessionState & SessionActions>(
     },
 
     selectSession: (sessionId) => {
+      abortActiveStream();
       set({
         attachments: [],
         latestPlan: null,
@@ -355,6 +370,9 @@ export const useSessionStore = create<SessionState & SessionActions>(
         currentTask: null,
         selectedFile: null,
         selectedSessionId: sessionId,
+        sendingMessage: false,
+        planning: false,
+        executingPlan: false,
         ...initialDetailState,
       });
     },
@@ -403,7 +421,11 @@ export const useSessionStore = create<SessionState & SessionActions>(
           fetchSessionFiles(sessionId),
           fetchSessionContext(sessionId),
         ]);
+        if (get().selectedSessionId !== sessionId) {
+          return;
+        }
         set({
+          attachments: files,
           context: { type: "ready", data: context },
           events: { type: "ready", data: events },
           files: { type: "ready", data: files },
@@ -411,6 +433,9 @@ export const useSessionStore = create<SessionState & SessionActions>(
           messages: { type: "ready", data: messages },
         });
       } catch (error) {
+        if (get().selectedSessionId !== sessionId) {
+          return;
+        }
         const message = getErrorMessage(error);
         set({
           actionError: message,
@@ -426,6 +451,9 @@ export const useSessionStore = create<SessionState & SessionActions>(
       set({ actionError: null, context: { type: "loading" } });
       try {
         const context = await fetchSessionContext(sessionId);
+        if (get().selectedSessionId !== sessionId) {
+          return;
+        }
         set({ context: { type: "ready", data: context } });
       } catch (error) {
         const message = getErrorMessage(error);
@@ -454,7 +482,7 @@ export const useSessionStore = create<SessionState & SessionActions>(
       set({ actionError: null, submitting: true });
       try {
         const created = await createSession("新工作区", workspaceDir, fullAccess);
-        set({ selectedSessionId: created.id });
+        get().selectSession(created.id);
         await get().refreshSessions();
       } catch (error) {
         set({ actionError: getErrorMessage(error) });
@@ -480,7 +508,8 @@ export const useSessionStore = create<SessionState & SessionActions>(
         return;
       }
 
-      set({ actionError: null, stoppingSession: true });
+      abortActiveStream();
+      set({ actionError: null, stoppingSession: true, sendingMessage: false });
       try {
         const session = await stopSession(sessionId);
         set((state) => ({
@@ -536,6 +565,13 @@ export const useSessionStore = create<SessionState & SessionActions>(
         set({ actionError: "请输入消息内容" });
         return;
       }
+      if (get().sendingMessage) {
+        return;
+      }
+
+      abortActiveStream();
+      const controller = new AbortController();
+      activeStream = controller;
 
       set({
         actionError: null,
@@ -553,11 +589,17 @@ export const useSessionStore = create<SessionState & SessionActions>(
           sessionId,
           content,
           async (event) => {
+          if (controller.signal.aborted || get().selectedSessionId !== sessionId) {
+            return;
+          }
           // 零延迟事件（流式增量）不进定时器：后台标签页的 setTimeout
           // 会被浏览器钳制到 1 秒以上，逐字流会被拖成龟速。
           const presentationDelay = getPresentationDelay(event.event);
           if (presentationDelay > 0) {
             await sleep(presentationDelay);
+          }
+          if (controller.signal.aborted || get().selectedSessionId !== sessionId) {
+            return;
           }
 
           // 直接问答路径：answer_started 表示模型开始作答，
@@ -601,7 +643,9 @@ export const useSessionStore = create<SessionState & SessionActions>(
           set((state) => {
             const currentEvents =
               state.events.type === "ready" ? state.events.data : [];
-            const events = [...currentEvents, sessionEvent];
+            const events = currentEvents.some((item) => item.id === sessionEvent.id)
+              ? currentEvents
+              : [...currentEvents, sessionEvent];
             const currentMessages =
               state.messages.type === "ready" ? state.messages.data : [];
             const streamMessageItem = toChatMessageItem(sessionEvent);
@@ -642,22 +686,32 @@ export const useSessionStore = create<SessionState & SessionActions>(
           },
           skillIds,
           resume,
+          controller.signal,
         );
-        await Promise.all([
-          get().loadSessionDetail(sessionId, { silent: true }),
-          get().refreshSessions(),
-          get().loadSessionContext(sessionId),
-        ]);
+        if (get().selectedSessionId === sessionId) {
+          await Promise.all([
+            get().loadSessionDetail(sessionId, { silent: true }),
+            get().refreshSessions(),
+            get().loadSessionContext(sessionId),
+          ]);
+        }
       } catch (error) {
-        set({ actionError: getErrorMessage(error) });
+        if (!isAbortError(error) && get().selectedSessionId === sessionId) {
+          set({ actionError: getErrorMessage(error) });
+        }
       } finally {
-        set({
-          executingPlan: false,
-          liveAnswer: "",
-          liveThinking: "",
-          planning: false,
-          sendingMessage: false,
-        });
+        if (activeStream === controller) {
+          activeStream = null;
+        }
+        if (get().selectedSessionId === sessionId) {
+          set({
+            executingPlan: false,
+            liveAnswer: "",
+            liveThinking: "",
+            planning: false,
+            sendingMessage: false,
+          });
+        }
       }
     },
 

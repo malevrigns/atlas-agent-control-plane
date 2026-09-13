@@ -152,10 +152,13 @@ class CoverageReviewService:
         uow: UnitOfWork,
         llm_service: LLMService | None,
         event_writer=None,
+        *,
+        write_audit_event: bool = True,
     ) -> None:
         self._uow = uow
         self._llm_service = llm_service
         self._event_writer = event_writer or uow.session_events
+        self._write_audit_event = write_audit_event
 
     async def review(
         self,
@@ -177,7 +180,8 @@ class CoverageReviewService:
             result = await self._run_review(
                 plan, changed_files, test_files, test_case_names
             )
-        await self._write_finished_event(session_id, run_id, plan, result)
+        if self._write_audit_event:
+            await self._write_finished_event(session_id, run_id, plan, result)
         return result
 
     # ===================== 评审主流程 =====================

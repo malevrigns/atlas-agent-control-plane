@@ -2,7 +2,7 @@
 ![智能体开发实战教程封面](assets/agent-tutorial-cover.png)
 ## About this tutorial (English)
 
-This repository contains a **55-chapter, Chinese-language engineering tutorial** that builds a production-grade AI agent control plane from an empty directory — not by wiring up a framework, but by writing every layer yourself. Each chapter follows the same shape: goals, design motivation and trade-offs, complete runnable code (backend / frontend / config), and a verification step. You'll go from Docker Compose foundations through an isolated sandbox, RAG with cited answers, a skill registry, checkpoint-based recovery, and an auditable tool runtime, and finish with private deployment. It's written for developers who want to *build* an agent system end to end, and is best read in order. (The chapters themselves are in Chinese; English chapter titles are listed in the table of contents below.)
+This repository contains a **62-chapter, Chinese-language engineering tutorial** that builds a production-grade AI agent control plane from an empty directory — not by wiring up a framework, but by writing every layer yourself. Each chapter follows the same shape: goals, design motivation and trade-offs, complete runnable code (backend / frontend / config), and a verification step. You'll go from Docker Compose foundations through an isolated sandbox, RAG with cited answers, a skill registry, checkpoint-based recovery, and an auditable tool runtime, and finish with private deployment. It's written for developers who want to *build* an agent system end to end, and is best read in order. (The chapters themselves are in Chinese; English chapter titles are listed in the table of contents below.)
 
 ## 写在前面
 ​        项目的开始源于工作和学习的需要。有时候我在想，当今世界从 OpenClaw、Hermes、Claude Code、Codex 等 Agent 横空出世之后，强工具调用的 Agent 已经展现出极其强大的通用能力。它们会读代码，会调用命令，会搜索资料，会写页面，也会在某种程度上替人拆解问题。似乎人类在通往 AGI 的道路上确实迈出了一大步。
@@ -15,14 +15,14 @@ This repository contains a **55-chapter, Chinese-language engineering tutorial**
 
 ## 如何使用本教程
 
-​        本教程共 55 章（第 0 章到第五十六章，其中桌面客户端章节已随 Electron 移除），建议按顺序阅读。每一章的结构基本一致：
+​        本教程共 62 章（第 0 章到第六十三章；第 47、52 章随桌面客户端一并退役），建议按顺序阅读。每一章的结构基本一致：
 
 - **本章目标**：读完这一章你能做到什么。
 - **为什么需要这一章**：设计动机、架构取舍与常见坑。
 - **实现步骤**：分步给出后端 / 前端 / 配置的完整可运行代码。
 - **本章小结 / 验收**：如何确认这一章确实跑通。
 
-​        只要跟着 55 章走完，你就能从一个空目录，亲手搭出一个能规划任务、调用工具、观察结果并生成带证据最终回答的全栈 AI Agent 工作台，并学会把它升级为有认证、可恢复、可追溯、可审计，并且带 RAG 知识库与技能注册中心的 Control Plane。
+​        只要跟着 62 章走完，你就能从一个空目录，亲手搭出一个能规划任务、调用工具、观察结果并生成带证据最终回答的全栈 AI Agent 工作台，并学会把它升级为有认证、可恢复、可追溯、可审计，并且带 RAG 知识库与技能注册中心的 Control Plane。
 
 ​        最后四章（第五十三章到第五十六章）是一次面向真实使用的体验补完：把"什么都往流水线塞"的对话改造成能直接流式回答、能实时直播推理过程的 GPT 式体验，让知识库在每一轮问答里自动召回并带来源引用，给 Agent 补上读取真实网页正文并据此作答的能力，最后重塑对话界面的任务卡片、锚定滚动与主题体系。这四章的每一个改动都来自真实使用中被吐槽的问题，坑也都是踩过之后才写下来的。
 

@@ -78,6 +78,9 @@ class ToolRuntime:
             backoff_factor=settings.tool_retry_backoff_factor,
         )
         self._memory_idempotency: dict[tuple[str, str], ToolCallResult] = {}
+        # Parallel native tool calls share this runtime's AsyncSession.
+        # Serialize audit writes so gather() cannot flush the same session twice.
+        self._io_lock = asyncio.Lock()
 
     async def execute(
         self,
@@ -86,7 +89,10 @@ class ToolRuntime:
         context: ToolExecutionContext,
     ) -> ToolCallResult:
         """统一执行入口：权限、风险、幂等、超时、重试、降级、结果缓存与审计。"""
-        return await self._execute_one(tool_name, arguments, context, allow_fallback=True)
+        if self.uow is None:
+            return await self._execute_one(tool_name, arguments, context, allow_fallback=True)
+        async with self._io_lock:
+            return await self._execute_one(tool_name, arguments, context, allow_fallback=True)
 
     async def _execute_one(
         self,

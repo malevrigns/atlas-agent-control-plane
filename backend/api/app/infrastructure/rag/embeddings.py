@@ -61,21 +61,30 @@ class OpenAICompatibleEmbeddingClient:
         result = await self._embed_batch([text])
         return result[0]
 
+    async def _post_embeddings(self, payload: dict[str, object]) -> httpx.Response:
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        url = f"{self.base_url}/embeddings"
+        # Tests inject MockTransport; keep that path on a private client so
+        # they stay isolated from the process-wide connection pool.
+        if self._transport is not None:
+            async with httpx.AsyncClient(
+                timeout=self.timeout_seconds, transport=self._transport
+            ) as client:
+                return await client.post(url, headers=headers, json=payload)
+        from app.infrastructure.http import http_client
+
+        return await http_client().post(
+            url, headers=headers, json=payload, timeout=self.timeout_seconds
+        )
+
     async def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         # ===================== 第2步：组装 /embeddings 请求体 =====================
         payload: dict[str, object] = {"model": self.model_name, "input": texts}
         try:
-            async with httpx.AsyncClient(
-                timeout=self.timeout_seconds, transport=self._transport
-            ) as client:
-                response = await client.post(
-                    f"{self.base_url}/embeddings",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                )
+            response = await self._post_embeddings(payload)
         except httpx.HTTPError as exc:
             raise AppException(
                 message=f"embedding request failed: {exc}",

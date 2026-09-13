@@ -70,5 +70,21 @@ class SessionRunnerCompositionTest(unittest.TestCase):
         self.assertIs(args[0].db_session, db_session)
 
 
+class AgentRuntimeCompositionTest(unittest.TestCase):
+    def test_acceptance_gate_exposes_verify(self) -> None:
+        from unittest.mock import MagicMock
+
+        from app.application.agent_runtime_composition import compose_agent_runtime
+        from app.domain.acceptance.gate import AcceptanceGate
+
+        runtime = compose_agent_runtime(MagicMock())
+        gate = runtime.react_service._execution_machine._acceptance_gate
+        self.assertIsInstance(gate, AcceptanceGate)
+        self.assertTrue(callable(getattr(gate, "verify", None)))
+        reviewer = runtime.react_service._execution_machine._coverage_reviewer
+        self.assertIsNotNone(reviewer)
+        self.assertFalse(getattr(reviewer, "_write_audit_event"))
+
+
 if __name__ == "__main__":
     unittest.main()

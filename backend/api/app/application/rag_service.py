@@ -694,4 +694,3 @@ class RagService:
             return {}
         chunks = await getter(document_id)
         return {chunk.seq: chunk for chunk in chunks}
-        return terms

@@ -112,6 +112,29 @@ export function buildReasoningMap(
   return map;
 }
 
+/** Events that belong to one plan card: this plan_created through the next. */
+export function eventsForPlanWindow(
+  events: SessionEventItem[],
+  planEvent: SessionEventItem,
+): SessionEventItem[] {
+  const nextPlanAt = events.find(
+    (event) =>
+      event.type === "plan_created" && event.created_at > planEvent.created_at,
+  )?.created_at;
+  return events.filter((event) => {
+    if (event.id === planEvent.id) {
+      return true;
+    }
+    if (event.created_at < planEvent.created_at) {
+      return false;
+    }
+    if (nextPlanAt && event.created_at >= nextPlanAt) {
+      return false;
+    }
+    return true;
+  });
+}
+
 export function parsePlanPayload(payload: Record<string, unknown>): AgentPlan {
   const steps = Array.isArray(payload.steps) ? payload.steps : [];
   return {
