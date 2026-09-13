@@ -43,6 +43,28 @@ jobs:
       - name: Startup configuration tests
         run: python -m unittest discover -s tests -v
 
+  api-ts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: backend/api-ts/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: backend/api-ts/pnpm-lock.yaml
+      - name: Install
+        working-directory: backend/api-ts
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        working-directory: backend/api-ts
+        run: pnpm typecheck
+      - name: Tests
+        working-directory: backend/api-ts
+        run: pnpm test
+
   ui:
     runs-on: ubuntu-latest
     steps:

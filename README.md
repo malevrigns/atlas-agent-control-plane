@@ -101,7 +101,8 @@ More: [Memory & Tool Control Plane](docs/MEMORY_TOOL_CONTROL_PLANE.md) · [RAG &
 
 | Module | Command |
 | --- | --- |
-| API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` |
+| API (Python, current default) | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` |
+| API (TypeScript, in progress) | `cd backend/api-ts && pnpm install && pnpm dev` — [docs/TYPESCRIPT_RUNTIME.md](docs/TYPESCRIPT_RUNTIME.md) |
 | Web | `cd frontend/web && pnpm install && pnpm dev` |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` |
 | Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 127.0.0.1:8100:8100 -e SANDBOX_AUTH_ENABLED=true atlas-sandbox` |
@@ -122,7 +123,8 @@ atlas-agent-control-plane/
 │   ├── web/        Next.js client (PWA)
 │   └── tui/        Textual terminal client
 ├── backend/
-│   ├── api/        FastAPI control plane · migrations · unit tests
+│   ├── api/        FastAPI control plane (current default)
+│   ├── api-ts/     TypeScript/Hono rewrite in progress
 │   └── sandbox/    Isolated files / shell / browser / VNC
 ├── docs/           Deep-dive documentation
 ├── tutorial/       62-chapter engineering tutorial (62,000+ lines)
@@ -217,7 +219,8 @@ curl -H "X-Atlas-API-Key: ${ATLAS_KEY}" \
 
 | 模块 | 命令 |
 | --- | --- |
-| API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` |
+| API（Python，当前默认） | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` |
+| API（TypeScript，进行中） | `cd backend/api-ts && pnpm install && pnpm dev` — [docs/TYPESCRIPT_RUNTIME.md](docs/TYPESCRIPT_RUNTIME.md) |
 | Web | `cd frontend/web && pnpm install && pnpm dev` |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` |
 | Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 127.0.0.1:8100:8100 -e SANDBOX_AUTH_ENABLED=true atlas-sandbox` |
@@ -234,7 +237,8 @@ atlas-agent-control-plane/
 │   ├── web/        Next.js 客户端（PWA）
 │   └── tui/        Textual 终端客户端
 ├── backend/
-│   ├── api/        FastAPI 控制平面 · 迁移 · 单元测试
+│   ├── api/        FastAPI 控制平面（当前默认）
+│   ├── api-ts/     TypeScript / Hono 重写（进行中）
 │   └── sandbox/    文件 / Shell / 浏览器 / VNC 隔离执行
 ├── docs/           专题深潜文档
 ├── tutorial/       62 章中文工程教程（62000+ 行）
