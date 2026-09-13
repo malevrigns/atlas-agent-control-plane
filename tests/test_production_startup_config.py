@@ -22,16 +22,20 @@ class ProductionStartupConfigTest(unittest.TestCase):
         self.assertIn("docker compose down", stop_script.read_text(encoding="utf-8"))
         self.assertIn("docker compose up -d", start_ps1.read_text(encoding="utf-8"))
 
-    def test_api_container_runs_start_script_with_migrations(self) -> None:
-        dockerfile = (ROOT / "backend" / "api" / "Dockerfile").read_text(encoding="utf-8")
-        start_script = (
-            ROOT / "backend" / "api" / "scripts" / "start.sh"
-        ).read_text(encoding="utf-8")
+    def test_api_container_is_typescript(self) -> None:
+        dockerfile = (ROOT / "backend" / "api-ts" / "Dockerfile").read_text(encoding="utf-8")
+        compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        self.assertIn("FROM node:22-alpine", dockerfile)
+        self.assertIn('CMD ["pnpm", "start"]', dockerfile)
+        self.assertIn("context: ./backend/api-ts", compose)
+        self.assertIn("fetch('http://127.0.0.1:8000/api/status')", compose)
 
-        self.assertIn("COPY scripts ./scripts", dockerfile)
-        self.assertIn('CMD ["./scripts/start.sh"]', dockerfile)
-        self.assertIn("alembic upgrade head", start_script)
-        self.assertIn("uvicorn app.main:app", start_script)
+    def test_sandbox_container_is_typescript(self) -> None:
+        dockerfile = (ROOT / "backend" / "sandbox-ts" / "Dockerfile").read_text(encoding="utf-8")
+        compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        self.assertIn("FROM node:22-bookworm-slim", dockerfile)
+        self.assertIn("context: ./backend/sandbox-ts", compose)
+        self.assertIn("fetch('http://127.0.0.1:8100/api/status')", compose)
 
     def test_nginx_has_stream_websocket_and_upload_rules(self) -> None:
         config = (ROOT / "nginx" / "default.conf").read_text(encoding="utf-8")
@@ -60,20 +64,13 @@ class ProductionStartupConfigTest(unittest.TestCase):
         self.assertIn("SANDBOX_AUTH_ENABLED", compose)
         self.assertIn("--maxmemory-policy noeviction", compose)
 
-    def test_quickstart_runs_migrations_and_needs_no_external_services(self) -> None:
-        """零依赖入口必须真的零依赖，且和生产走同一条迁移链。
-
-        README 承诺「只要 Python」，这是新用户看到的第一件事。如果哪天有
-        人往这个脚本里加了 docker compose 调用，承诺就悄悄断了。
-        """
-
-        script = (ROOT / "scripts" / "quickstart.py").read_text(encoding="utf-8")
-
-        self.assertIn("sqlite+aiosqlite", script)
-        self.assertIn('"AGENT_TASK_BACKEND": "local"', script)
-        self.assertIn('"alembic", "upgrade", "head"', script)
-        self.assertIn("uvicorn", script)
+    def test_quickstart_is_node_and_needs_no_external_services(self) -> None:
+        script = (ROOT / "scripts" / "quickstart-ts.mjs").read_text(encoding="utf-8")
+        self.assertIn("backend", script)
+        self.assertIn("api-ts", script)
+        self.assertIn("pnpm", script)
         self.assertNotIn("docker compose", script)
+        self.assertNotIn("uvicorn", script)
 
 
 if __name__ == "__main__":

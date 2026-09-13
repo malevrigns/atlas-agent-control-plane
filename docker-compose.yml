@@ -50,12 +50,14 @@ services:
 
   api:
     build:
-      context: ./backend/api
+      context: ./backend/api-ts
     container_name: atlas-api
     restart: unless-stopped
     env_file:
       - .env
     environment:
+      HOST: 0.0.0.0
+      PORT: 8000
       API_APP_NAME: ${API_APP_NAME:-AtlasAgent API}
       API_ENV: ${API_ENV:-development}
       API_VERSION: ${API_VERSION:-0.1.0}
@@ -68,7 +70,7 @@ services:
       MCP_CONFIG_PATH: ${MCP_CONFIG_PATH:-runtime-config/mcp.yaml}
       A2A_CONFIG_PATH: ${A2A_CONFIG_PATH:-runtime-config/a2a.yaml}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      DATABASE_URL: ${DATABASE_URL:?Run scripts/start.sh to generate DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/atlas.db}
       DATABASE_ECHO: ${DATABASE_ECHO:-false}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       AGENT_TASK_STREAM: ${AGENT_TASK_STREAM:-agent:tasks}
@@ -126,17 +128,13 @@ services:
       - api_uploads:/app/uploads
       - api_artifacts:/app/artifacts
       - api_runtime_config:/app/runtime-config
+      - api_data:/app/data
     expose:
       - "8000"
     networks:
       - atlas-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/status').read()"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8000/api/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -144,7 +142,7 @@ services:
 
   sandbox:
     build:
-      context: ./backend/sandbox
+      context: ./backend/sandbox-ts
     container_name: atlas-sandbox
     restart: unless-stopped
     environment:
@@ -152,6 +150,8 @@ services:
       SANDBOX_ENV: ${SANDBOX_ENV:-development}
       SANDBOX_VERSION: ${SANDBOX_VERSION:-0.1.0}
       SANDBOX_API_PREFIX: ${SANDBOX_API_PREFIX:-/api}
+      HOST: 0.0.0.0
+      PORT: 8100
       SANDBOX_AUTH_ENABLED: ${SANDBOX_AUTH_ENABLED:-true}
       ATLAS_API_KEY: ${ATLAS_API_KEY:?Run scripts/start.sh to generate ATLAS_API_KEY}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -184,7 +184,7 @@ services:
     networks:
       - atlas-network
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/api/status').read()"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8100/api/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -253,6 +253,7 @@ volumes:
   api_uploads:
   api_artifacts:
   api_runtime_config:
+  api_data:
   sandbox_workspace:
   postgres_data:
   qdrant_data:

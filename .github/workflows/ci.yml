@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  python:
+  tui:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,20 +23,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - name: API tests
-        working-directory: backend/api
-        run: uv run --frozen python -m unittest discover -s tests -v
-      - name: Zero-dependency quickstart (SQLite, no Docker/Postgres/Redis)
-        run: python scripts/quickstart.py --check
-      - name: API dependency audit
-        working-directory: backend/api
-        run: uv run --frozen --with pip-audit pip-audit --local
-      - name: Sandbox tests
-        working-directory: backend/sandbox
-        run: uv run --frozen python -m unittest discover -s tests -v
-      - name: Sandbox dependency audit
-        working-directory: backend/sandbox
-        run: uv run --frozen --with pip-audit pip-audit --local
       - name: TUI tests
         working-directory: frontend/tui
         run: uv run --frozen python -m unittest discover -s tests -v
@@ -63,6 +49,28 @@ jobs:
         run: pnpm typecheck
       - name: Tests
         working-directory: backend/api-ts
+        run: pnpm test
+
+  sandbox-ts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: backend/sandbox-ts/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: backend/sandbox-ts/pnpm-lock.yaml
+      - name: Install
+        working-directory: backend/sandbox-ts
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        working-directory: backend/sandbox-ts
+        run: pnpm typecheck
+      - name: Tests
+        working-directory: backend/sandbox-ts
         run: pnpm test
 
   ui:

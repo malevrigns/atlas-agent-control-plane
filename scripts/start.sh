@@ -55,8 +55,8 @@ if [[ -z "${POSTGRES_SECRET}" || "${POSTGRES_SECRET}" == "change-me" ]]; then
 fi
 
 DATABASE_URL_VALUE="$(sed -n 's/^DATABASE_URL=//p' .env | tail -n 1)"
-if [[ -z "${DATABASE_URL_VALUE}" || "${DATABASE_URL_VALUE}" == *":change-me@postgres:5432/atlas_agents" ]]; then
-  upsert_env DATABASE_URL "postgresql+asyncpg://postgres:${POSTGRES_SECRET}@postgres:5432/atlas_agents"
+if [[ -z "${DATABASE_URL_VALUE}" || "${DATABASE_URL_VALUE}" == postgresql* || "${DATABASE_URL_VALUE}" == *":change-me@postgres:5432/atlas_agents" ]]; then
+  upsert_env DATABASE_URL "file:/app/data/atlas.db"
 fi
 
 # ===================== 第3步：按需选择是否重新构建镜像 =====================

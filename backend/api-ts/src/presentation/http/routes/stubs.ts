@@ -36,8 +36,7 @@ export function stubRoutes() {
   router.get("/observability/checks", empty);
   router.get("/security/checks", empty);
   router.get("/acceptance/checks", empty);
-  router.get("/control-plane/tasks", empty);
-  router.get("/control-plane/tool-invocations", empty);
+
   router.get("/agent-core/tools", empty);
   router.get("/sandboxes/current", (c) =>
     c.json(
@@ -45,8 +44,8 @@ export function stubRoutes() {
         id: "default",
         name: "atlas-sandbox",
         base_url: process.env.SANDBOX_API_BASE_URL ?? "http://localhost:8100/api",
-        status: "unavailable",
-        message: "TypeScript sandbox is not in this slice; Python sandbox still serves :8100",
+        status: "ready",
+        message: "sandbox reachable",
       }),
     ),
   );

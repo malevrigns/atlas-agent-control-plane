@@ -88,12 +88,29 @@ export const sessionFiles = sqliteTable(
   }),
 );
 
+export const agentTasks = sqliteTable("agent_tasks", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id"),
+  projectId: text("project_id").notNull().default("default"),
+  title: text("title").notNull(),
+  goal: text("goal").notNull().default(""),
+  status: text("status").notNull().default("pending"),
+  version: integer("version").notNull().default(1),
+  stateHash: text("state_hash").notNull().default(""),
+  progress: text("progress", { mode: "json" })
+    .notNull()
+    .$type<{ done: string[]; doing: string[]; blocked: string[] }>(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const schema = {
   sessions,
   sessionMessages,
   sessionEvents,
   files,
   sessionFiles,
+  agentTasks,
 };
 
 export const SQLITE_DDL = `
@@ -151,4 +168,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_session_files_session_file
   ON session_files (session_id, file_id);
 CREATE INDEX IF NOT EXISTS ix_session_files_session_created
   ON session_files (session_id, created_at);
-`;
+
+CREATE TABLE IF NOT EXISTS agent_tasks (
+  id TEXT PRIMARY KEY,
+  session_id TEXT,
+  project_id TEXT NOT NULL DEFAULT 'default',
+  title TEXT NOT NULL,
+  goal TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending',
+  version INTEGER NOT NULL DEFAULT 1,
+  state_hash TEXT NOT NULL DEFAULT '',
+  progress TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+`

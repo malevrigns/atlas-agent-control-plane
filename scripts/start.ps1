@@ -52,8 +52,8 @@ if ([string]::IsNullOrWhiteSpace($postgresSecret) -or $postgresSecret -eq "chang
 }
 
 $databaseUrl = Get-EnvValue "DATABASE_URL"
-if ([string]::IsNullOrWhiteSpace($databaseUrl) -or $databaseUrl -like "*:change-me@postgres:5432/atlas_agents") {
-    Set-EnvValue "DATABASE_URL" "postgresql+asyncpg://postgres:${postgresSecret}@postgres:5432/atlas_agents"
+if ([string]::IsNullOrWhiteSpace($databaseUrl) -or $databaseUrl -like "postgresql*" -or $databaseUrl -like "*:change-me@postgres:5432/atlas_agents") {
+    Set-EnvValue "DATABASE_URL" "file:/app/data/atlas.db"
 }
 
 $build = $env:BUILD -eq "true"

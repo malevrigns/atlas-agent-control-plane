@@ -11,6 +11,7 @@ import { authRoutes } from "./presentation/http/routes/auth.js";
 import { fileRoutes } from "./presentation/http/routes/files.js";
 import { sessionRoutes } from "./presentation/http/routes/sessions.js";
 import { statusRoutes } from "./presentation/http/routes/status.js";
+import { controlPlaneRoutes } from "./presentation/http/routes/control-plane.js";
 import { stubRoutes } from "./presentation/http/routes/stubs.js";
 
 export type AppEnv = {
@@ -71,6 +72,7 @@ export function createApp(settings: Settings, db: Database) {
   api.route("/status", statusRoutes(settings, db));
   api.route("/sessions", sessionRoutes(sessions, files, settings));
   api.route("/files", fileRoutes(files));
+  api.route("/control-plane", controlPlaneRoutes(db));
   api.route("/", stubRoutes());
   app.route(settings.apiPrefix, api);
   return app;

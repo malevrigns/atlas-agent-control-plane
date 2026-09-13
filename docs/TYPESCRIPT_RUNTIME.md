@@ -12,7 +12,7 @@ The production control plane is being rewritten from FastAPI to **Hono + Drizzle
 | `app/infrastructure` | `src/infrastructure` |
 | Alembic | Drizzle schema + `SQLITE_DDL` (same table names) |
 
-Python remains the compose default until later phases port the agent machine, RAG, and sandbox. The TypeScript API already covers:
+Compose, quickstart, and CI now run the TypeScript API and sandbox. The TypeScript API already covers:
 
 - `GET /api/status`, `GET /api/status/database`
 - `POST/DELETE /api/auth/session`, `GET /api/auth/check` (204)
@@ -42,4 +42,4 @@ Point the web app at it with `API_PROXY_URL=http://127.0.0.1:8000/api/:path*` (o
 
 ## What is not in this slice
 
-Tool runtime, agent execution machine, acceptance gates, RAG, memory lifecycle, skills, MCP/A2A, and the sandbox service are still Python. Stub routes return empty `{ items: [] }` so the workbench does not 404 while those land.
+Tool runtime, the full agent execution machine, acceptance gates, RAG, memory lifecycle, skills, and MCP/A2A are still being ported. Those routes currently return empty `{ items: [] }` so the workbench does not 404. The sandbox HTTP API (files / shell / VNC status) is TypeScript.

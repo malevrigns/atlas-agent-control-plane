@@ -12,8 +12,8 @@ Thank you for considering a contribution to AtlasAgent. This guide covers develo
 Prerequisites:
 
 - Git, Docker, and Docker Compose v2
-- Python 3.11+ with [uv](https://docs.astral.sh/uv/) (backend / sandbox)
-- Node.js 20+ with pnpm (web frontend)
+- Node.js 22+ with pnpm (API, sandbox, web)
+- Python 3.11+ with [uv](https://docs.astral.sh/uv/) (TUI only)
 - An OpenAI-compatible LLM API key (optional — demo mode works without one)
 
 Option 1 — full stack with Docker:
@@ -31,10 +31,10 @@ docker compose up -d postgres redis
 
 | Module | Command | Default address / behavior |
 | --- | --- | --- |
-| API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` | `http://localhost:8000` |
+| API | `cd backend/api-ts && pnpm install && pnpm dev` | `http://localhost:8000` |
 | Web | `cd frontend/web && pnpm install && pnpm dev` | `http://localhost:3000` |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` | Falls back to demo mode when the backend is unreachable |
-| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 127.0.0.1:8100:8100 -p 127.0.0.1:6080:6080 -e SANDBOX_AUTH_ENABLED=true atlas-sandbox` | `http://127.0.0.1:8100` |
+| Sandbox | `cd backend/sandbox-ts && pnpm install && pnpm dev` | `http://127.0.0.1:8100` |
 
 ### 2. Running the checks
 
@@ -42,8 +42,10 @@ Run the checks for every module you touched before opening a PR:
 
 ```bash
 # Backend tests
-cd backend/api
-uv run python -m unittest discover -s tests
+cd backend/api-ts
+pnpm test
+cd ../sandbox-ts
+pnpm test
 
 # TUI tests
 cd ../../frontend/tui
@@ -105,8 +107,8 @@ docs(README): add English section and star guidance
 前置条件：
 
 - Git、Docker 与 Docker Compose v2
-- Python 3.11+ 与 [uv](https://docs.astral.sh/uv/)（后端 / 沙箱）
-- Node.js 20+ 与 pnpm（Web 前端）
+- Node.js 22+ 与 pnpm（API、沙箱、Web）
+- Python 3.11+ 与 [uv](https://docs.astral.sh/uv/)（仅 TUI）
 - 一个 OpenAI 兼容的大模型 API Key（可选——不配置也能跑演示模式）
 
 方式一 —— Docker 起全套：
@@ -124,10 +126,10 @@ docker compose up -d postgres redis
 
 | 模块 | 启动命令 | 默认地址 / 行为 |
 | --- | --- | --- |
-| API | `cd backend/api && uv sync && uv run uvicorn app.main:app --reload` | `http://localhost:8000` |
+| API | `cd backend/api-ts && pnpm install && pnpm dev` | `http://localhost:8000` |
 | Web | `cd frontend/web && pnpm install && pnpm dev` | `http://localhost:3000` |
 | TUI | `cd frontend/tui && uv sync && ATLAS_API_URL=http://localhost:8000 uv run atlas-tui` | 后端不可达时自动进入演示模式 |
-| Sandbox | `cd backend/sandbox && docker build -t atlas-sandbox . && docker run -d -p 127.0.0.1:8100:8100 -p 127.0.0.1:6080:6080 -e SANDBOX_AUTH_ENABLED=true atlas-sandbox` | `http://127.0.0.1:8100` |
+| Sandbox | `cd backend/sandbox-ts && pnpm install && pnpm dev` | `http://127.0.0.1:8100` |
 
 ### 2. 运行检查
 
@@ -135,8 +137,10 @@ docker compose up -d postgres redis
 
 ```bash
 # 后端测试
-cd backend/api
-uv run python -m unittest discover -s tests
+cd backend/api-ts
+pnpm test
+cd ../sandbox-ts
+pnpm test
 
 # TUI 测试
 cd ../../frontend/tui
