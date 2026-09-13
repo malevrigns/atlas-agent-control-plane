@@ -1,5 +1,7 @@
 # 第十四章. AgentTaskRunner 与 Redis Stream 任务流转
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 > **最终实现修订：**本章前半先用单消费者 `XREAD` 解释后台任务模型；本章后半再把它升级为 Redis Consumer Group、pending reclaim、ACK 和真实协程取消。不要把教学过程中的 `$` 起点实现直接用于生产。
 
 ## 14.1 本章目标

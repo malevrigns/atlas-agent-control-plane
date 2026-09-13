@@ -1,5 +1,7 @@
 # 第十九章. VNC 远程桌面与工具预览
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 19.1 VNC 远程桌面临场
 
 ### 19.1.1 本节目标

@@ -1,5 +1,7 @@
 # 第十三章. PlannerAgent 与 ReActAgent 执行闭环
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 13.1 PlannerAgent 任务运筹
 
 ### 13.1.1 本节目标

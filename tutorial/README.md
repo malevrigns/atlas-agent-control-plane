@@ -2,14 +2,14 @@
 ![智能体开发实战教程封面](assets/agent-tutorial-cover.png)
 ## About this tutorial (English)
 
-This repository contains a **62-chapter, Chinese-language engineering tutorial** that builds a production-grade AI agent control plane from an empty directory — not by wiring up a framework, but by writing every layer yourself. Each chapter follows the same shape: goals, design motivation and trade-offs, complete runnable code (backend / frontend / config), and a verification step. You'll go from Docker Compose foundations through an isolated sandbox, RAG with cited answers, a skill registry, checkpoint-based recovery, and an auditable tool runtime, and finish with private deployment. It's written for developers who want to *build* an agent system end to end, and is best read in order. (The chapters themselves are in Chinese; English chapter titles are listed in the table of contents below.)
+This repository contains a **62-chapter, Chinese-language engineering tutorial** that builds a production-grade AI agent control plane from an empty directory. The **current runtime is TypeScript** (`backend/api-ts` on Hono + Drizzle, `backend/sandbox-ts` for the isolated executor). Early chapters still narrate the original design evolution; when you type code, follow the TypeScript trees, not FastAPI. Each chapter follows the same shape: goals, design motivation and trade-offs, runnable code, and a verification step. (The chapters themselves are in Chinese; English chapter titles are listed in the table of contents below.)
 
 ## 写在前面
 ​        项目的开始源于工作和学习的需要。有时候我在想，当今世界从 OpenClaw、Hermes、Claude Code、Codex 等 Agent 横空出世之后，强工具调用的 Agent 已经展现出极其强大的通用能力。它们会读代码，会调用命令，会搜索资料，会写页面，也会在某种程度上替人拆解问题。似乎人类在通往 AGI 的道路上确实迈出了一大步。
 ​        笔者第一次部署 OpenClaw 时，它带给我的体验是前所未有的。但问题也随之而来：这些通用 Agent 已经这么强大了，我们还有没有必要从零开发一个新的智能体？这个问题困扰了笔者很久。后来笔者慢慢有了答案：做自己领域的垂类 Agent，和使用通用 Agent，并不冲突。通用 Agent 像一把通用刀，而垂类 Agent 更像一台已经按业务流程装配好的机器。前者解决广泛问题，后者解决稳定场景。
 ​        也正因如此，才有了这次实践记录。笔者很少写文档，不过这次还是想把开发过程中的问题、架构取舍和一些不成熟的技术思考记录下来。纵使这个时代资料多如繁星，我也希望自己的思考能在这个时代留下痕迹。
 ​        项目开始之前，笔者先简要说一下技术栈。笔者素来推崇前沿技术，当然这多少有点激进，因为前沿技术在生态完备性和工程成熟度上总会有所欠缺。笔者喜欢 Rust 给人的安全感，也喜欢 Go 天然高并发的通畅。可惜这次实践并不以炫技为目的，而是要把一个完整的 AI Agent 工作台从零搭出来，所以笔者会更看重工程闭环：后端、前端、数据库、消息流、沙箱、工具、部署，都要能跑起来。
-​        本项目可以概括为一个全栈 AI Agent 工作台。它不是一个只接 LLM 接口的聊天壳，也不是一个提示词页面，而是一个能围绕任务进行规划、执行、调用工具、观察结果、形成最终回答的系统。它包含 FastAPI、SQLAlchemy、Alembic、PostgreSQL、Redis、Next.js、Textual、Nginx、Docker Compose、Sandbox、Playwright、VNC、MCP、A2A、多 Agent 编排、类型化长期记忆、RAG 知识库、Skill 注册中心、Checkpoint DAG 以及可审计 Tool Runtime。
+​        本项目可以概括为一个全栈 AI Agent 工作台。它不是一个只接 LLM 接口的聊天壳，也不是一个提示词页面，而是一个能围绕任务进行规划、执行、调用工具、观察结果、形成最终回答的系统。**现行实现是 TypeScript**：控制平面是 Hono + Drizzle（`backend/api-ts`），沙箱是 Hono（`backend/sandbox-ts`），客户端仍是 Next.js PWA 与 Textual TUI，网关是 Nginx，编排是 Docker Compose。后面各章里如果还出现 FastAPI / uvicorn / uv，那是演进过程的记录，动手请以 TypeScript 目录为准。
 ​        言归正传，下面进入真正的项目初始化。本文后续统一把项目称为 AtlasAgent，名字不重要，重要的是我们要亲手把它从一堆目录变成一个能执行任务的 Agent 产品。
 ![全栈多 Agent 架构图](assets/agent-workbench-architecture.png)
 
@@ -22,7 +22,7 @@ This repository contains a **62-chapter, Chinese-language engineering tutorial**
 - **实现步骤**：分步给出后端 / 前端 / 配置的完整可运行代码。
 - **本章小结 / 验收**：如何确认这一章确实跑通。
 
-​        只要跟着 62 章走完，你就能从一个空目录，亲手搭出一个能规划任务、调用工具、观察结果并生成带证据最终回答的全栈 AI Agent 工作台，并学会把它升级为有认证、可恢复、可追溯、可审计，并且带 RAG 知识库与技能注册中心的 Control Plane。
+​        只要跟着 62 章走完，你就能从一个空目录，亲手搭出一个能规划任务、调用工具、观察结果并生成带证据最终回答的全栈 AI Agent 工作台。对照仓库时请打开 `backend/api-ts` 与 `backend/sandbox-ts`，不要再新建 Python 服务。
 
 ​        最后四章（第五十三章到第五十六章）是一次面向真实使用的体验补完：把"什么都往流水线塞"的对话改造成能直接流式回答、能实时直播推理过程的 GPT 式体验，让知识库在每一轮问答里自动召回并带来源引用，给 Agent 补上读取真实网页正文并据此作答的能力，最后重塑对话界面的任务卡片、锚定滚动与主题体系。这四章的每一个改动都来自真实使用中被吐槽的问题，坑也都是踩过之后才写下来的。
 
@@ -52,27 +52,31 @@ atlas-agent/
 
 | 层 | 技术 |
 | --- | --- |
-| 后端 API | FastAPI · SQLAlchemy · Alembic · PostgreSQL + pgvector · Redis · Qdrant（可选） |
+| 后端 API | **TypeScript · Hono · Drizzle · SQLite**（`backend/api-ts`） |
 | 客户端 | Next.js Web（PWA） · Textual TUI |
-| 沙箱 | FastAPI · Playwright · Xvfb + noVNC 远程桌面 |
+| 沙箱 | **TypeScript · Hono** · Xvfb + noVNC（`backend/sandbox-ts`） |
 | Agent 能力 | 规划 / ReAct · 直答分流 · 流式推理直播 · 类型化记忆 · RAG 知识库与自动召回 · 网页正文读取 · Skill 注册中心 · Checkpoint DAG · 可审计 Tool Runtime · MCP / A2A |
 | 部署 | Nginx 网关 · Docker Compose · 私有化交付 |
 
+路径对照见 [docs/TYPESCRIPT_RUNTIME.md](../docs/TYPESCRIPT_RUNTIME.md)。
+
 ### 环境准备
 
-- Docker 与 Docker Compose（一键起全套基础设施）
-- Node.js 20+ 与 pnpm（前端）
-- Python 3.11+ 与 uv（后端 / 沙箱）
-- 一个 OpenAI 兼容的大模型 API Key（默认接入 DeepSeek，可在 `backend/api/config/llm.yaml` 中改成任意 OpenAI 兼容服务）
-- 可选：一个 OpenAI 兼容的 embedding API Key（供第五十章 RAG 使用；不配置时自动降级为本地哈希向量，全链路仍可跑通）
+- Docker 与 Docker Compose（一键起全套）
+- **Node.js 22+ 与 pnpm**（API、沙箱、Web）
+- Python 3.11+ 与 uv **仅用于 TUI**
+- 一个 OpenAI 兼容的大模型 API Key（可选；不配则走离线直答）
 
 ### 快速跑通最终项目
 
 ```bash
-cd ../atlas-agents-source/chapters/atlas-agents-67
-cp .env.example .env          # 在 .env 里填入 LLM_API_KEY
-BUILD=true ./scripts/start.sh # 首次构建并启动 nginx / ui / api / sandbox / postgres / redis
-# 之后再启动只需 ./scripts/start.sh
+# 本仓库根目录，不要再跑 python scripts/quickstart.py
+cd backend/api-ts && pnpm install && pnpm dev
+
+# 全套（Web + API + Sandbox + Nginx）
+cp .env.example .env
+BUILD=true ./scripts/start.sh        # Git Bash / WSL
+# Windows: $env:BUILD="true"; ./scripts/start.ps1
 ```
 
 > 网关默认只绑定 `127.0.0.1`。启动脚本会生成 API Key；打开 Web 后输入终端打印的 Key，脚本不会把密钥写入浏览器存储。

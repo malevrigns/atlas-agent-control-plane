@@ -1,5 +1,7 @@
 # 第十一章. 应用配置与 LLM 客户端就位
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 11.1 本章目标
 ​        前面的章节已经完成会话、消息、事件、文件和存储边界，但系统还没有真正调用大模型。也就是说，用户发出的消息目前只是被保存下来，还没有进入智能体的推理链路。本章开始补上这条最核心的能力：让后端具备读取 LLM 配置、检查密钥、调用 OpenAI 兼容接口并返回模型内容的基础。
 ​        本章不会急着把 LLM 接入会话流，也不会做 Agent 工具调用。我们先把配置和客户端打稳：YAML 保存 provider、model、temperature、max_tokens 和 base_url 这类非敏感结构化配置，环境变量保存真实 API Key；应用服务负责读取配置并创建客户端；路由只暴露配置查询和最小聊天调用接口。这样后续接入 Agent Runner 时，模型调用能力已经有了清楚边界。

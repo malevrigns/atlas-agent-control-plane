@@ -1,12 +1,14 @@
 # 第三章. 后端 API 与通用模块奠基
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 3.1 后端 API 最小服务初成
 
 ### 3.1.1 本节目标
 
 ​        从这一阶段开始，项目不再只是目录和基础设施，而是第一次拥有一个真正能被访问的后端入口。笔者希望读者在这一阶段里先建立一种工程直觉：一个后端服务并不是从复杂业务开始的，它首先要能稳定启动，要能读到自己的配置，要能把路由挂到统一入口下面，还要能提供一个最小但可靠的状态检查接口。只有这个入口站稳了，后面的数据库、会话、流式事件、Agent 调度和工具系统才有地方接入。
 
-​        本节的目标不是一次性把 API 做完整，而是把 FastAPI 服务的骨架搭出来。你会看到 `create_app()` 如何创建应用，`api_router` 如何成为所有业务路由的汇总入口，`StatusResponse` 如何约束接口返回结构，以及 `/api/status` 如何把配置里的服务名、环境名和版本号返回给调用方。读完这一阶段后，读者应该能说清楚一个最小 API 服务从配置、应用入口、路由注册到接口响应之间的完整链路。
+​        本节的目标不是一次性把 API 做完整，而是把 **Hono（TypeScript）** 服务的骨架搭出来。对照仓库请打开 `backend/api-ts`：`createApp()` 如何创建应用，`/api` 如何成为所有业务路由的汇总入口，以及 `/api/status` 如何把配置里的服务名、环境名和版本号返回给调用方。不要再写 FastAPI。
 
 ### 3.1.2 最终效果
 
@@ -51,7 +53,7 @@ atlas-redis
 浏览器或 curl
   |
   v
-FastAPI
+Hono (backend/api-ts)
   |
   v
 /api/status
@@ -61,9 +63,9 @@ FastAPI
 
 ### 3.1.4 本节技术方案
 
-​        本节选择 FastAPI 作为后端框架。
+​        本节选择 **Hono + TypeScript** 作为后端框架（代码在 `backend/api-ts`）。
 
-​        如果只是为了返回一个 JSON，Python 标准库或者 Flask 都能完成任务。但 AtlasAgent 后续不是一个普通的 CRUD 服务，它要持续推送 Agent 执行事件，要查询后台任务状态，要调用 Sandbox、浏览器、Shell、搜索和 MCP 等外部能力，还会在前端保持长时间的交互状态。FastAPI 对异步接口、Pydantic 数据模型和接口文档的支持比较自然，用它作为后端入口，后面扩展 SSE、后台任务和工具调用时会更顺。
+​        如果只是为了返回一个 JSON，Express 也能完成任务。但 AtlasAgent 要持续推送 Agent 执行事件、长时间 SSE、以及和沙箱协作。Hono 对 Web 标准 Request/Response 和流式输出很薄，和现有 Next.js 前端同属一套语言。不要再新建 Python 服务。
 
 ​        这一阶段的技术方案可以理解为四层小闭环。最底层是配置模块，`Settings` 从环境变量和 `.env` 中读取服务名、环境名、版本号和 API 前缀。再往上是应用入口，`create_app()` 创建 FastAPI 实例，并把统一路由挂到 `settings.api_prefix` 下面。第三层是路由，`api_router` 汇总具体业务路由，当前只挂载 `status.router`。最外层是 Docker Compose，它负责把 API 构建成容器，并通过健康检查持续访问 `/api/status`，确认服务真的能响应。
 

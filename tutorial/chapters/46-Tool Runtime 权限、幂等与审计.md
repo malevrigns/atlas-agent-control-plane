@@ -1,5 +1,7 @@
 # 第四十六章. Tool Runtime 权限、幂等与审计
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 46.1 本章目标
 
 第 12 章的工具协议解决了“模型如何看到工具和参数”。这还不足以支撑生产级执行，因为它没有回答：谁允许调用、风险有多高、重试会不会重复产生副作用、大输出放在哪里、出错后如何审计。

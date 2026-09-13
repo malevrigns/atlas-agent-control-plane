@@ -1,5 +1,7 @@
 # 第五十一章. Skill 注册中心与上下文注入
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 51.1 本章目标
 
 上一章解决了"Agent 怎么读团队的资料"。这一章解决另一个问题：**Agent 怎么按团队的规矩做事**。

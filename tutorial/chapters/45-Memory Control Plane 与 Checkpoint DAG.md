@@ -1,5 +1,7 @@
 # 第四十五章. Memory Control Plane 与 Checkpoint DAG
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 45.1 本章目标
 
 前面的记忆系统已经能存储和检索信息，但复杂 Agent 任务还有一个更难的问题：进程重启、上下文裁剪或长时间中断之后，系统如何知道“真正做到哪里”？

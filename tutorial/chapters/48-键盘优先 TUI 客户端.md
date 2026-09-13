@@ -1,5 +1,7 @@
 # 第四十八章. 键盘优先 TUI 客户端
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 48.1 本章目标
 
 在 SSH、低带宽、远程服务器和键盘工作流中，Web 都不是最短路径。本章使用 Textual 提供一个独立 Python TUI，它与其他客户端复用同一套 API，不把业务逻辑复制到终端。

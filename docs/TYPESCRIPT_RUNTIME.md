@@ -1,8 +1,8 @@
-# TypeScript runtime (in progress)
+# TypeScript runtime
 
-The production control plane is being rewritten from FastAPI to **Hono + Drizzle** without changing the HTTP/SSE/auth contract the web workbench and TUI already speak.
+The control plane and sandbox **run on TypeScript** (Hono + Drizzle). HTTP/SSE/auth contracts match what the web workbench and TUI already speak. The 62-chapter tutorial now says the same: each chapter opens with a pointer to `backend/api-ts` / `backend/sandbox-ts`.
 
-| Python (current default) | TypeScript (this slice) |
+| Legacy Python (not the runtime) | TypeScript (runtime) |
 |---|---|
 | `backend/api` | `backend/api-ts` |
 | `app/core` | `src/core` |

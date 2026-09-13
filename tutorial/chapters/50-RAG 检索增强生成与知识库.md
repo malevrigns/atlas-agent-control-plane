@@ -1,5 +1,7 @@
 # 第五十章. RAG 检索增强生成与知识库
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 50.1 本章目标
 
 到第四十九章为止，AtlasAgent 已经有了会话、工具、沙箱、类型化长期记忆和 Checkpoint。但它仍然缺少一项在真实业务里几乎必备的能力：**让 Agent 读团队自己的资料**。

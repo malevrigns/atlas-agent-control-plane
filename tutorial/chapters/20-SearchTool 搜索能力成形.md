@@ -1,5 +1,7 @@
 # 第二十章. SearchTool 搜索能力成形
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 20.1 本章目标
 ​        前面几章已经让 Agent 具备了读写文件、执行 Shell、打开浏览器、截图观察以及查看 VNC 桌面的能力。到这里为止，它已经可以在一个受控环境里完成很多本地任务，但它仍然缺少一种非常基础的外部感知能力：主动搜索公开网页资料。真实的 Agent 不可能只依赖用户输入和已有上下文，它需要在遇到“最新版本”“官方说明”“某个库的使用方式”“某个问题的背景资料”时，把搜索作为一种可调用工具纳入执行流程。
 ​        本章的目标，就是把搜索能力做成 `search_web` 工具。它不是在模型提示词里简单告诉模型“你可以搜索”，而是在后端明确增加搜索领域模型、Bing Web Search 适配器、工具注册逻辑、ReAct 触发规则和前端预览渲染。这样做完以后，搜索会像 FileTool、ShellTool、BrowserTool 一样进入同一套工具协议：有工具名称，有参数，有输出，有 `tool_called` 事件，也有右侧工具预览面板里的可观察结果。

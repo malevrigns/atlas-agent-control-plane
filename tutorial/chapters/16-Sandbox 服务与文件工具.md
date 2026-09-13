@@ -1,11 +1,13 @@
 # 第十六章. Sandbox 服务与文件工具
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 ## 16.1 Sandbox 服务骨架初成
 
 ### 16.1.1 本节目标
 ​        学完本节后，你应该能把 Agent 系统里的“业务编排”和“执行环境”分开看待。
 ​        前面章节已经让主 API 拥有了会话、任务、计划、事件和上下文能力，但这些能力仍然主要发生在业务层。真正的 Agent 一旦开始执行工具，就会碰到文件、命令、浏览器、截图、下载和进程管理。它们不适合直接塞进主 API 进程里，因为执行环境越复杂，主 API 越容易被阻塞、污染或拖垮。
-​        因此，本节的目标不是马上做一个很强的工具系统，而是先搭出 Sandbox 服务骨架。你会创建一个独立的 FastAPI 沙箱服务，为它准备 `pydantic-settings` 配置、统一响应、统一异常、状态检查接口和 Supervisor 状态接口，再把它接入 Docker Compose 与 Nginx。到这一阶段结束时，项目会从“一个主 API 加前端”走向“主 API 负责调度，Sandbox 负责执行环境”的多服务架构。
+​        因此，本节的目标不是马上做一个很强的工具系统，而是先搭出 Sandbox 服务骨架。对照仓库请打开 `backend/sandbox-ts`：独立的 Hono 沙箱、统一响应、状态检查和 VNC 状态接口，再把它接入 Docker Compose 与 Nginx。不要再写 FastAPI 沙箱。
 
 ### 16.1.2 最终效果
 ​        本节结束后，项目会新增一个独立服务：

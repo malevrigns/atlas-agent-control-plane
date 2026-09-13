@@ -1,5 +1,7 @@
 # 第二章. Docker Compose 基础设施奠基
 
+> **现行代码是 TypeScript。** 对照实现请看 `backend/api-ts`（Hono + Drizzle）和 `backend/sandbox-ts`，不要再新建 Python 服务。本章若出现 FastAPI / uvicorn / uv / SQLAlchemy，那是演进史上的设计讨论；动手以 TypeScript 目录和 [TYPESCRIPT_RUNTIME.md](../../docs/TYPESCRIPT_RUNTIME.md) 为准。
+
 **本章目标**
 
 ​        学完本章后，你将能够：
@@ -52,7 +54,7 @@ atlas-redis
 
 ​        展开来看，第一，使用 `services` 定义 `postgres` 和 `redis` 两个服务；第二，使用 `volumes` 保存数据库和 Redis 数据；第三，使用 `networks` 创建统一的容器网络；第四，使用 `healthcheck` 判断服务是否真正可用。这些点放在一起看，构成了本章叙述中需要连续理解的一条线索，而不是彼此孤立的项目清单。
 
-​        第 3 章会在这个基础上加入 FastAPI 服务，并让 API 容器和数据库、Redis 处在同一个网络里。
+​        第 3 章会在这个基础上加入 TypeScript API 容器。现行 Compose 构建的是 `backend/api-ts`，用 SQLite 文件库，启动不再依赖 Python。
 
 ## 2.4 新增和修改的文件
 
